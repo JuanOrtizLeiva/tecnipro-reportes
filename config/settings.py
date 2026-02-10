@@ -30,5 +30,12 @@ if not OUTPUT_PATH.is_absolute():
 if not SQLITE_PATH.is_absolute():
     SQLITE_PATH = PROJECT_ROOT / SQLITE_PATH
 
+# ── Scraper SENCE (Fase 2) ─────────────────────────────────
+CLAVE_UNICA_RUT = os.getenv("CLAVE_UNICA_RUT", "")
+CLAVE_UNICA_PASSWORD = os.getenv("CLAVE_UNICA_PASSWORD", "")
+SCRAPER_HEADLESS = os.getenv("SCRAPER_HEADLESS", "true").lower() == "true"
+SCRAPER_TIMEOUT = int(os.getenv("SCRAPER_TIMEOUT", "30000"))
+SCREENSHOTS_PATH = OUTPUT_PATH / "screenshots"
+
 # ── Logging ────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

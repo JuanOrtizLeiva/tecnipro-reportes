@@ -1,5 +1,14 @@
-"""Orquestador principal — ejecuta el pipeline completo de procesamiento."""
+"""Orquestador principal — ejecuta el pipeline completo de procesamiento.
 
+Modos de ejecución:
+    python -m src.main              → solo pipeline (comportamiento Fase 1)
+    python -m src.main --scrape     → scraper SENCE + pipeline
+    python -m src.main --scrape-only → solo scraper sin pipeline
+    python -m src.main --visible    → (con --scrape) muestra el navegador
+"""
+
+import argparse
+import asyncio
 import logging
 import sys
 
@@ -14,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
+def run_pipeline():
     """Ejecuta el pipeline completo: ingest → transform → output."""
     logger.info("=" * 60)
     logger.info("Iniciando procesamiento Tecnipro Reportes")
@@ -63,7 +72,6 @@ def main():
         merge_compradores,
     )
     from src.transform.calculator import calcular_campos
-    import pandas as pd
 
     # 2a. Cruzar SENCE con Dreporte
     if df_sence is not None and not df_sence.empty:
@@ -114,6 +122,57 @@ def main():
     logger.info("=" * 60)
 
     return datos_json
+
+
+async def run_scraper(headless=True):
+    """Ejecuta el scraper SENCE y retorna el reporte."""
+    from src.scraper.orchestrator import ScraperOrchestrator
+
+    orchestrator = ScraperOrchestrator(headless=headless)
+    report = await orchestrator.run()
+    return report
+
+
+def main():
+    """Punto de entrada principal con soporte de argumentos."""
+    parser = argparse.ArgumentParser(description="Tecnipro Reportes")
+    parser.add_argument(
+        "--scrape",
+        action="store_true",
+        help="Ejecutar scraper SENCE antes del pipeline",
+    )
+    parser.add_argument(
+        "--scrape-only",
+        action="store_true",
+        help="Ejecutar solo el scraper SENCE (sin pipeline)",
+    )
+    parser.add_argument(
+        "--visible",
+        action="store_true",
+        help="Mostrar el navegador durante el scraping (headless=False)",
+    )
+    args = parser.parse_args()
+
+    headless = not args.visible
+
+    if args.scrape or args.scrape_only:
+        logger.info("Modo scraper activado (headless=%s)", headless)
+        report = asyncio.run(run_scraper(headless=headless))
+
+        if args.scrape_only:
+            # Solo scraper, no ejecutar pipeline
+            ok = len(report.get("descargados_ok", []))
+            fail = len(report.get("fallidos", []))
+            logger.info("Scraper finalizado: %d OK, %d fallidos", ok, fail)
+            return report
+
+        # --scrape: continuar con pipeline si hubo descargas
+        if report.get("pipeline_fase1") == "OK":
+            logger.info("Pipeline Fase 1 ya ejecutado por el orquestador")
+            return report
+
+    # Modo por defecto: solo pipeline
+    return run_pipeline()
 
 
 if __name__ == "__main__":
