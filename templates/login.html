@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresar - Instituto Tecnipro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --white: #ffffff;
+            --blue-600: #2563eb;
+            --blue-500: #3b82f6;
+            --red-600: #dc2626;
+            --red-100: #fee2e2;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.06);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--slate-900) 0%, var(--slate-800) 60%, #1a365d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .logo-box {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-box .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 220px;
+            height: 60px;
+            background: rgba(255,255,255,.95);
+            border-radius: var(--radius);
+            font-weight: 700;
+            font-size: .75rem;
+            color: var(--slate-800);
+            letter-spacing: .3px;
+            text-align: center;
+            line-height: 1.3;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .login-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .login-card h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--slate-800);
+            text-align: center;
+            margin-bottom: .35rem;
+        }
+
+        .login-card .subtitle {
+            font-size: .88rem;
+            color: var(--slate-500);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--slate-700);
+            margin-bottom: .4rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: .85rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate-400);
+            font-size: .88rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: .7rem .85rem .7rem 2.5rem;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-xs);
+            font-size: .92rem;
+            font-family: inherit;
+            color: var(--slate-700);
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--blue-500);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+        }
+
+        .form-control::placeholder {
+            color: var(--slate-400);
+        }
+
+        .error-message {
+            background: var(--red-100);
+            color: var(--red-600);
+            padding: .65rem 1rem;
+            border-radius: var(--radius-xs);
+            font-size: .85rem;
+            font-weight: 500;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: .75rem;
+            background: var(--blue-600);
+            color: white;
+            border: none;
+            border-radius: var(--radius-xs);
+            font-size: .95rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            transition: background .2s, box-shadow .2s;
+        }
+
+        .btn-login:hover {
+            background: var(--blue-500);
+            box-shadow: 0 4px 12px rgba(37,99,235,.3);
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: rgba(255,255,255,.6);
+            font-size: .85rem;
+            text-decoration: none;
+            transition: color .2s;
+        }
+
+        .back-link:hover {
+            color: rgba(255,255,255,.9);
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 2rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-box">
+            <div class="logo">Instituto de Capacitaciones<br>Tecnipro</div>
+        </div>
+
+        <div class="login-card">
+            <h2>Ingresar al Sistema</h2>
+            <p class="subtitle">Panel de Gestión de Capacitación</p>
+
+            {% if error %}
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <label for="email">Correo electrónico</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" class="form-control" id="email" name="email"
+                               placeholder="usuario@ejemplo.cl" required autofocus
+                               value="{{ email or '' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" class="form-control" id="password" name="password"
+                               placeholder="Ingrese su contraseña" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Ingresar
+                </button>
+            </form>
+        </div>
+
+        <a href="https://www.tecnipro.cl" class="back-link">
+            <i class="fas fa-arrow-left"></i> Volver a www.tecnipro.cl
+        </a>
+    </div>
+</body>
+</html>

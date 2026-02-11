@@ -1,4 +1,8 @@
-"""Tests para el servidor web Flask (Fase 3.5)."""
+"""Tests para el servidor web Flask (Fase 3.5).
+
+Nota: Estos tests usan LOGIN_DISABLED=True para testear funcionalidad web
+sin autenticación. Los tests de autenticación están en test_auth.py.
+"""
 
 import json
 import sys
@@ -97,13 +101,14 @@ def json_file(tmp_path, sample_json_data):
 
 @pytest.fixture
 def app_client(json_file, tmp_path):
-    """Crea un test client de Flask con datos de prueba."""
+    """Crea un test client de Flask con datos de prueba (login deshabilitado)."""
     with patch("config.settings.JSON_DATOS_PATH", json_file), \
          patch("config.settings.TEMPLATES_PATH",
                Path(__file__).resolve().parent.parent / "templates"):
         from src.web.app import create_app
         app = create_app()
         app.config["TESTING"] = True
+        app.config["LOGIN_DISABLED"] = True
         with app.test_client() as client:
             yield client
 
@@ -118,6 +123,7 @@ def app_client_no_json(tmp_path):
         from src.web.app import create_app
         app = create_app()
         app.config["TESTING"] = True
+        app.config["LOGIN_DISABLED"] = True
         with app.test_client() as client:
             yield client
 

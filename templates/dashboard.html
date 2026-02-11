@@ -535,10 +535,19 @@
                     <p>Instituto de Capacitación Tecnipro · Panel de Control</p>
                 </div>
             </div>
-            <div class="header-meta">
-                <span><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
-                <span><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                <span><i class="fas fa-database"></i> Datos actualizados: <strong id="dataDate">10/02/2026</strong></span>
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                <div class="header-meta">
+                    <span><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
+                    <span><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
+                    <span><i class="fas fa-database"></i> Datos actualizados: <strong id="dataDate">—</strong></span>
+                </div>
+                <div class="header-meta" id="userInfo" style="display:none;">
+                    <span><i class="fas fa-user"></i> <strong id="userName"></strong> <span id="userRole" style="opacity:.6;font-size:.75rem;"></span></span>
+                    <span style="display:flex;gap:.75rem;">
+                        <a href="https://www.tecnipro.cl" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;"><i class="fas fa-arrow-left"></i> tecnipro.cl</a>
+                        <a href="/logout" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+                    </span>
+                </div>
             </div>
         </div>
     </header>
@@ -645,6 +654,7 @@ www.institutotecnipro.cl</textarea>
 // DATA — loaded dynamically from /api/datos
 // ═══════════════════════════════════════════════════════
 let DATA = null;
+let CURRENT_USER = null; // loaded from /api/me
 
 // ═══════════════════════════════════════════════════════
 // FIELD MAPPING: real JSON → dashboard field names
@@ -683,11 +693,33 @@ let sortState = {}; // courseId -> { field, asc }
 // ═══════════════════════════════════════════════════════
 // INIT — load data from API
 // ═══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     updateClock();
     setInterval(updateClock, 60000);
+    await loadUserInfo();
     loadData();
 });
+
+async function loadUserInfo() {
+    try {
+        const resp = await fetch('/api/me');
+        if (resp.ok) {
+            CURRENT_USER = await resp.json();
+            document.getElementById('userName').textContent = CURRENT_USER.nombre;
+            document.getElementById('userRole').textContent =
+                CURRENT_USER.rol === 'admin' ? '(Admin)' : `(${CURRENT_USER.nombre})`;
+            document.getElementById('userInfo').style.display = '';
+
+            // Hide email controls for non-admin
+            if (CURRENT_USER.rol !== 'admin') {
+                document.getElementById('fabEmail').style.display = 'none';
+                document.getElementById('emailModalOverlay').style.display = 'none';
+            }
+        }
+    } catch (e) {
+        // If /api/me fails, user info section stays hidden
+    }
+}
 
 async function loadData() {
     // Show loading state
@@ -911,10 +943,10 @@ function renderCourses() {
                 </div>
                 <div class="table-actions">
                     <div class="table-actions-left">
-                        <label class="select-all-label">
+                        ${CURRENT_USER && CURRENT_USER.rol === 'admin' ? `<label class="select-all-label">
                             <input type="checkbox" onchange="toggleSelectAll(this,'${course.id_moodle}')">
                             Seleccionar todos
-                        </label>
+                        </label>` : ''}
                     </div>
                     <div style="font-size:.8rem;color:var(--slate-500);">
                         Empresa: <strong>${course.comprador?.empresa||'Sin asignar'}</strong>
@@ -925,7 +957,7 @@ function renderCourses() {
                     <table>
                         <thead>
                             <tr>
-                                <th style="width:36px;"></th>
+                                ${CURRENT_USER && CURRENT_USER.rol === 'admin' ? '<th style="width:36px;"></th>' : ''}
                                 <th onclick="sortTable('${course.id_moodle}','nombre')">Participante <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','rut')">RUT <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','email')">Correo <span class="sort-icon">⇅</span></th>
@@ -962,12 +994,13 @@ function renderStudentRows(course) {
         const djText = s.sence && s.sence.estado_dj ? s.sence.estado_dj : '—';
         const djColor = djText === 'Emitida' ? 'var(--green-600)' : 'var(--slate-400)';
 
+        const isAdmin = CURRENT_USER && CURRENT_USER.rol === 'admin';
         return `
         <tr data-student-idx="${i}" class="${isSelected?'selected':''}">
-            <td class="cb-cell">
+            ${isAdmin ? `<td class="cb-cell">
                 <input type="checkbox" ${isSelected?'checked':''}
                     onchange="toggleStudent(this,'${course.id_moodle}',${i})">
-            </td>
+            </td>` : ''}
             <td><strong>${s.nombre}</strong></td>
             <td class="rut-cell">${s.rut}</td>
             <td class="email-cell" title="${s.email}">${s.email}</td>

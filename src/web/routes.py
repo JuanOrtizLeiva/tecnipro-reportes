@@ -6,9 +6,11 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-from flask import jsonify, render_template, request
+from flask import jsonify, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 
 from config import settings
+from src.web.auth import check_login_rate_limit, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +36,82 @@ def _check_rate_limit(ip):
 def register_routes(app):
     """Registra todas las rutas en la app Flask."""
 
+    # ── Login / Logout ────────────────────────────────────
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        """Página de login."""
+        # Si ya está logueado, redirigir al dashboard
+        if current_user.is_authenticated:
+            return redirect(url_for("index"))
+
+        if request.method == "GET":
+            return render_template("login.html")
+
+        # POST: verificar credenciales
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        # Rate limiting
+        client_ip = request.remote_addr or "unknown"
+        if check_login_rate_limit(client_ip):
+            return render_template(
+                "login.html",
+                error="Demasiados intentos. Espere 15 minutos.",
+                email=email,
+            ), 429
+
+        if not email or not password:
+            return render_template(
+                "login.html",
+                error="Ingrese correo y contraseña.",
+                email=email,
+            )
+
+        user = verify_password(email, password)
+        if user is None:
+            return render_template(
+                "login.html",
+                error="Credenciales inválidas.",
+                email=email,
+            )
+
+        login_user(user, remember=True)
+        session.permanent = True
+        logger.info("Login exitoso: %s (%s)", user.email, user.rol)
+        return redirect(url_for("index"))
+
+    @app.route("/logout")
+    def logout():
+        """Destruye sesión y redirige al login."""
+        if current_user.is_authenticated:
+            logger.info("Logout: %s", current_user.email)
+        logout_user()
+        session.clear()
+        return redirect(url_for("login"))
+
+    # ── Dashboard ─────────────────────────────────────────
+
     @app.route("/")
+    @login_required
     def index():
         """Sirve el dashboard HTML."""
         return render_template("dashboard.html")
 
+    # ── API: info del usuario ─────────────────────────────
+
+    @app.route("/api/me")
+    @login_required
+    def api_me():
+        """Retorna información del usuario actual."""
+        return jsonify(current_user.to_dict())
+
+    # ── API: datos ────────────────────────────────────────
+
     @app.route("/api/datos")
+    @login_required
     def api_datos():
-        """Retorna datos_procesados.json."""
+        """Retorna datos_procesados.json, filtrado por rol."""
         json_path = settings.JSON_DATOS_PATH
         if not json_path.exists():
             return jsonify({
@@ -52,11 +122,31 @@ def register_routes(app):
         with open(json_path, "r", encoding="utf-8") as f:
             datos = json.load(f)
 
-        return jsonify(datos)
+        # Admin (or unauthenticated when LOGIN_DISABLED) ve todo
+        if not current_user.is_authenticated or current_user.rol == "admin":
+            return jsonify(datos)
+
+        # Comprador: filtrar solo sus cursos
+        cursos_filtrados = [
+            c for c in datos.get("cursos", [])
+            if int(c.get("id_moodle", 0)) in current_user.cursos
+        ]
+        datos_filtrados = {
+            "metadata": dict(datos.get("metadata", {})),
+            "cursos": cursos_filtrados,
+        }
+        # Recalcular metadata
+        datos_filtrados["metadata"]["total_cursos"] = len(cursos_filtrados)
+        datos_filtrados["metadata"]["total_estudiantes"] = sum(
+            len(c.get("estudiantes", [])) for c in cursos_filtrados
+        )
+        return jsonify(datos_filtrados)
+
+    # ── API: health (pública) ─────────────────────────────
 
     @app.route("/api/health")
     def api_health():
-        """Health check."""
+        """Health check — público, no requiere autenticación."""
         json_path = settings.JSON_DATOS_PATH
         fecha_datos = None
         if json_path.exists():
@@ -69,9 +159,16 @@ def register_routes(app):
             "fecha_datos": fecha_datos,
         })
 
+    # ── API: enviar correo (solo admin) ───────────────────
+
     @app.route("/api/enviar-correo", methods=["POST"])
+    @login_required
     def api_enviar_correo():
-        """Envía correo a participantes seleccionados."""
+        """Envía correo a participantes seleccionados. Solo admin."""
+        # Solo admin puede enviar correos
+        if current_user.is_authenticated and current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
         # Rate limiting
         client_ip = request.remote_addr or "unknown"
         if _check_rate_limit(client_ip):

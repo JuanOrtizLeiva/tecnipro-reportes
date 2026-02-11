@@ -63,6 +63,22 @@ ONEDRIVE_COMPRADORES_FOLDER = os.getenv(
     "Control Cursos Abiertos/Reporteria",
 )
 
+# ── Autenticación (Fase 4) ────────────────────────────────
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    import secrets as _secrets
+    SECRET_KEY = _secrets.token_hex(32)
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "SECRET_KEY no configurada — usando clave aleatoria temporal"
+    )
+SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "24"))
+USUARIOS_PATH = Path(os.getenv(
+    "USUARIOS_PATH", "./data/config/usuarios.json"
+))
+if not USUARIOS_PATH.is_absolute():
+    USUARIOS_PATH = PROJECT_ROOT / USUARIOS_PATH
+
 # ── Dashboard Web (Fase 3.5) ──────────────────────────────
 WEB_PORT = int(os.getenv("WEB_PORT", "5000"))
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")

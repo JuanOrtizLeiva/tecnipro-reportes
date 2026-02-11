@@ -1,11 +1,13 @@
 """Servidor web Flask para el dashboard de Tecnipro."""
 
 import logging
+from datetime import timedelta
 
 from flask import Flask
 from flask_cors import CORS
 
 from config import settings
+from src.web.auth import login_manager
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +19,26 @@ def create_app():
         template_folder=str(settings.TEMPLATES_PATH),
     )
 
+    # Secret key para sesiones
+    app.secret_key = settings.SECRET_KEY
+
+    # Configuración de sesión
+    app.config["REMEMBER_COOKIE_DURATION"] = timedelta(
+        hours=settings.SESSION_LIFETIME_HOURS
+    )
+    app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+    app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
+        hours=settings.SESSION_LIFETIME_HOURS
+    )
+
     # CORS: solo localhost por defecto
     CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*"])
+
+    # Flask-Login
+    login_manager.init_app(app)
 
     # Security headers
     @app.after_request
