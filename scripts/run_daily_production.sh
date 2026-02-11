@@ -141,6 +141,30 @@ if scraping_exitoso:
 
         {tabla_pdfs}
 
+        <div style=\"background: white; padding: 16px; margin: 20px 0; border: 1px solid #ddd; border-radius: 4px;\">
+            <p style=\"font-weight: bold; margin: 0 0 12px 0; color: #333;\">📁 Archivos fuente:</p>
+            <p style=\"margin: 0 0 8px 0; font-size: 14px; color: #555;\">
+                Los reportes se generan a partir de los siguientes archivos en OneDrive/SharePoint:
+            </p>
+            <ul style=\"margin: 8px 0; padding-left: 20px; font-size: 13px; color: #666;\">
+                <li style=\"margin-bottom: 8px;\">
+                    <strong>Greporte.csv</strong> y <strong>Dreporte.csv</strong>:<br/>
+                    <code style=\"background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;\">
+                        Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/Control Cursos Abiertos/Datos Moodle para control de cursos/
+                    </code>
+                </li>
+                <li>
+                    <strong>compradores_tecnipro.xlsx</strong>:<br/>
+                    <code style=\"background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;\">
+                        Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/Control Cursos Abiertos/Reporteria/
+                    </code>
+                </li>
+            </ul>
+            <p style=\"margin: 12px 0 0 0; font-size: 13px; color: #666; font-style: italic;\">
+                💡 Si los datos no se ven actualizados, verifique que estos archivos estén al día en OneDrive.
+            </p>
+        </div>
+
         <p style=\"color: #16a34a; font-weight: bold; margin-top: 16px;\">
             ✓ Todos los procesos completados exitosamente
         </p>
