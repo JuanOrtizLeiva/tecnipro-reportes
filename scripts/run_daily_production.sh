@@ -50,17 +50,24 @@ if [ $EXIT_CODE -eq 0 ]; then
 from src.reports.email_sender import enviar_correo
 from datetime import datetime
 
-asunto = 'Licitación y Compras Ágiles - Ejecutado Correctamente'
+asunto = 'Reportes Tecnipro - Proceso Ejecutado Correctamente'
 mensaje = f'''
 <html>
 <body style=\"font-family: Arial, sans-serif;\">
-    <h2 style=\"color: #16a34a;\">✅ Pipeline Ejecutado Exitosamente</h2>
+    <h2 style=\"color: #16a34a;\">✅ Proceso de Reportes Ejecutado Exitosamente</h2>
+    <p><strong>Sistema:</strong> Reportes de Alumnos y SENCE - Tecnipro</p>
     <p><strong>Fecha y hora:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (Chile)</p>
-    <p><strong>Sistema:</strong> Licitación y Compras Ágiles - Tecnipro Reportes</p>
     <p><strong>Estado:</strong> Completado sin errores</p>
+    <p><strong>Acciones realizadas:</strong></p>
+    <ul>
+        <li>Descarga de archivos Moodle desde OneDrive</li>
+        <li>Scraping de datos SENCE</li>
+        <li>Procesamiento de datos de alumnos</li>
+        <li>Generación de reportes PDF</li>
+    </ul>
     <hr>
     <p style=\"color: #666; font-size: 12px;\">
-        Este es un mensaje automático generado por el sistema de reportes Tecnipro.
+        Este es un mensaje automático del sistema reportes.tecnipro.cl
     </p>
 </body>
 </html>
