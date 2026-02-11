@@ -47,10 +47,19 @@ class SenceScraper:
         context = await self.browser.new_context(
             accept_downloads=True,
             locale="es-CL",
+            viewport={"width": 1920, "height": 1080},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            ),
+            extra_http_headers={
+                "Accept-Language": "es-CL,es;q=0.9,en;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            },
         )
         self.page = await context.new_page()
         self.page.set_default_timeout(settings.SCRAPER_TIMEOUT)
-        logger.info("Navegador iniciado (headless=%s)", self.headless)
+        logger.info("Navegador iniciado (headless=%s, user-agent=Chrome/131)", self.headless)
 
     async def run(self, sence_ids):
         """Ejecuta el scraping completo para la lista de IDs SENCE.

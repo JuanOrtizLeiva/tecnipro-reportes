@@ -152,7 +152,8 @@ resultado = enviar_correo(
 )
 
 if resultado['status'] == 'OK':
-    print(f'Notificación enviada: {'ÉXITO' if scraping_exitoso else 'ALERTA'}')
+    tipo = 'ÉXITO' if scraping_exitoso else 'ALERTA'
+    print(f'Notificación enviada: {tipo}')
 else:
     print(f'Error enviando notificación: {resultado[\"detalle\"]}')
 
