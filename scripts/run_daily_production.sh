@@ -74,12 +74,12 @@ mensaje = f'''
 '''
 
 resultado = enviar_correo(
-    destinatarios=['jortizleiva@duocapital.cl'],
+    destinatario='jortizleiva@duocapital.cl',
     asunto=asunto,
     cuerpo_html=mensaje
 )
 
-if resultado['exito']:
+if resultado['status'] == 'OK':
     print('Notificación enviada exitosamente')
 else:
     print(f'Error enviando notificación: {resultado[\"detalle\"]}')
