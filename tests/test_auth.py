@@ -249,6 +249,27 @@ class TestLogout:
         resp2 = auth_app_client.get("/api/me")
         assert resp2.status_code == 302  # redirige a login
 
+    def test_logout_clears_cookies(self, auth_app_client):
+        """Logout elimina cookies de sesión."""
+        _login_session(auth_app_client, "admin@test.cl")
+
+        # Verificar que tiene acceso antes de logout
+        resp_before = auth_app_client.get("/")
+        assert resp_before.status_code == 200
+
+        # Hacer logout
+        resp_logout = auth_app_client.get("/logout", follow_redirects=False)
+        assert resp_logout.status_code == 302
+
+        # Verificar que intenta eliminar cookies
+        set_cookie_headers = resp_logout.headers.getlist("Set-Cookie")
+        assert len(set_cookie_headers) > 0, "Should set cookies to delete them"
+
+        # Verificar que no puede acceder a rutas protegidas después de logout
+        resp_after = auth_app_client.get("/")
+        assert resp_after.status_code == 302
+        assert "/login" in resp_after.headers.get("Location", "")
+
 
 # ── Test 6: Protected routes ─────────────────────────────
 

@@ -76,8 +76,8 @@ def register_routes(app):
                 email=email,
             )
 
-        login_user(user, remember=True)
-        session.permanent = True
+        login_user(user, remember=False)  # No usar remember_me cookie
+        session.permanent = True  # Sesión permanente por SESSION_LIFETIME_HOURS
         logger.info("Login exitoso: %s (%s)", user.email, user.rol)
         return redirect(url_for("index"))
 
@@ -86,9 +86,22 @@ def register_routes(app):
         """Destruye sesión y redirige al login."""
         if current_user.is_authenticated:
             logger.info("Logout: %s", current_user.email)
+
+        # Cerrar sesión de Flask-Login
         logout_user()
+
+        # Limpiar sesión de Flask
         session.clear()
-        return redirect(url_for("login"))
+
+        # Crear respuesta y eliminar cookies explícitamente
+        response = redirect(url_for("login"))
+        response.delete_cookie("session")
+        response.delete_cookie("remember_token")
+
+        # También eliminar la cookie de sesión de Flask (por si tiene otro nombre)
+        response.set_cookie("session", "", expires=0)
+
+        return response
 
     # ── Dashboard ─────────────────────────────────────────
 
