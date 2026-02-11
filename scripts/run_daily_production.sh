@@ -70,13 +70,13 @@ fallidos = len(reporte.get('fallidos', []))
 solicitados = len(reporte.get('ids_solicitados', []))
 
 # Leer reporte de PDFs si existe
-pdfs_generados = 0
+pdfs_generados = []
 reportes_pdf = sorted(output_dir.glob('reports_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
 if reportes_pdf:
     try:
         with open(reportes_pdf[0], 'r', encoding='utf-8') as f:
             reporte_pdf = json.load(f)
-            pdfs_generados = reporte_pdf.get('pdfs_generados', 0)
+            pdfs_generados = reporte_pdf.get('pdfs_generados', [])
     except Exception:
         pass
 
@@ -84,7 +84,38 @@ if reportes_pdf:
 scraping_exitoso = descargados > 0 and descargados == solicitados
 
 if scraping_exitoso:
-    # EMAIL DE ÉXITO
+    # EMAIL DE ÉXITO - Preparar tabla de PDFs generados
+    pdfs_count = len(pdfs_generados)
+    tabla_pdfs = ''
+    if pdfs_generados:
+        filas_tabla = ''
+        for pdf in pdfs_generados:
+            filas_tabla += f'''
+            <tr>
+                <td style=\"padding: 8px; border: 1px solid #ddd;\">{pdf['empresa']}</td>
+                <td style=\"padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 12px;\">{pdf['archivo']}</td>
+                <td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{pdf['cursos']}</td>
+                <td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{pdf['estudiantes']}</td>
+            </tr>'''
+
+        tabla_pdfs = f'''
+        <div style=\"margin-top: 16px;\">
+            <p style=\"font-weight: bold; margin-bottom: 8px;\">Reportes PDF generados ({pdfs_count}):</p>
+            <table style=\"width: 100%; border-collapse: collapse; border: 1px solid #ddd; background: white;\">
+                <thead>
+                    <tr style=\"background-color: #16a34a; color: white;\">
+                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: left;\">Empresa</th>
+                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: left;\">Archivo</th>
+                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">Cursos</th>
+                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">Estudiantes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filas_tabla}
+                </tbody>
+            </table>
+        </div>'''
+
     asunto = '✅ OK: Reportes Tecnipro actualizados correctamente'
     mensaje = f'''
 <html>
@@ -106,8 +137,9 @@ if scraping_exitoso:
             <li>Archivos Moodle descargados desde OneDrive: ✅</li>
             <li>Datos SENCE actualizados: <strong>{descargados} de {solicitados} cursos</strong> ✅</li>
             <li>Datos de alumnos procesados: ✅</li>
-            <li>Reportes PDF generados: <strong>{pdfs_generados}</strong> ✅</li>
         </ul>
+
+        {tabla_pdfs}
 
         <p style=\"color: #16a34a; font-weight: bold; margin-top: 16px;\">
             ✓ Todos los procesos completados exitosamente
