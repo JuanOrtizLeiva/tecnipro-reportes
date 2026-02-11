@@ -434,3 +434,72 @@ class TestUserManagerRemove:
             from src.web.user_manager import remove_user
             result = remove_user("noexiste@test.cl")
             assert result is False
+
+
+# ── Test 17: Descargar Excel sin autenticación ────────
+
+class TestDescargarExcelRequiresAuth:
+    def test_descargar_excel_requires_auth(self, auth_app_client):
+        """GET /api/descargar-excel sin login redirige."""
+        resp = auth_app_client.get("/api/descargar-excel")
+        assert resp.status_code == 302
+        assert "/login" in resp.headers.get("Location", "")
+
+
+# ── Test 18: Descargar Excel admin ────────────────────
+
+class TestDescargarExcelAdmin:
+    def test_descargar_excel_admin(self, auth_app_client):
+        """Admin descarga Excel con todos los cursos."""
+        _login_session(auth_app_client, "admin@test.cl")
+        resp = auth_app_client.get("/api/descargar-excel")
+        assert resp.status_code == 200
+        assert resp.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert "Reporte_Tecnipro_" in resp.headers.get("Content-Disposition", "")
+
+
+# ── Test 19: Descargar Excel comprador ────────────────
+
+class TestDescargarExcelComprador:
+    def test_descargar_excel_comprador(self, auth_app_client):
+        """Comprador descarga Excel solo con sus cursos."""
+        _login_session(auth_app_client, "comprador@test.cl")
+        resp = auth_app_client.get("/api/descargar-excel")
+        assert resp.status_code == 200
+        assert resp.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        # Verificar que el Excel contiene solo el curso 140
+        from openpyxl import load_workbook
+        from io import BytesIO
+        wb = load_workbook(BytesIO(resp.data))
+        assert len(wb.sheetnames) == 1  # Solo 1 curso
+        assert "140" in wb.sheetnames[0]  # Nombre de hoja contiene "140"
+
+
+# ── Test 20: Descargar Excel con filtro ───────────────
+
+class TestDescargarExcelConFiltro:
+    def test_descargar_excel_con_filtro(self, auth_app_client):
+        """Excel se genera solo con los cursos especificados."""
+        _login_session(auth_app_client, "admin@test.cl")
+        resp = auth_app_client.get("/api/descargar-excel?cursos=140")
+        assert resp.status_code == 200
+
+        # Verificar que solo contiene el curso 140
+        from openpyxl import load_workbook
+        from io import BytesIO
+        wb = load_workbook(BytesIO(resp.data))
+        assert len(wb.sheetnames) == 1
+
+
+# ── Test 21: Descargar Excel sin cursos ───────────────
+
+class TestDescargarExcelSinCursos:
+    def test_descargar_excel_sin_cursos(self, auth_app_client):
+        """Si no hay cursos disponibles, retorna 404."""
+        _login_session(auth_app_client, "admin@test.cl")
+        # Filtrar por un curso que no existe
+        resp = auth_app_client.get("/api/descargar-excel?cursos=999")
+        assert resp.status_code == 404
+        data = resp.get_json()
+        assert "error" in data

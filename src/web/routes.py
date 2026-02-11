@@ -220,3 +220,156 @@ def register_routes(app):
             return jsonify({
                 "error": resultado["detalle"],
             }), 500
+
+    # ── API: descargar Excel ──────────────────────────────
+
+    @app.route("/api/descargar-excel")
+    @login_required
+    def api_descargar_excel():
+        """Genera y descarga un archivo Excel con los datos visibles."""
+        from datetime import datetime
+        from io import BytesIO
+        from flask import send_file
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+        # Cargar datos
+        json_path = settings.JSON_DATOS_PATH
+        if not json_path.exists():
+            return jsonify({"error": "No hay datos disponibles"}), 404
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+
+        # Filtrar por rol
+        cursos = datos.get("cursos", [])
+        if current_user.is_authenticated and current_user.rol == "comprador":
+            cursos = [c for c in cursos if int(c.get("id_moodle", 0)) in current_user.cursos]
+
+        # Filtrar por parámetro de query (cursos visibles)
+        cursos_param = request.args.get("cursos", "")
+        if cursos_param:
+            ids_visibles = set(cursos_param.split(","))
+            cursos = [c for c in cursos if c.get("id_moodle") in ids_visibles]
+
+        if not cursos:
+            return jsonify({"error": "No hay cursos para descargar"}), 404
+
+        # Crear workbook
+        wb = Workbook()
+        wb.remove(wb.active)  # Remover hoja por defecto
+
+        # Estilos
+        header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        title_font = Font(bold=True, size=13)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Crear una hoja por curso
+        for curso in cursos:
+            # Nombre de hoja (máximo 31 caracteres)
+            nombre_hoja = curso.get("nombre_corto", curso.get("id_moodle", "Curso"))[:31]
+            ws = wb.create_sheet(title=nombre_hoja)
+
+            # Header del curso (filas 1-3)
+            ws.merge_cells('A1:J1')
+            ws['A1'] = curso.get("nombre", "Sin nombre")
+            ws['A1'].font = title_font
+            ws['A1'].alignment = Alignment(horizontal='center')
+
+            ws.merge_cells('A2:J2')
+            info_curso = f"ID Moodle: {curso.get('id_moodle', '—')} | ID SENCE: {curso.get('id_sence', '—')} | {curso.get('fecha_inicio', '—')} a {curso.get('fecha_fin', '—')}"
+            ws['A2'] = info_curso
+            ws['A2'].alignment = Alignment(horizontal='center')
+
+            ws.merge_cells('A3:J3')
+            comprador = curso.get("comprador", {})
+            info_comprador = f"Comprador: {comprador.get('nombre', 'Sin asignar')} | {comprador.get('empresa', '')} | {comprador.get('email', '')}"
+            ws['A3'] = info_comprador
+            ws['A3'].alignment = Alignment(horizontal='center')
+
+            # Headers de columnas (fila 5)
+            headers = [
+                "Nombre", "RUT", "Correo", "Progreso (%)", "Calificación",
+                "Estado", "Riesgo", "Conexiones SENCE", "DJ", "Días sin acceso"
+            ]
+            for col_idx, header in enumerate(headers, start=1):
+                cell = ws.cell(row=5, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal='center')
+                cell.border = border
+
+            # Datos de estudiantes
+            estudiantes = curso.get("estudiantes", [])
+            for row_idx, est in enumerate(estudiantes, start=6):
+                sence = est.get("sence") or {}
+                estado_texto = {"A": "Aprobado", "R": "Reprobado", "P": "En proceso"}.get(est.get("estado", ""), "—")
+
+                valores = [
+                    est.get("nombre", ""),
+                    est.get("id", ""),
+                    est.get("email", ""),
+                    est.get("progreso", 0),
+                    est.get("calificacion", 0),
+                    estado_texto,
+                    est.get("riesgo", "").capitalize() or "—",
+                    sence.get("n_ingresos", 0) if sence else 0,
+                    sence.get("declaracion_jurada", "—") if sence else "—",
+                    est.get("dias_sin_ingreso", 0)
+                ]
+
+                for col_idx, valor in enumerate(valores, start=1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=valor)
+                    cell.border = border
+                    if col_idx in (4, 5):  # Progreso y Calificación
+                        cell.alignment = Alignment(horizontal='center')
+
+            # Fila de resumen
+            stats = curso.get("estadisticas", {})
+            row_resumen = len(estudiantes) + 7
+            ws.merge_cells(f'A{row_resumen}:B{row_resumen}')
+            ws[f'A{row_resumen}'] = "RESUMEN"
+            ws[f'A{row_resumen}'].font = Font(bold=True)
+
+            ws[f'C{row_resumen}'] = f"Total: {stats.get('total_estudiantes', 0)}"
+            ws[f'D{row_resumen}'] = f"Promedio: {stats.get('promedio_progreso', 0):.1f}%"
+            ws[f'E{row_resumen}'] = f"Promedio: {stats.get('promedio_calificacion', 0):.1f}"
+            ws[f'F{row_resumen}'] = f"A:{stats.get('aprobados', 0)} R:{stats.get('reprobados', 0)} P:{stats.get('en_proceso', 0)}"
+            ws[f'G{row_resumen}'] = f"Alto:{stats.get('riesgo_alto', 0)} Medio:{stats.get('riesgo_medio', 0)}"
+            ws[f'H{row_resumen}'] = f"Conectados: {stats.get('conectados_sence', 0)}"
+
+            # Ajustar anchos de columna
+            ws.column_dimensions['A'].width = 35
+            ws.column_dimensions['B'].width = 14
+            ws.column_dimensions['C'].width = 30
+            ws.column_dimensions['D'].width = 12
+            ws.column_dimensions['E'].width = 12
+            ws.column_dimensions['F'].width = 12
+            ws.column_dimensions['G'].width = 10
+            ws.column_dimensions['H'].width = 16
+            ws.column_dimensions['I'].width = 8
+            ws.column_dimensions['J'].width = 15
+
+        # Guardar en memoria
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        # Nombre del archivo
+        fecha_str = datetime.now().strftime("%Y%m%d")
+        filename = f"Reporte_Tecnipro_{fecha_str}.xlsx"
+
+        logger.info("Generando Excel: %s cursos para %s", len(cursos), current_user.email)
+
+        return send_file(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=filename
+        )

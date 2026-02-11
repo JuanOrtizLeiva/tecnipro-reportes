@@ -176,6 +176,49 @@
         }
         .btn-clear:hover { background: var(--slate-100); border-color: var(--slate-400); }
 
+        /* ── ACTION BUTTONS ── */
+        .btn-action {
+            padding: .55rem 1.1rem;
+            border-radius: var(--radius-xs);
+            font-size: .88rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all .2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            border: none;
+        }
+        .btn-back {
+            background: rgba(255,255,255,.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,.25);
+        }
+        .btn-back:hover {
+            background: rgba(255,255,255,.25);
+            border-color: rgba(255,255,255,.4);
+        }
+        .btn-logout {
+            background: rgba(239,68,68,.9);
+            color: white;
+            border: 1px solid rgba(220,38,38,.8);
+        }
+        .btn-logout:hover {
+            background: var(--red-600);
+            box-shadow: 0 4px 12px rgba(220,38,38,.3);
+        }
+        .btn-excel {
+            background: #217346;
+            color: white;
+            border: 1px solid #1d5f3a;
+        }
+        .btn-excel:hover {
+            background: #1a5c37;
+            box-shadow: 0 4px 12px rgba(33,115,70,.3);
+        }
+
         /* ── COURSE SECTIONS ── */
         .course-section {
             background: var(--white);
@@ -543,10 +586,14 @@
                 </div>
                 <div class="header-meta" id="userInfo" style="display:none;">
                     <span><i class="fas fa-user"></i> <strong id="userName"></strong> <span id="userRole" style="opacity:.6;font-size:.75rem;"></span></span>
-                    <span style="display:flex;gap:.75rem;">
-                        <a href="https://www.tecnipro.cl" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;"><i class="fas fa-arrow-left"></i> tecnipro.cl</a>
-                        <a href="/logout" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:.8rem;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
-                    </span>
+                </div>
+                <div style="display:flex;gap:.75rem;flex-wrap:wrap;" id="actionButtons" style="display:none;">
+                    <a href="https://www.tecnipro.cl" class="btn-action btn-back">
+                        <i class="fas fa-arrow-left"></i> Volver a Tecnipro
+                    </a>
+                    <a href="/logout" class="btn-action btn-logout">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </a>
                 </div>
             </div>
         </div>
@@ -592,6 +639,9 @@
             <input type="text" class="filter-input" id="filterSearch" placeholder="Buscar participante, RUT, correo...">
         </div>
         <button class="btn-clear" onclick="clearFilters()"><i class="fas fa-times"></i> Limpiar</button>
+        <button class="btn-action btn-excel" onclick="descargarExcel()" id="btnExcel">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+        </button>
     </div>
 
     <!-- COURSES -->
@@ -709,6 +759,7 @@ async function loadUserInfo() {
             document.getElementById('userRole').textContent =
                 CURRENT_USER.rol === 'admin' ? '(Admin)' : `(${CURRENT_USER.nombre})`;
             document.getElementById('userInfo').style.display = '';
+            document.getElementById('actionButtons').style.display = '';
 
             // Hide email controls for non-admin
             if (CURRENT_USER.rol !== 'admin') {
@@ -1215,6 +1266,28 @@ document.getElementById('emailModalOverlay').addEventListener('click', function(
 // Update preview on input changes
 document.getElementById('emailSubject')?.addEventListener('input', updateEmailPreview);
 document.getElementById('emailBody')?.addEventListener('input', updateEmailPreview);
+
+// ═══════════════════════════════════════════════════════
+// DESCARGAR EXCEL
+// ═══════════════════════════════════════════════════════
+function descargarExcel() {
+    // Obtener IDs de cursos visibles (aplicando filtros)
+    const cursosVisibles = [];
+    document.querySelectorAll('.course-section').forEach(section => {
+        if (section.style.display !== 'none') {
+            cursosVisibles.push(section.dataset.courseId);
+        }
+    });
+
+    // Construir URL con parámetros
+    let url = '/api/descargar-excel';
+    if (cursosVisibles.length > 0) {
+        url += '?cursos=' + cursosVisibles.join(',');
+    }
+
+    // Abrir URL para descargar
+    window.location.href = url;
+}
 </script>
 </body>
 </html>
