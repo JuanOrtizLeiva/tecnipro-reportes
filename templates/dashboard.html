@@ -81,34 +81,116 @@
             background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px),
                         repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px);
         }
-        .header-inner { display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; flex-wrap:wrap; gap:1rem; }
-        .header-left { display:flex; align-items:center; gap:1.5rem; }
+        .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            gap: 2rem;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex: 1;
+            min-width: 0;
+        }
         .logo-box {
-            width: 200px; height: 56px;
+            width: 200px;
+            height: 56px;
+            flex-shrink: 0;
             background: rgba(255,255,255,.95);
             border-radius: var(--radius);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: .72rem; color: var(--slate-800);
-            letter-spacing: .3px; text-align:center; line-height:1.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: .72rem;
+            color: var(--slate-800);
+            letter-spacing: .3px;
+            text-align: center;
+            line-height: 1.3;
             box-shadow: var(--shadow-md);
         }
-        .header-text h1 { font-size: 1.65rem; font-weight: 700; letter-spacing: -.02em; }
-        .header-text p { font-size: .9rem; opacity: .7; margin-top: .15rem; }
-        .header-meta {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            display: flex; flex-direction: column; align-items: flex-end; gap: .35rem;
+        .header-text {
+            flex: 1;
+            min-width: 0;
+        }
+        .header-text h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            margin-bottom: .25rem;
+        }
+        .header-text p {
+            font-size: .9rem;
+            opacity: .7;
+        }
+
+        /* Header Right Section */
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 1rem;
+        }
+
+        /* Info Cards Container */
+        .header-info {
+            display: flex;
+            gap: .75rem;
+            align-items: center;
+        }
+
+        /* Info Box Styles */
+        .info-box {
             background: rgba(255,255,255,.12);
             backdrop-filter: blur(12px);
-            padding: 1rem 1.5rem;
-            border-radius: var(--radius);
-            border: 1px solid rgba(255,255,255,.15);
-            font-size: .85rem;
-            box-shadow: var(--shadow-lg);
-            z-index: 10;
+            border: 1px solid rgba(255,255,255,.2);
+            border-radius: var(--radius-sm);
+            padding: .65rem 1rem;
+            font-size: .82rem;
+            display: flex;
+            flex-direction: column;
+            gap: .25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
         }
-        .header-meta span { display:flex; align-items:center; gap:.5rem; opacity:.9; }
+
+        .info-box-row {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            white-space: nowrap;
+        }
+
+        .info-box-row i {
+            opacity: .7;
+            width: 14px;
+            text-align: center;
+        }
+
+        .info-box strong {
+            font-weight: 600;
+        }
+
+        .user-role-badge {
+            display: inline-block;
+            background: rgba(255,255,255,.2);
+            padding: .15rem .5rem;
+            border-radius: 4px;
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            margin-left: .35rem;
+        }
+
+        /* Action Buttons Container */
+        .header-actions {
+            display: flex;
+            gap: .5rem;
+        }
 
         /* ── KPI CARDS ── */
         .kpi-grid {
@@ -542,10 +624,53 @@
         }
 
         /* ── RESPONSIVE ── */
+        @media (max-width: 1200px) {
+            .header-inner {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1.5rem;
+            }
+            .header-left {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .header-right {
+                align-items: center;
+            }
+            .header-info {
+                flex-direction: column;
+                width: 100%;
+            }
+            .info-box {
+                width: 100%;
+            }
+            .header-actions {
+                justify-content: center;
+                width: 100%;
+            }
+        }
+
         @media (max-width: 768px) {
             .app { padding:.75rem; }
             .header { padding:1.25rem; }
+            .header-inner { gap: 1rem; }
+            .header-left { gap: 1rem; }
+            .logo-box {
+                width: 160px;
+                height: 48px;
+                font-size: .65rem;
+            }
             .header-text h1 { font-size:1.2rem; }
+            .header-text p { font-size: .8rem; }
+            .info-box {
+                padding: .5rem .75rem;
+                font-size: .75rem;
+            }
+            .btn-action {
+                padding: .45rem .85rem;
+                font-size: .8rem;
+            }
             .kpi-grid { grid-template-columns: repeat(2,1fr); }
             .filters-bar { flex-direction:column; align-items:stretch; }
             .filter-input { width:100%; }
@@ -600,6 +725,7 @@
     <!-- HEADER -->
     <header class="header">
         <div class="header-inner">
+            <!-- Left Section: Logo + Title -->
             <div class="header-left">
                 <div class="logo-box">Instituto de Capacitaciones Tecnipro</div>
                 <div class="header-text">
@@ -607,16 +733,43 @@
                     <p>Instituto de Capacitación Tecnipro · Panel de Control</p>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-                <div class="header-meta">
-                    <span><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
-                    <span><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
-                    <span><i class="fas fa-database"></i> Datos actualizados: <strong id="dataDate">—</strong></span>
+
+            <!-- Right Section: User Info + Date/Time + Actions -->
+            <div class="header-right">
+                <!-- Info Cards Row -->
+                <div class="header-info">
+                    <!-- User Info Box -->
+                    <div class="info-box" id="userInfoBox" style="display:none;">
+                        <div class="info-box-row">
+                            <i class="fas fa-user"></i>
+                            <strong id="userName"></strong>
+                            <span class="user-role-badge" id="userRoleBadge"></span>
+                        </div>
+                    </div>
+
+                    <!-- Date/Time Info Box -->
+                    <div class="info-box">
+                        <div class="info-box-row">
+                            <i class="fas fa-calendar"></i>
+                            <span id="currentDate"></span>
+                        </div>
+                        <div class="info-box-row">
+                            <i class="fas fa-clock"></i>
+                            <span id="currentTime"></span>
+                        </div>
+                    </div>
+
+                    <!-- Data Update Info Box -->
+                    <div class="info-box">
+                        <div class="info-box-row">
+                            <i class="fas fa-database"></i>
+                            <span>Actualizado: <strong id="dataDate">—</strong></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="header-meta" id="userInfo" style="display:none;">
-                    <span><i class="fas fa-user"></i> <strong id="userName"></strong> <span id="userRole" style="opacity:.6;font-size:.75rem;"></span></span>
-                </div>
-                <div id="actionButtons" style="display:none;gap:.75rem;flex-wrap:wrap;">
+
+                <!-- Action Buttons Row -->
+                <div class="header-actions" id="headerActions" style="display:none;">
                     <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                         <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                     </a>
@@ -788,10 +941,10 @@ async function loadUserInfo() {
         if (resp.ok) {
             CURRENT_USER = await resp.json();
             document.getElementById('userName').textContent = CURRENT_USER.nombre;
-            document.getElementById('userRole').textContent =
-                CURRENT_USER.rol === 'admin' ? '(Admin)' : `(${CURRENT_USER.nombre})`;
-            document.getElementById('userInfo').style.display = '';
-            document.getElementById('actionButtons').style.display = 'flex';
+            document.getElementById('userRoleBadge').textContent =
+                CURRENT_USER.rol === 'admin' ? 'Admin' : 'Comprador';
+            document.getElementById('userInfoBox').style.display = '';
+            document.getElementById('headerActions').style.display = 'flex';
 
             // Hide email controls for non-admin
             if (CURRENT_USER.rol !== 'admin') {
