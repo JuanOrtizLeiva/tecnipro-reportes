@@ -468,12 +468,13 @@ class TestDescargarExcelComprador:
         assert resp.status_code == 200
         assert resp.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-        # Verificar que el Excel contiene solo el curso 140
+        # Verificar que el Excel contiene la hoja índice + solo el curso 140
         from openpyxl import load_workbook
         from io import BytesIO
         wb = load_workbook(BytesIO(resp.data))
-        assert len(wb.sheetnames) == 1  # Solo 1 curso
-        assert "140" in wb.sheetnames[0]  # Nombre de hoja contiene "140"
+        assert len(wb.sheetnames) == 2  # Índice + 1 curso
+        assert wb.sheetnames[0] == "Índice"  # Primera hoja es el índice
+        assert "140" in wb.sheetnames[1]  # Segunda hoja es el curso 140
 
 
 # ── Test 20: Descargar Excel con filtro ───────────────
@@ -485,11 +486,11 @@ class TestDescargarExcelConFiltro:
         resp = auth_app_client.get("/api/descargar-excel?cursos=140")
         assert resp.status_code == 200
 
-        # Verificar que solo contiene el curso 140
+        # Verificar que contiene índice + curso 140
         from openpyxl import load_workbook
         from io import BytesIO
         wb = load_workbook(BytesIO(resp.data))
-        assert len(wb.sheetnames) == 1
+        assert len(wb.sheetnames) == 2  # Índice + 1 curso filtrado
 
 
 # ── Test 21: Descargar Excel sin cursos ───────────────

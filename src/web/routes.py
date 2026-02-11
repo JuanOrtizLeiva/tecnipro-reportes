@@ -263,6 +263,7 @@ def register_routes(app):
         header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF", size=11)
         title_font = Font(bold=True, size=13)
+        subtitle_font = Font(size=11, italic=True)
         border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
@@ -270,11 +271,59 @@ def register_routes(app):
             bottom=Side(style='thin')
         )
 
-        # Crear una hoja por curso
-        for curso in cursos:
-            # Nombre de hoja (máximo 31 caracteres)
-            nombre_hoja = curso.get("nombre_corto", curso.get("id_moodle", "Curso"))[:31]
+        # Helper para sanear nombres de hoja (Excel no permite / \ ? * [ ] :)
+        def sanitizar_nombre_hoja(nombre):
+            nombre = nombre.replace('/', ' ').replace('\\', ' ')
+            nombre = nombre.replace('?', '').replace('*', '')
+            nombre = nombre.replace('[', '(').replace(']', ')')
+            nombre = nombre.replace(':', '-')
+            return nombre[:31]  # Límite de Excel
+
+        # Crear hoja índice
+        ws_index = wb.create_sheet(title="Índice", index=0)
+        ws_index['A1'] = "Instituto de Capacitaciones Tecnipro"
+        ws_index['A1'].font = Font(bold=True, size=16)
+        ws_index['A2'] = "Reporte de Capacitación"
+        ws_index['A2'].font = title_font
+        ws_index['A3'] = f"Fecha: {datetime.now().strftime('%d/%m/%Y')}"
+        ws_index['A3'].font = subtitle_font
+
+        # Headers de tabla índice
+        index_headers = ["N°", "ID Curso", "Nombre del Curso", "Participantes", "Progreso Promedio", "Aprobados", "Estado"]
+        for col_idx, header in enumerate(index_headers, start=1):
+            cell = ws_index.cell(row=5, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = border
+
+        # Crear hojas de cursos y llenar índice
+        for idx, curso in enumerate(cursos, start=1):
+            # Nombre de hoja: usar nombre corto o nombre completo (sanitizado)
+            nombre_base = curso.get("nombre_corto") or curso.get("nombre") or curso.get("id_moodle", "Curso")
+            nombre_hoja = sanitizar_nombre_hoja(nombre_base)
             ws = wb.create_sheet(title=nombre_hoja)
+
+            # Fila en índice (5 es header, 6 es primera fila de datos)
+            row_index = idx + 5
+            stats = curso.get("estadisticas", {})
+
+            # Llenar fila de índice
+            ws_index.cell(row=row_index, column=1, value=idx).border = border
+            ws_index.cell(row=row_index, column=2, value=curso.get("id_moodle", "")).border = border
+
+            # Nombre con hyperlink a la hoja del curso
+            cell_nombre = ws_index.cell(row=row_index, column=3, value=curso.get("nombre", "Sin nombre"))
+            cell_nombre.hyperlink = f"#{nombre_hoja}!A1"
+            cell_nombre.font = Font(color="0563C1", underline="single")
+            cell_nombre.border = border
+
+            ws_index.cell(row=row_index, column=4, value=stats.get("total_estudiantes", 0)).border = border
+            ws_index.cell(row=row_index, column=5, value=f"{stats.get('promedio_progreso', 0):.1f}%").border = border
+            ws_index.cell(row=row_index, column=6, value=stats.get("aprobados", 0)).border = border
+
+            estado_curso = "Activo" if curso.get("dias_restantes", 0) >= 0 else "Vencido"
+            ws_index.cell(row=row_index, column=7, value=estado_curso).border = border
 
             # Header del curso (filas 1-3)
             ws.merge_cells('A1:J1')
@@ -282,16 +331,19 @@ def register_routes(app):
             ws['A1'].font = title_font
             ws['A1'].alignment = Alignment(horizontal='center')
 
+            # Link de retorno al índice (fila 2)
             ws.merge_cells('A2:J2')
-            info_curso = f"ID Moodle: {curso.get('id_moodle', '—')} | ID SENCE: {curso.get('id_sence', '—')} | {curso.get('fecha_inicio', '—')} a {curso.get('fecha_fin', '—')}"
-            ws['A2'] = info_curso
+            ws['A2'] = "← Volver al Índice"
+            ws['A2'].hyperlink = "#Índice!A1"
+            ws['A2'].font = Font(color="0563C1", underline="single", size=10)
             ws['A2'].alignment = Alignment(horizontal='center')
 
+            # Info del curso (fila 3)
             ws.merge_cells('A3:J3')
-            comprador = curso.get("comprador", {})
-            info_comprador = f"Comprador: {comprador.get('nombre', 'Sin asignar')} | {comprador.get('empresa', '')} | {comprador.get('email', '')}"
-            ws['A3'] = info_comprador
+            info_curso = f"ID Moodle: {curso.get('id_moodle', '—')} | ID SENCE: {curso.get('id_sence', '—')} | {curso.get('fecha_inicio', '—')} a {curso.get('fecha_fin', '—')}"
+            ws['A3'] = info_curso
             ws['A3'].alignment = Alignment(horizontal='center')
+            ws['A3'].font = subtitle_font
 
             # Headers de columnas (fila 5)
             headers = [
@@ -355,6 +407,15 @@ def register_routes(app):
             ws.column_dimensions['H'].width = 16
             ws.column_dimensions['I'].width = 8
             ws.column_dimensions['J'].width = 15
+
+        # Ajustar anchos de columna de la hoja índice
+        ws_index.column_dimensions['A'].width = 5   # N°
+        ws_index.column_dimensions['B'].width = 10  # ID Curso
+        ws_index.column_dimensions['C'].width = 50  # Nombre (con hyperlink)
+        ws_index.column_dimensions['D'].width = 14  # Participantes
+        ws_index.column_dimensions['E'].width = 18  # Progreso Promedio
+        ws_index.column_dimensions['F'].width = 12  # Aprobados
+        ws_index.column_dimensions['G'].width = 12  # Estado
 
         # Guardar en memoria
         output = BytesIO()

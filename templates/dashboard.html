@@ -218,6 +218,30 @@
             background: #1a5c37;
             box-shadow: 0 4px 12px rgba(33,115,70,.3);
         }
+        .btn-excel-secondary {
+            background: #48bb78;
+            color: white;
+            border: 1px solid #38a169;
+        }
+        .btn-excel-secondary:hover {
+            background: #38a169;
+            box-shadow: 0 4px 12px rgba(72,187,120,.3);
+        }
+        .btn-excel-secondary:disabled {
+            background: var(--slate-300);
+            border-color: var(--slate-400);
+            color: var(--slate-500);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* ── COURSE CHECKBOXES ── */
+        .course-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin-right: .5rem;
+        }
 
         /* ── COURSE SECTIONS ── */
         .course-section {
@@ -587,7 +611,7 @@
                 <div class="header-meta" id="userInfo" style="display:none;">
                     <span><i class="fas fa-user"></i> <strong id="userName"></strong> <span id="userRole" style="opacity:.6;font-size:.75rem;"></span></span>
                 </div>
-                <div style="display:flex;gap:.75rem;flex-wrap:wrap;" id="actionButtons" style="display:none;">
+                <div id="actionButtons" style="display:none;gap:.75rem;flex-wrap:wrap;">
                     <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                         <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                     </a>
@@ -639,8 +663,11 @@
             <input type="text" class="filter-input" id="filterSearch" placeholder="Buscar participante, RUT, correo...">
         </div>
         <button class="btn-clear" onclick="clearFilters()"><i class="fas fa-times"></i> Limpiar</button>
-        <button class="btn-action btn-excel" onclick="descargarExcel()" id="btnExcel">
-            <i class="fas fa-file-excel"></i> Descargar Excel
+        <button class="btn-action btn-excel" onclick="descargarTodo()" id="btnExcelTodo">
+            <i class="fas fa-file-excel"></i> Descargar Todo
+        </button>
+        <button class="btn-action btn-excel-secondary" onclick="descargarSeleccion()" id="btnExcelSeleccion" disabled title="Seleccione al menos un curso">
+            <i class="fas fa-file-excel"></i> Descargar Selección (<span id="selectedCount">0</span>)
         </button>
     </div>
 
@@ -759,7 +786,7 @@ async function loadUserInfo() {
             document.getElementById('userRole').textContent =
                 CURRENT_USER.rol === 'admin' ? '(Admin)' : `(${CURRENT_USER.nombre})`;
             document.getElementById('userInfo').style.display = '';
-            document.getElementById('actionButtons').style.display = '';
+            document.getElementById('actionButtons').style.display = 'flex';
 
             // Hide email controls for non-admin
             if (CURRENT_USER.rol !== 'admin') {
@@ -967,6 +994,7 @@ function renderCourses() {
         <div class="course-section${ci===0?' open':''}" data-course-id="${course.id_moodle}">
             <div class="course-header" onclick="toggleCourse(this)">
                 <div class="course-header-left">
+                    <input type="checkbox" class="course-checkbox" data-course-id="${course.id_moodle}" onclick="event.stopPropagation(); updateSelectedCourses();">
                     <span class="course-indicator ${indicator}"></span>
                     <span class="course-title">${course.nombre}</span>
                 </div>
@@ -1270,7 +1298,7 @@ document.getElementById('emailBody')?.addEventListener('input', updateEmailPrevi
 // ═══════════════════════════════════════════════════════
 // DESCARGAR EXCEL
 // ═══════════════════════════════════════════════════════
-function descargarExcel() {
+function descargarTodo() {
     // Obtener IDs de cursos visibles (aplicando filtros)
     const cursosVisibles = [];
     document.querySelectorAll('.course-section').forEach(section => {
@@ -1287,6 +1315,39 @@ function descargarExcel() {
 
     // Abrir URL para descargar
     window.location.href = url;
+}
+
+function descargarSeleccion() {
+    // Obtener IDs de cursos seleccionados
+    const cursosSeleccionados = [];
+    document.querySelectorAll('.course-checkbox:checked').forEach(checkbox => {
+        cursosSeleccionados.push(checkbox.dataset.courseId);
+    });
+
+    if (cursosSeleccionados.length === 0) {
+        alert('Seleccione al menos un curso para descargar');
+        return;
+    }
+
+    // Construir URL con parámetros
+    const url = '/api/descargar-excel?cursos=' + cursosSeleccionados.join(',');
+    window.location.href = url;
+}
+
+function updateSelectedCourses() {
+    // Contar checkboxes seleccionados
+    const count = document.querySelectorAll('.course-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = count;
+
+    // Habilitar/deshabilitar botón de descarga selección
+    const btnSeleccion = document.getElementById('btnExcelSeleccion');
+    if (count > 0) {
+        btnSeleccion.disabled = false;
+        btnSeleccion.title = `Descargar ${count} curso${count > 1 ? 's' : ''} seleccionado${count > 1 ? 's' : ''}`;
+    } else {
+        btnSeleccion.disabled = true;
+        btnSeleccion.title = 'Seleccione al menos un curso';
+    }
 }
 </script>
 </body>
