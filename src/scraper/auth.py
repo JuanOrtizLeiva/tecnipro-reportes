@@ -33,12 +33,19 @@ async def abrir_portal(page):
     logger.info("Abriendo portal SENCE: %s", SENCE_URL)
     await page.goto(SENCE_URL, wait_until="networkidle", timeout=PAGE_TIMEOUT)
 
+    # Esperar a que la página termine de cargar completamente
+    await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
+    logger.debug("Página SENCE cargada, buscando botón Ingresar")
+
     # Buscar botón "Ingresar" (es un <button type="submit">)
     boton = page.locator("button:has-text('Ingresar')").or_(
         page.get_by_role("link", name="Ingresar")
     ).or_(
         page.locator("a:has-text('Ingresar')")
     )
+
+    # Esperar a que el botón sea visible antes de hacer click
+    await boton.first.wait_for(state="visible", timeout=PAGE_TIMEOUT)
     await boton.first.click(timeout=PAGE_TIMEOUT)
     logger.info("Clic en 'Ingresar' — esperando página intermedia")
 
