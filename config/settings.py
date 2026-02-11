@@ -50,6 +50,19 @@ AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET", "")
 EMAIL_REMITENTE = os.getenv("EMAIL_REMITENTE", "jortizleiva@duocapital.cl")
 EMAIL_CC = os.getenv("EMAIL_CC", "jortizleiva@duocapital.cl")
 
+# ── OneDrive / SharePoint (Fase 5) ────────────────────────
+ONEDRIVE_SITE_ID = os.getenv("ONEDRIVE_SITE_ID", "")
+ONEDRIVE_MOODLE_FOLDER = os.getenv(
+    "ONEDRIVE_MOODLE_FOLDER",
+    "Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/"
+    "Control Cursos Abiertos/Datos Moodle para control de cursos",
+)
+ONEDRIVE_COMPRADORES_FOLDER = os.getenv(
+    "ONEDRIVE_COMPRADORES_FOLDER",
+    "Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/"
+    "Control Cursos Abiertos/Reporteria",
+)
+
 # ── Dashboard Web (Fase 3.5) ──────────────────────────────
 WEB_PORT = int(os.getenv("WEB_PORT", "5000"))
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")

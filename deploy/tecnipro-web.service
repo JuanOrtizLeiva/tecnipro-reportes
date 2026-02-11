@@ -1,0 +1,18 @@
+[Unit]
+Description=Tecnipro Dashboard Web (Gunicorn)
+After=network.target
+
+[Service]
+User=tecnipro
+Group=tecnipro
+WorkingDirectory=/home/tecnipro/tecnipro-reportes
+Environment="PATH=/home/tecnipro/tecnipro-reportes/venv/bin"
+EnvironmentFile=/home/tecnipro/tecnipro-reportes/.env
+ExecStart=/home/tecnipro/tecnipro-reportes/venv/bin/gunicorn \
+    --config deploy/gunicorn.conf.py \
+    src.web.app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
