@@ -430,9 +430,14 @@ def register_routes(app):
         ws_index.column_dimensions['F'].width = 12  # Aprobados
         ws_index.column_dimensions['G'].width = 12  # Estado
 
-        # Guardar en memoria
-        output = BytesIO()
-        wb.save(output)
+        # Guardar en memoria (fix para gunicorn: crear nuevo BytesIO con datos completos)
+        temp_output = BytesIO()
+        wb.save(temp_output)
+        temp_output.seek(0)
+
+        # Crear nuevo BytesIO con los datos completos (evita problemas de ZipFile cerrado)
+        excel_data = temp_output.getvalue()
+        output = BytesIO(excel_data)
         output.seek(0)
 
         # Nombre del archivo
