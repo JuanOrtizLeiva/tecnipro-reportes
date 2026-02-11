@@ -116,6 +116,71 @@ def generar_cuerpo_correo(nombre_comprador, empresa, resumen_cursos):
     return html
 
 
+def generar_cuerpo_alerta_validacion(errores, fecha_hora):
+    """Genera el cuerpo HTML del correo de alerta por conflicto de compradores.
+
+    Parameters
+    ----------
+    errores : list[dict]
+        Lista de dicts con 'curso', 'id_moodle', 'emails'.
+    fecha_hora : str
+        Fecha y hora del intento.
+
+    Returns
+    -------
+    str
+        HTML del cuerpo del correo de alerta.
+    """
+    filas_html = ""
+    for e in errores:
+        emails_str = ", ".join(e["emails"])
+        filas_html += (
+            f'<tr>'
+            f'<td style="padding:8px;border:1px solid #ddd;">{e["curso"]}</td>'
+            f'<td style="padding:8px;border:1px solid #ddd;text-align:center;">{e["id_moodle"]}</td>'
+            f'<td style="padding:8px;border:1px solid #ddd;">{emails_str}</td>'
+            f'</tr>\n'
+        )
+
+    html = f"""\
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+<div style="background-color: #dc3545; color: white; padding: 16px 20px; border-radius: 4px 4px 0 0;">
+  <h2 style="margin: 0;">&#9888;&#65039; ERROR: Conflicto de compradores detectado</h2>
+</div>
+
+<div style="padding: 20px; background: #fff3f3; border: 1px solid #dc3545; border-top: none; border-radius: 0 0 4px 4px;">
+  <p>El proceso de generaci&oacute;n de reportes se ha <strong>detenido</strong> porque se detectaron emails de comprador inconsistentes en el archivo <code>compradores_tecnipro.xlsx</code>.</p>
+
+  <p><strong>Cursos con conflicto:</strong></p>
+  <table style="border-collapse: collapse; width: 100%; margin: 12px 0;">
+    <thead>
+      <tr style="background-color: #dc3545; color: white;">
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Curso</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">ID Moodle</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Emails encontrados</th>
+      </tr>
+    </thead>
+    <tbody>
+      {filas_html}
+    </tbody>
+  </table>
+
+  <div style="background: #fff; border-left: 4px solid #dc3545; padding: 12px 16px; margin: 16px 0;">
+    <strong>Acci&oacute;n requerida:</strong> Corrija el archivo <code>compradores_tecnipro.xlsx</code> para que cada curso tenga un &uacute;nico email de comprador, y vuelva a ejecutar el proceso.
+  </div>
+
+  <p style="color: #666; font-size: 13px;">Fecha y hora del intento: {fecha_hora}</p>
+</div>
+
+<p style="font-size: 12px; color: #999; margin-top: 16px;">
+Instituto de Capacitaci&oacute;n Tecnipro &mdash; Reporte generado autom&aacute;ticamente
+</p>
+</body>
+</html>"""
+    return html
+
+
 def _parsear_emails(campo_email):
     """Parsea un campo de email que puede tener múltiples direcciones separadas por coma.
 
@@ -129,9 +194,9 @@ def _parsear_emails(campo_email):
     return [e.strip() for e in campo_email.split(",") if e.strip() and "@" in e.strip()]
 
 
-def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
+def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
                   cc=None, dry_run=False):
-    """Envía un correo con adjunto PDF via Microsoft Graph API.
+    """Envía un correo via Microsoft Graph API, opcionalmente con adjunto PDF.
 
     Parameters
     ----------
@@ -141,8 +206,8 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
         Asunto del correo.
     cuerpo_html : str
         Cuerpo del correo en HTML.
-    adjunto_path : Path | str
-        Ruta al archivo PDF adjunto.
+    adjunto_path : Path | str | None
+        Ruta al archivo PDF adjunto.  Si es None, se envía sin adjunto.
     cc : str | None
         Email para CC.
     dry_run : bool
@@ -153,7 +218,8 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
     dict
         Resultado con 'status' ('OK' o 'ERROR') y 'detalle'.
     """
-    adjunto_path = Path(adjunto_path)
+    if adjunto_path is not None:
+        adjunto_path = Path(adjunto_path)
 
     # Parsear múltiples destinatarios
     lista_emails = _parsear_emails(destinatario)
@@ -170,12 +236,14 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
     except RuntimeError as e:
         return {"status": "ERROR", "detalle": str(e)}
 
-    # Leer adjunto y codificar en base64
-    try:
-        contenido_adjunto = adjunto_path.read_bytes()
-        adjunto_b64 = base64.b64encode(contenido_adjunto).decode("utf-8")
-    except Exception as e:
-        return {"status": "ERROR", "detalle": f"Error leyendo adjunto: {e}"}
+    # Leer adjunto y codificar en base64 (si existe)
+    adjunto_b64 = None
+    if adjunto_path is not None:
+        try:
+            contenido_adjunto = adjunto_path.read_bytes()
+            adjunto_b64 = base64.b64encode(contenido_adjunto).decode("utf-8")
+        except Exception as e:
+            return {"status": "ERROR", "detalle": f"Error leyendo adjunto: {e}"}
 
     # Construir el payload
     remitente = settings.EMAIL_REMITENTE
@@ -191,15 +259,17 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
         "toRecipients": [
             {"emailAddress": {"address": email}} for email in lista_emails
         ],
-        "attachments": [
+    }
+
+    if adjunto_b64 is not None:
+        message["attachments"] = [
             {
                 "@odata.type": "#microsoft.graph.fileAttachment",
                 "name": adjunto_path.name,
                 "contentType": "application/pdf",
                 "contentBytes": adjunto_b64,
             }
-        ],
-    }
+        ]
 
     if cc:
         message["ccRecipients"] = [

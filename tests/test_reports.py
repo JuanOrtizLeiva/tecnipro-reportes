@@ -823,25 +823,114 @@ class TestMultipleEmailRecipients:
 
 class TestOrchestratorValidation:
     def test_orchestrator_stops_on_validation_error(self, json_file, tmp_path):
-        """Si hay emails inconsistentes, no genera PDFs."""
+        """Si hay emails inconsistentes, no genera PDFs y envía alerta."""
         from src.reports.reports_orchestrator import ReportsOrchestrator
 
         fake_errors = [
             "ERROR: El curso 'Geminis A' (ID Moodle: 143) tiene "
-            "emails de comprador inconsistentes: a@x.cl vs b@x.cl."
+            "emails de comprador inconsistentes: a@x.cl vs b@x.cl. "
+            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar."
         ]
 
         with patch("src.reports.pdf_generator.settings") as mock_settings, \
              patch("src.ingest.compradores_reader.validar_emails_compradores",
-                   return_value=fake_errors):
+                   return_value=fake_errors), \
+             patch("src.reports.email_sender.enviar_correo") as mock_enviar:
             mock_settings.JSON_DATOS_PATH = json_file
             mock_settings.REPORTS_PATH = tmp_path / "reportes"
             mock_settings.OUTPUT_PATH = tmp_path
+            mock_enviar.return_value = {"status": "DRY-RUN", "detalle": "test"}
 
-            orchestrator = ReportsOrchestrator(send_email=False, dry_run=False)
+            orchestrator = ReportsOrchestrator(send_email=False, dry_run=True)
             report = orchestrator.run(json_path=json_file)
 
         assert "errores_validacion" in report
         assert len(report["errores_validacion"]) == 1
         assert report["pdfs_generados"] == []
         assert report["fin"] is not None
+
+        # Verificar que se intentó enviar el correo de alerta
+        mock_enviar.assert_called_once()
+        call_kwargs = mock_enviar.call_args
+        assert "ERROR" in call_kwargs.kwargs.get("asunto", call_kwargs[1].get("asunto", ""))
+        assert "Conflicto" in call_kwargs.kwargs.get("asunto", call_kwargs[1].get("asunto", ""))
+
+
+# ── Test 16: Correo de alerta por validación ─────────────
+
+class TestAlertaValidacion:
+    def test_generar_cuerpo_alerta(self):
+        """El HTML de alerta contiene los cursos con conflicto."""
+        from src.reports.email_sender import generar_cuerpo_alerta_validacion
+
+        errores = [
+            {"curso": "Geminis A", "id_moodle": "143",
+             "emails": ["a@x.cl", "b@x.cl"]},
+            {"curso": "Geminis B", "id_moodle": "144",
+             "emails": ["c@x.cl", "d@x.cl"]},
+        ]
+
+        html = generar_cuerpo_alerta_validacion(errores, "10/02/2026 15:30:00")
+
+        assert "Geminis A" in html
+        assert "143" in html
+        assert "a@x.cl" in html
+        assert "b@x.cl" in html
+        assert "Geminis B" in html
+        assert "144" in html
+        assert "10/02/2026 15:30:00" in html
+        assert "compradores_tecnipro.xlsx" in html
+        assert "<html>" in html
+
+    def test_enviar_correo_sin_adjunto_dry_run(self):
+        """enviar_correo funciona sin adjunto (para alertas)."""
+        from src.reports.email_sender import enviar_correo
+
+        resultado = enviar_correo(
+            destinatario="admin@test.cl",
+            asunto="Test Alerta",
+            cuerpo_html="<p>Error detectado</p>",
+            adjunto_path=None,
+            dry_run=True,
+        )
+
+        assert resultado["status"] == "DRY-RUN"
+
+    def test_orchestrator_alerta_parses_error_messages(self, json_file, tmp_path):
+        """El orchestrator parsea los mensajes de error y genera HTML correcto."""
+        from src.reports.reports_orchestrator import ReportsOrchestrator
+
+        fake_errors = [
+            "ERROR: El curso 'Geminis Básico Fullkom Grupo A' (ID Moodle: 143) tiene "
+            "emails de comprador inconsistentes: jortizleiva@gmail.com vs ygonzalez@duocapital.cl. "
+            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar.",
+            "ERROR: El curso 'Geminis Básico Fullkom Grupo B' (ID Moodle: 144) tiene "
+            "emails de comprador inconsistentes: jortizleiva@duocapital.cl vs ygonzalez@duocapital.cl. "
+            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar.",
+        ]
+
+        correo_enviado = {}
+
+        def capturar_correo(**kwargs):
+            correo_enviado.update(kwargs)
+            return {"status": "DRY-RUN", "detalle": "test"}
+
+        with patch("src.reports.pdf_generator.settings") as mock_settings, \
+             patch("src.ingest.compradores_reader.validar_emails_compradores",
+                   return_value=fake_errors), \
+             patch("src.reports.email_sender.enviar_correo",
+                   side_effect=capturar_correo):
+            mock_settings.JSON_DATOS_PATH = json_file
+            mock_settings.REPORTS_PATH = tmp_path / "reportes"
+            mock_settings.OUTPUT_PATH = tmp_path
+
+            orchestrator = ReportsOrchestrator(send_email=False, dry_run=True)
+            orchestrator.run(json_path=json_file)
+
+        # Verificar contenido del correo de alerta
+        assert "Conflicto" in correo_enviado.get("asunto", "")
+        cuerpo = correo_enviado.get("cuerpo_html", "")
+        assert "143" in cuerpo
+        assert "144" in cuerpo
+        assert "jortizleiva@gmail.com" in cuerpo
+        assert "ygonzalez@duocapital.cl" in cuerpo

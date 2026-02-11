@@ -79,6 +79,10 @@ class ReportsOrchestrator:
             report["errores_validacion"] = errores_email
             report["fin"] = datetime.now().isoformat()
             self._guardar_reporte(report)
+
+            # Enviar correo de alerta
+            self._enviar_alerta_validacion(errores_email)
+
             return report
 
         grupos = agrupar_por_comprador(datos)
@@ -236,6 +240,68 @@ class ReportsOrchestrator:
             # Espera entre envíos
             if idx < len(grupos) - 1:
                 time.sleep(DELAY_ENTRE_ENVIOS)
+
+    def _enviar_alerta_validacion(self, errores_msg):
+        """Envía correo de alerta cuando la validación de emails falla."""
+        import re
+
+        from src.reports.email_sender import (
+            enviar_correo,
+            generar_cuerpo_alerta_validacion,
+        )
+
+        # Determinar destinatario: EMAIL_CC o EMAIL_REMITENTE como fallback
+        destinatario = settings.EMAIL_CC or settings.EMAIL_REMITENTE
+        if not destinatario:
+            logger.warning("No hay EMAIL_CC ni EMAIL_REMITENTE — no se envía alerta")
+            return
+
+        # Parsear errores a datos estructurados para el HTML
+        errores_estructurados = []
+        for msg in errores_msg:
+            # Extraer: curso, id_moodle, emails del mensaje formateado
+            m = re.search(
+                r"El curso '?(.+?)'? \(ID Moodle: (\w+)\) tiene .+?: (.+?)\. Corrija",
+                msg,
+            )
+            if m:
+                curso = m.group(1)
+                id_moodle = m.group(2)
+                emails = [e.strip() for e in m.group(3).split(" vs ")]
+                errores_estructurados.append({
+                    "curso": curso,
+                    "id_moodle": id_moodle,
+                    "emails": emails,
+                })
+            else:
+                errores_estructurados.append({
+                    "curso": "Desconocido",
+                    "id_moodle": "?",
+                    "emails": [msg],
+                })
+
+        fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        cuerpo = generar_cuerpo_alerta_validacion(errores_estructurados, fecha_hora)
+
+        asunto = (
+            "\u26a0\ufe0f ERROR - Reporte Tecnipro: "
+            "Conflicto de compradores detectado"
+        )
+
+        resultado = enviar_correo(
+            destinatario=destinatario,
+            asunto=asunto,
+            cuerpo_html=cuerpo,
+            dry_run=self.dry_run,
+        )
+
+        if resultado["status"] in ("OK", "DRY-RUN"):
+            logger.info("Alerta de validación enviada a %s", destinatario)
+        else:
+            logger.error(
+                "No se pudo enviar alerta de validación: %s",
+                resultado["detalle"],
+            )
 
     def _guardar_reporte(self, report):
         """Guarda el reporte de ejecución como JSON."""
