@@ -27,9 +27,17 @@ download_moodle_csvs()
     echo "[$(date)] WARN: Error descargando de OneDrive, usando archivos locales"
 }
 
-# Paso 2: Scraper SENCE + Pipeline + Reportes + Envío de correos
-echo "[$(date)] Ejecutando scraper + pipeline + reportes..."
-python3 -m src.main --scrape --report --email 2>&1
+# Paso 2: Scraper SENCE + Pipeline + Reportes
+# Envío de correos SOLO los lunes
+DAY_OF_WEEK=$(date +%u)  # 1=Lunes, 7=Domingo
+
+if [ "$DAY_OF_WEEK" -eq 1 ]; then
+    echo "[$(date)] Ejecutando scraper + pipeline + reportes + EMAIL (LUNES)..."
+    python3 -m src.main --scrape --report --email 2>&1
+else
+    echo "[$(date)] Ejecutando scraper + pipeline + reportes (SIN email - solo lunes)..."
+    python3 -m src.main --scrape --report 2>&1
+fi
 
 EXIT_CODE=$?
 

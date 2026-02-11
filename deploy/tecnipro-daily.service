@@ -11,6 +11,6 @@ Environment="PATH=/home/tecnipro/tecnipro-reportes/venv/bin"
 Environment="TZ=America/Santiago"
 EnvironmentFile=/home/tecnipro/tecnipro-reportes/.env
 ExecStart=/bin/bash /home/tecnipro/tecnipro-reportes/scripts/run_daily_production.sh
-TimeoutStartSec=600
+TimeoutStartSec=1200
 StandardOutput=append:/var/log/tecnipro/daily.log
 StandardError=append:/var/log/tecnipro/daily-error.log
