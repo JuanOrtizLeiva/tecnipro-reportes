@@ -273,12 +273,21 @@ class ReportePDF(FPDF):
     def _seccion_curso(self, curso):
         """Sección completa de un curso."""
         nombre = curso.get("nombre", "Sin nombre")
-        id_sence = curso.get("id_sence", "")
         estado = curso.get("estado", "")
         fecha_fin = curso.get("fecha_fin", "")
         dias_rest = curso.get("dias_restantes")
         estadisticas = curso.get("estadisticas", {})
         estudiantes = curso.get("estudiantes", [])
+
+        # Recopilar TODOS los IDs SENCE del curso (del campo + de estudiantes)
+        ids_sence = set()
+        if curso.get("id_sence"):
+            ids_sence.add(curso["id_sence"])
+        for est in estudiantes:
+            sid = est.get("sence", {}).get("id_sence", "")
+            if sid:
+                ids_sence.add(sid)
+        ids_sence_str = ", ".join(sorted(ids_sence))
 
         # ── Encabezado del curso ───────────────────────
         self.set_fill_color(*AZUL_OSCURO)
@@ -292,8 +301,8 @@ class ReportePDF(FPDF):
         self.set_fill_color(*GRIS_CLARO)
 
         info_parts = []
-        if id_sence:
-            info_parts.append(f"ID SENCE: {id_sence}")
+        if ids_sence_str:
+            info_parts.append(f"ID SENCE: {ids_sence_str}")
         if estado:
             estado_display = {"active": "Activo", "expired": "Finalizado"}.get(estado, estado)
             info_parts.append(f"Estado: {estado_display}")

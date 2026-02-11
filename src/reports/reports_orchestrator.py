@@ -66,6 +66,21 @@ class ReportsOrchestrator:
             self._guardar_reporte(report)
             return report
 
+        # ── 1b. Validar consistencia de emails en compradores ──
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores_email = validar_emails_compradores()
+        if errores_email:
+            logger.error("=" * 60)
+            logger.error("VALIDACIÓN FALLIDA: emails inconsistentes en compradores")
+            logger.error("=" * 60)
+            for msg in errores_email:
+                logger.error(msg)
+            report["errores_validacion"] = errores_email
+            report["fin"] = datetime.now().isoformat()
+            self._guardar_reporte(report)
+            return report
+
         grupos = agrupar_por_comprador(datos)
 
         # ── 2. Generar PDFs ──────────────────────────────────
@@ -168,8 +183,10 @@ class ReportsOrchestrator:
                 logger.warning("Sin PDF para %s — no se envía correo", empresa)
                 continue
 
-            # Verificar email
-            if not email or "@" not in email:
+            # Verificar email (soporta múltiples separados por coma)
+            from src.reports.email_sender import _parsear_emails
+            lista_emails = _parsear_emails(email)
+            if not lista_emails:
                 logger.warning("Sin email para %s — no se envía correo", empresa)
                 report["correos_sin_email"].append(empresa)
                 continue

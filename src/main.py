@@ -144,6 +144,12 @@ def run_reports(send_email=False, dry_run=False, json_path=None):
 
     orchestrator = ReportsOrchestrator(send_email=send_email, dry_run=dry_run)
     report = orchestrator.run(json_path=json_path)
+
+    # Si hubo errores de validación, detener con código 1
+    if report.get("errores_validacion"):
+        logger.error("Proceso detenido por errores de validación")
+        sys.exit(1)
+
     return report
 
 

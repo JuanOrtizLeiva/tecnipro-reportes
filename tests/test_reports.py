@@ -457,7 +457,8 @@ class TestReportGeneration:
     def test_report_generation(self, json_file, tmp_path):
         from src.reports.reports_orchestrator import ReportsOrchestrator
 
-        with patch("src.reports.pdf_generator.settings") as mock_settings:
+        with patch("src.reports.pdf_generator.settings") as mock_settings, \
+             patch("src.ingest.compradores_reader.validar_emails_compradores", return_value=[]):
             mock_settings.JSON_DATOS_PATH = json_file
             mock_settings.REPORTS_PATH = tmp_path / "reportes"
             mock_settings.OUTPUT_PATH = tmp_path
@@ -614,3 +615,233 @@ class TestEmptyCourseFiltering:
         assert len(grupos) == 1
         assert "a@test.cl" in grupos
         assert "b@test.cl" not in grupos
+
+
+# ── Test 12: Validación de emails en compradores ─────────
+
+class TestEmailValidation:
+    def test_consistent_emails_no_error(self, tmp_path):
+        """Emails consistentes por curso Moodle → sin errores."""
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Compradores"
+        ws.append(["ID Curso Moodle", "ID SENCE", "Nombre Curso",
+                    "Comprador (Nombre)", "Empresa", "Email Comprador"])
+        ws.append(["100", "6722569", "Curso A", "Juan", "EmpA", "juan@test.cl"])
+        ws.append(["100", "6722570", "Curso A", "Juan", "EmpA", "juan@test.cl"])
+        ws.append(["101", "6722572", "Curso B", "María", "EmpB", "maria@test.cl"])
+        path = tmp_path / "compradores.xlsx"
+        wb.save(path)
+
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores = validar_emails_compradores(path)
+        assert errores == []
+
+    def test_inconsistent_emails_error(self, tmp_path):
+        """Emails distintos para el mismo curso → error."""
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Compradores"
+        ws.append(["ID Curso Moodle", "ID SENCE", "Nombre Curso",
+                    "Comprador (Nombre)", "Empresa", "Email Comprador"])
+        ws.append(["143", "6736819", "Geminis A", "Juan", "Emp", "juan@test.cl"])
+        ws.append(["143", "6736954", "Geminis A", "Juan", "Emp", "pedro@empresa.cl"])
+        path = tmp_path / "compradores.xlsx"
+        wb.save(path)
+
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores = validar_emails_compradores(path)
+        assert len(errores) == 1
+        assert "143" in errores[0]
+        assert "juan@test.cl" in errores[0]
+        assert "pedro@empresa.cl" in errores[0]
+
+    def test_multiple_courses_with_errors(self, tmp_path):
+        """Múltiples cursos con conflicto → se listan todos."""
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Compradores"
+        ws.append(["ID Curso Moodle", "ID SENCE", "Nombre Curso",
+                    "Comprador (Nombre)", "Empresa", "Email Comprador"])
+        ws.append(["143", "6736819", "Geminis A", "Juan", "Emp", "a@x.cl"])
+        ws.append(["143", "6736954", "Geminis A", "Juan", "Emp", "b@x.cl"])
+        ws.append(["144", "6736811", "Geminis B", "Juan", "Emp", "c@x.cl"])
+        ws.append(["144", "6736960", "Geminis B", "Juan", "Emp", "d@x.cl"])
+        path = tmp_path / "compradores.xlsx"
+        wb.save(path)
+
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores = validar_emails_compradores(path)
+        assert len(errores) == 2
+
+    def test_empty_emails_ignored(self, tmp_path):
+        """Filas sin email no causan conflicto."""
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Compradores"
+        ws.append(["ID Curso Moodle", "ID SENCE", "Nombre Curso",
+                    "Comprador (Nombre)", "Empresa", "Email Comprador"])
+        ws.append(["100", "6722569", "Curso A", "Juan", "EmpA", "juan@test.cl"])
+        ws.append(["100", "6722570", "Curso A", "Juan", "EmpA", ""])
+        path = tmp_path / "compradores.xlsx"
+        wb.save(path)
+
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores = validar_emails_compradores(path)
+        assert errores == []
+
+    def test_missing_file_no_error(self, tmp_path):
+        """Archivo inexistente → sin errores (no bloquear)."""
+        from src.ingest.compradores_reader import validar_emails_compradores
+
+        errores = validar_emails_compradores(tmp_path / "no_existe.xlsx")
+        assert errores == []
+
+
+# ── Test 13: Múltiples IDs SENCE en PDF ──────────────────
+
+class TestMultipleSenceIds:
+    def test_pdf_shows_multiple_sence_ids(self, tmp_path):
+        """Un curso con estudiantes con distintos SENCE IDs los recopila todos."""
+        from src.reports.pdf_generator import generar_pdf
+
+        grupo = {
+            "nombre": "Test",
+            "empresa": "TestCo",
+            "email": "test@test.cl",
+            "cursos": [{
+                "id_moodle": "143",
+                "id_sence": "6736819",
+                "nombre": "Geminis Básico",
+                "nombre_corto": "143",
+                "fecha_inicio": "2025-01-01",
+                "fecha_fin": "2025-12-31",
+                "estado": "active",
+                "dias_restantes": 30,
+                "estudiantes": [
+                    {
+                        "id": "111", "nombre": "Juan",
+                        "email": "", "progreso": 80.0, "calificacion": 6.0,
+                        "ultimo_acceso": "2025-12-01", "dias_sin_ingreso": 10,
+                        "estado": "A", "riesgo": "",
+                        "sence": {"id_sence": "6736819", "n_ingresos": 5,
+                                  "estado": "CONECTADO", "declaracion_jurada": ""},
+                    },
+                    {
+                        "id": "222", "nombre": "Pedro",
+                        "email": "", "progreso": 60.0, "calificacion": 5.0,
+                        "ultimo_acceso": "2025-12-01", "dias_sin_ingreso": 10,
+                        "estado": "P", "riesgo": "",
+                        "sence": {"id_sence": "6736954", "n_ingresos": 3,
+                                  "estado": "CONECTADO", "declaracion_jurada": ""},
+                    },
+                    {
+                        "id": "333", "nombre": "Ana",
+                        "email": "", "progreso": 40.0, "calificacion": 4.0,
+                        "ultimo_acceso": "2025-12-01", "dias_sin_ingreso": 10,
+                        "estado": "P", "riesgo": "medio",
+                        "sence": {"id_sence": "6736960", "n_ingresos": 2,
+                                  "estado": "CONECTADO", "declaracion_jurada": ""},
+                    },
+                ],
+                "estadisticas": {
+                    "total_estudiantes": 3, "promedio_progreso": 60.0,
+                    "promedio_calificacion": 5.0, "aprobados": 1,
+                    "reprobados": 0, "en_proceso": 2, "riesgo_alto": 0,
+                    "riesgo_medio": 1, "conectados_sence": 3,
+                },
+            }],
+        }
+
+        ruta = generar_pdf(grupo, output_dir=tmp_path)
+        assert ruta.exists()
+        assert ruta.stat().st_size > 0
+
+
+# ── Test 14: Parseo de múltiples emails ──────────────────
+
+class TestMultipleEmailRecipients:
+    def test_parse_single_email(self):
+        from src.reports.email_sender import _parsear_emails
+
+        assert _parsear_emails("maria@test.cl") == ["maria@test.cl"]
+
+    def test_parse_multiple_emails(self):
+        from src.reports.email_sender import _parsear_emails
+
+        result = _parsear_emails("maria@test.cl, pedro@test.cl")
+        assert result == ["maria@test.cl", "pedro@test.cl"]
+
+    def test_parse_emails_with_spaces(self):
+        from src.reports.email_sender import _parsear_emails
+
+        result = _parsear_emails("  maria@test.cl , pedro@test.cl  ")
+        assert result == ["maria@test.cl", "pedro@test.cl"]
+
+    def test_parse_empty_email(self):
+        from src.reports.email_sender import _parsear_emails
+
+        assert _parsear_emails("") == []
+        assert _parsear_emails(None) == []
+
+    def test_parse_invalid_entries_filtered(self):
+        from src.reports.email_sender import _parsear_emails
+
+        result = _parsear_emails("maria@test.cl, , invalido, pedro@test.cl")
+        assert result == ["maria@test.cl", "pedro@test.cl"]
+
+    def test_dry_run_multiple_recipients(self, tmp_path):
+        from src.reports.email_sender import enviar_correo
+
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 dummy content")
+
+        resultado = enviar_correo(
+            destinatario="maria@test.cl, pedro@test.cl",
+            asunto="Test",
+            cuerpo_html="<p>Test</p>",
+            adjunto_path=pdf_path,
+            dry_run=True,
+        )
+
+        assert resultado["status"] == "DRY-RUN"
+
+
+# ── Test 15: Orchestrator detiene en validación ──────────
+
+class TestOrchestratorValidation:
+    def test_orchestrator_stops_on_validation_error(self, json_file, tmp_path):
+        """Si hay emails inconsistentes, no genera PDFs."""
+        from src.reports.reports_orchestrator import ReportsOrchestrator
+
+        fake_errors = [
+            "ERROR: El curso 'Geminis A' (ID Moodle: 143) tiene "
+            "emails de comprador inconsistentes: a@x.cl vs b@x.cl."
+        ]
+
+        with patch("src.reports.pdf_generator.settings") as mock_settings, \
+             patch("src.ingest.compradores_reader.validar_emails_compradores",
+                   return_value=fake_errors):
+            mock_settings.JSON_DATOS_PATH = json_file
+            mock_settings.REPORTS_PATH = tmp_path / "reportes"
+            mock_settings.OUTPUT_PATH = tmp_path
+
+            orchestrator = ReportsOrchestrator(send_email=False, dry_run=False)
+            report = orchestrator.run(json_path=json_file)
+
+        assert "errores_validacion" in report
+        assert len(report["errores_validacion"]) == 1
+        assert report["pdfs_generados"] == []
+        assert report["fin"] is not None

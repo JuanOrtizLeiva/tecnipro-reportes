@@ -116,6 +116,19 @@ def generar_cuerpo_correo(nombre_comprador, empresa, resumen_cursos):
     return html
 
 
+def _parsear_emails(campo_email):
+    """Parsea un campo de email que puede tener múltiples direcciones separadas por coma.
+
+    Returns
+    -------
+    list[str]
+        Lista de emails limpios.
+    """
+    if not campo_email:
+        return []
+    return [e.strip() for e in campo_email.split(",") if e.strip() and "@" in e.strip()]
+
+
 def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
                   cc=None, dry_run=False):
     """Envía un correo con adjunto PDF via Microsoft Graph API.
@@ -123,7 +136,7 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
     Parameters
     ----------
     destinatario : str
-        Email del destinatario.
+        Email(s) del destinatario.  Soporta múltiples separados por coma.
     asunto : str
         Asunto del correo.
     cuerpo_html : str
@@ -142,8 +155,13 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
     """
     adjunto_path = Path(adjunto_path)
 
+    # Parsear múltiples destinatarios
+    lista_emails = _parsear_emails(destinatario)
+    if not lista_emails:
+        return {"status": "ERROR", "detalle": f"Email destinatario inválido: {destinatario}"}
+
     if dry_run:
-        logger.info("[DRY-RUN] Correo NO enviado a %s (asunto: %s)", destinatario, asunto)
+        logger.info("[DRY-RUN] Correo NO enviado a %s (asunto: %s)", lista_emails, asunto)
         return {"status": "DRY-RUN", "detalle": "Correo no enviado (modo prueba)"}
 
     # Obtener token
@@ -171,7 +189,7 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
             "content": cuerpo_html,
         },
         "toRecipients": [
-            {"emailAddress": {"address": destinatario}}
+            {"emailAddress": {"address": email}} for email in lista_emails
         ],
         "attachments": [
             {
@@ -201,8 +219,8 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
             resp = requests.post(url, json=payload, headers=headers, timeout=30)
 
             if resp.status_code == 202:
-                logger.info("Correo enviado a %s", destinatario)
-                return {"status": "OK", "detalle": "Enviado correctamente"}
+                logger.info("Correo enviado a %s", lista_emails)
+                return {"status": "OK", "detalle": f"Enviado a {lista_emails}"}
 
             # Error
             error_body = resp.text
@@ -217,16 +235,16 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path,
             if intento < MAX_RETRIES:
                 logger.warning(
                     "Envío a %s falló (intento %d): HTTP %d — reintentando en %ds",
-                    destinatario, intento + 1, resp.status_code, RETRY_DELAY,
+                    lista_emails, intento + 1, resp.status_code, RETRY_DELAY,
                 )
                 time.sleep(RETRY_DELAY)
             else:
-                logger.error("Envío a %s falló definitivamente: HTTP %d", destinatario, resp.status_code)
+                logger.error("Envío a %s falló definitivamente: HTTP %d", lista_emails, resp.status_code)
                 return {"status": "ERROR", "detalle": f"HTTP {resp.status_code}: {error_body}"}
 
         except requests.RequestException as e:
             if intento < MAX_RETRIES:
-                logger.warning("Error de red enviando a %s: %s — reintentando", destinatario, e)
+                logger.warning("Error de red enviando a %s: %s — reintentando", lista_emails, e)
                 time.sleep(RETRY_DELAY)
             else:
                 return {"status": "ERROR", "detalle": f"Error de red: {e}"}

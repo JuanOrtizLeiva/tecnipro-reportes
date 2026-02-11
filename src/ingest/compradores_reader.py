@@ -80,3 +80,69 @@ def leer_compradores(path=None):
 
     logger.info("Compradores válidos: %d", len(df))
     return df
+
+
+def validar_emails_compradores(path=None):
+    """Valida que cada ID Curso Moodle tenga emails consistentes.
+
+    Lee el Excel SIN deduplicar para detectar filas con emails distintos
+    para el mismo curso.
+
+    Parameters
+    ----------
+    path : Path | str | None
+
+    Returns
+    -------
+    list[str]
+        Lista de mensajes de error.  Vacía si todo está OK.
+    """
+    if path is None:
+        path = settings.COMPRADORES_PATH
+
+    path = Path(path)
+    if not path.exists():
+        logger.debug("Archivo compradores no encontrado para validación: %s", path)
+        return []
+
+    df = pd.read_excel(path, sheet_name="Compradores", dtype=str, engine="openpyxl")
+
+    # Normalizar nombres de columnas
+    col_rename = {}
+    for col in df.columns:
+        key = col.strip().lower()
+        if key in _COL_MAP:
+            col_rename[col] = _COL_MAP[key]
+    df = df.rename(columns=col_rename)
+
+    for col in ["id_curso_moodle", "email_comprador"]:
+        if col not in df.columns:
+            df[col] = ""
+
+    df["id_curso_moodle"] = df["id_curso_moodle"].astype(str).str.strip().str.lower()
+    df.loc[df["id_curso_moodle"].isin(["nan", "", "none"]), "id_curso_moodle"] = ""
+    df = df[df["id_curso_moodle"] != ""].copy()
+
+    df["email_comprador"] = df["email_comprador"].fillna("").astype(str).str.strip()
+
+    # Buscar nombre del curso para mensajes de error
+    col_nombre = "nombre_curso_comprador" if "nombre_curso_comprador" in df.columns else None
+
+    errores = []
+    for id_moodle, grupo in df.groupby("id_curso_moodle"):
+        emails = set(
+            e for e in grupo["email_comprador"].unique()
+            if e and e.lower() not in ("nan", "none", "")
+        )
+        if len(emails) > 1:
+            nombre = ""
+            if col_nombre and col_nombre in grupo.columns:
+                nombre = grupo[col_nombre].dropna().iloc[0] if not grupo[col_nombre].dropna().empty else ""
+            emails_str = " vs ".join(sorted(emails))
+            errores.append(
+                f"ERROR: El curso {nombre!r} (ID Moodle: {id_moodle}) tiene "
+                f"emails de comprador inconsistentes: {emails_str}. "
+                f"Corrija el archivo compradores_tecnipro.xlsx antes de continuar."
+            )
+
+    return errores
