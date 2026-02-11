@@ -43,7 +43,13 @@ class SenceScraper:
         from playwright.async_api import async_playwright
 
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=self.headless)
+
+        # Configurar proxy si está disponible
+        launch_options = {"headless": self.headless}
+        if settings.PROXY_URL:
+            launch_options["proxy"] = {"server": settings.PROXY_URL}
+
+        self.browser = await self.playwright.chromium.launch(**launch_options)
         context = await self.browser.new_context(
             accept_downloads=True,
             locale="es-CL",
@@ -59,7 +65,16 @@ class SenceScraper:
         )
         self.page = await context.new_page()
         self.page.set_default_timeout(settings.SCRAPER_TIMEOUT)
-        logger.info("Navegador iniciado (headless=%s, user-agent=Chrome/131)", self.headless)
+
+        # Log con info del proxy (sin credenciales)
+        proxy_info = ""
+        if settings.PROXY_URL:
+            # Extraer solo el host (sin credenciales)
+            proxy_host = settings.PROXY_URL.split("@")[-1] if "@" in settings.PROXY_URL else settings.PROXY_URL
+            proxy_host = proxy_host.replace("http://", "").replace("https://", "")
+            proxy_info = f", proxy={proxy_host}"
+
+        logger.info("Navegador iniciado (headless=%s, user-agent=Chrome/131%s)", self.headless, proxy_info)
 
     async def run(self, sence_ids):
         """Ejecuta el scraping completo para la lista de IDs SENCE.
