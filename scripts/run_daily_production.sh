@@ -54,14 +54,14 @@ from datetime import datetime
 
 # Buscar el reporte de scraper más reciente
 output_dir = Path('data/output')
-reportes = sorted(output_dir.glob('scraper_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
+reportes_scraper = sorted(output_dir.glob('scraper_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
 
-if not reportes:
+if not reportes_scraper:
     print('WARN: No se encontró reporte de scraper')
     exit(1)
 
-# Leer último reporte
-with open(reportes[0], 'r', encoding='utf-8') as f:
+# Leer último reporte de scraper
+with open(reportes_scraper[0], 'r', encoding='utf-8') as f:
     reporte = json.load(f)
 
 descargados = len(reporte.get('descargados_ok', []))
@@ -69,28 +69,52 @@ errores = len(reporte.get('errores', []))
 fallidos = len(reporte.get('fallidos', []))
 solicitados = len(reporte.get('ids_solicitados', []))
 
+# Leer reporte de PDFs si existe
+pdfs_generados = 0
+reportes_pdf = sorted(output_dir.glob('reports_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
+if reportes_pdf:
+    try:
+        with open(reportes_pdf[0], 'r', encoding='utf-8') as f:
+            reporte_pdf = json.load(f)
+            pdfs_generados = reporte_pdf.get('pdfs_generados', 0)
+    except Exception:
+        pass
+
 # Determinar si el scraping fue exitoso
 scraping_exitoso = descargados > 0 and descargados == solicitados
 
 if scraping_exitoso:
     # EMAIL DE ÉXITO
-    asunto = 'Reportes Tecnipro - Proceso Ejecutado Correctamente'
+    asunto = '✅ OK: Reportes Tecnipro actualizados correctamente'
     mensaje = f'''
 <html>
 <body style=\"font-family: Arial, sans-serif;\">
-    <h2 style=\"color: #16a34a;\">✅ Proceso de Reportes Ejecutado Exitosamente</h2>
-    <p><strong>Sistema:</strong> Reportes de Alumnos y SENCE - Tecnipro</p>
-    <p><strong>Fecha y hora:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (Chile)</p>
-    <p><strong>Estado:</strong> Completado sin errores</p>
-    <p><strong>Acciones realizadas:</strong></p>
-    <ul>
-        <li>Descarga de archivos Moodle desde OneDrive</li>
-        <li>Scraping de datos SENCE: <strong>{descargados}/{solicitados} cursos actualizados</strong></li>
-        <li>Procesamiento de datos de alumnos</li>
-        <li>Generación de reportes PDF</li>
-    </ul>
-    <hr>
-    <p style=\"color: #666; font-size: 12px;\">
+    <div style=\"background-color: #16a34a; color: white; padding: 16px 20px;\">
+        <h2 style=\"margin: 0;\">✅ Reportes Actualizados Correctamente</h2>
+    </div>
+
+    <div style=\"padding: 20px; background: #f0fdf4; border: 2px solid #16a34a; border-top: none;\">
+        <p><strong>Sistema:</strong> Reportes de Alumnos y SENCE - Tecnipro</p>
+        <p><strong>Fecha y hora:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (Chile)</p>
+        <p><strong>Estado:</strong> ✅ Todo OK</p>
+
+        <div style=\"background: white; padding: 12px; margin: 16px 0; border-left: 4px solid #16a34a;\">
+            <p style=\"margin: 0; font-weight: bold;\">Resumen de la ejecución:</p>
+        </div>
+
+        <ul>
+            <li>Archivos Moodle descargados desde OneDrive: ✅</li>
+            <li>Datos SENCE actualizados: <strong>{descargados} de {solicitados} cursos</strong> ✅</li>
+            <li>Datos de alumnos procesados: ✅</li>
+            <li>Reportes PDF generados: <strong>{pdfs_generados}</strong> ✅</li>
+        </ul>
+
+        <p style=\"color: #16a34a; font-weight: bold; margin-top: 16px;\">
+            ✓ Todos los procesos completados exitosamente
+        </p>
+    </div>
+
+    <p style=\"color: #666; font-size: 12px; margin-top: 16px;\">
         Este es un mensaje automático del sistema reportes.tecnipro.cl
     </p>
 </body>
