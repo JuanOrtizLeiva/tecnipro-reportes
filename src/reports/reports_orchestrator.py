@@ -74,8 +74,8 @@ class ReportsOrchestrator:
             logger.error("=" * 60)
             logger.error("VALIDACIÓN FALLIDA: emails inconsistentes en compradores")
             logger.error("=" * 60)
-            for msg in errores_email:
-                logger.error(msg)
+            for e in errores_email:
+                logger.error(e["mensaje"])
             report["errores_validacion"] = errores_email
             report["fin"] = datetime.now().isoformat()
             self._guardar_reporte(report)
@@ -241,10 +241,14 @@ class ReportsOrchestrator:
             if idx < len(grupos) - 1:
                 time.sleep(DELAY_ENTRE_ENVIOS)
 
-    def _enviar_alerta_validacion(self, errores_msg):
-        """Envía correo de alerta cuando la validación de emails falla."""
-        import re
+    def _enviar_alerta_validacion(self, errores):
+        """Envía correo de alerta cuando la validación de emails falla.
 
+        Parameters
+        ----------
+        errores : list[dict]
+            Lista de dicts con 'curso', 'id_moodle', 'emails' (del validador).
+        """
         from src.reports.email_sender import (
             enviar_correo,
             generar_cuerpo_alerta_validacion,
@@ -256,32 +260,8 @@ class ReportsOrchestrator:
             logger.warning("No hay EMAIL_CC ni EMAIL_REMITENTE — no se envía alerta")
             return
 
-        # Parsear errores a datos estructurados para el HTML
-        errores_estructurados = []
-        for msg in errores_msg:
-            # Extraer: curso, id_moodle, emails del mensaje formateado
-            m = re.search(
-                r"El curso '?(.+?)'? \(ID Moodle: (\w+)\) tiene .+?: (.+?)\. Corrija",
-                msg,
-            )
-            if m:
-                curso = m.group(1)
-                id_moodle = m.group(2)
-                emails = [e.strip() for e in m.group(3).split(" vs ")]
-                errores_estructurados.append({
-                    "curso": curso,
-                    "id_moodle": id_moodle,
-                    "emails": emails,
-                })
-            else:
-                errores_estructurados.append({
-                    "curso": "Desconocido",
-                    "id_moodle": "?",
-                    "emails": [msg],
-                })
-
         fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        cuerpo = generar_cuerpo_alerta_validacion(errores_estructurados, fecha_hora)
+        cuerpo = generar_cuerpo_alerta_validacion(errores, fecha_hora)
 
         asunto = (
             "\u26a0\ufe0f ERROR - Reporte Tecnipro: "

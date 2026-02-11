@@ -658,9 +658,10 @@ class TestEmailValidation:
 
         errores = validar_emails_compradores(path)
         assert len(errores) == 1
-        assert "143" in errores[0]
-        assert "juan@test.cl" in errores[0]
-        assert "pedro@empresa.cl" in errores[0]
+        assert errores[0]["id_moodle"] == "143"
+        assert "juan@test.cl" in errores[0]["emails"]
+        assert "pedro@empresa.cl" in errores[0]["emails"]
+        assert "143" in errores[0]["mensaje"]
 
     def test_multiple_courses_with_errors(self, tmp_path):
         """Múltiples cursos con conflicto → se listan todos."""
@@ -827,9 +828,12 @@ class TestOrchestratorValidation:
         from src.reports.reports_orchestrator import ReportsOrchestrator
 
         fake_errors = [
-            "ERROR: El curso 'Geminis A' (ID Moodle: 143) tiene "
-            "emails de comprador inconsistentes: a@x.cl vs b@x.cl. "
-            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar."
+            {
+                "curso": "Geminis A",
+                "id_moodle": "143",
+                "emails": ["a@x.cl", "b@x.cl"],
+                "mensaje": "ERROR: El curso 'Geminis A' (ID Moodle: 143) — a@x.cl vs b@x.cl",
+            }
         ]
 
         with patch("src.reports.pdf_generator.settings") as mock_settings, \
@@ -896,17 +900,23 @@ class TestAlertaValidacion:
 
         assert resultado["status"] == "DRY-RUN"
 
-    def test_orchestrator_alerta_parses_error_messages(self, json_file, tmp_path):
-        """El orchestrator parsea los mensajes de error y genera HTML correcto."""
+    def test_orchestrator_alerta_uses_structured_data(self, json_file, tmp_path):
+        """El orchestrator pasa datos estructurados al HTML del correo de alerta."""
         from src.reports.reports_orchestrator import ReportsOrchestrator
 
         fake_errors = [
-            "ERROR: El curso 'Geminis Básico Fullkom Grupo A' (ID Moodle: 143) tiene "
-            "emails de comprador inconsistentes: jortizleiva@gmail.com vs ygonzalez@duocapital.cl. "
-            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar.",
-            "ERROR: El curso 'Geminis Básico Fullkom Grupo B' (ID Moodle: 144) tiene "
-            "emails de comprador inconsistentes: jortizleiva@duocapital.cl vs ygonzalez@duocapital.cl. "
-            "Corrija el archivo compradores_tecnipro.xlsx antes de continuar.",
+            {
+                "curso": "Geminis Básico Fullkom Grupo A",
+                "id_moodle": "143",
+                "emails": ["jortizleiva@gmail.com", "ygonzalez@duocapital.cl"],
+                "mensaje": "ERROR: inconsistentes",
+            },
+            {
+                "curso": "Geminis Básico Fullkom Grupo B",
+                "id_moodle": "144",
+                "emails": ["jortizleiva@duocapital.cl", "ygonzalez@duocapital.cl"],
+                "mensaje": "ERROR: inconsistentes",
+            },
         ]
 
         correo_enviado = {}
@@ -930,7 +940,9 @@ class TestAlertaValidacion:
         # Verificar contenido del correo de alerta
         assert "Conflicto" in correo_enviado.get("asunto", "")
         cuerpo = correo_enviado.get("cuerpo_html", "")
+        assert "Geminis Básico Fullkom Grupo A" in cuerpo
         assert "143" in cuerpo
+        assert "Geminis Básico Fullkom Grupo B" in cuerpo
         assert "144" in cuerpo
         assert "jortizleiva@gmail.com" in cuerpo
         assert "ygonzalez@duocapital.cl" in cuerpo

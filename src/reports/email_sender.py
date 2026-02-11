@@ -135,39 +135,39 @@ def generar_cuerpo_alerta_validacion(errores, fecha_hora):
     for e in errores:
         emails_str = ", ".join(e["emails"])
         filas_html += (
-            f'<tr>'
-            f'<td style="padding:8px;border:1px solid #ddd;">{e["curso"]}</td>'
-            f'<td style="padding:8px;border:1px solid #ddd;text-align:center;">{e["id_moodle"]}</td>'
-            f'<td style="padding:8px;border:1px solid #ddd;">{emails_str}</td>'
-            f'</tr>\n'
+            f'      <tr>\n'
+            f'        <td style="padding: 8px; border: 1px solid #ddd; font-size: 14px;" width="50%">{e["curso"]}</td>\n'
+            f'        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px;" width="10%">{e["id_moodle"]}</td>\n'
+            f'        <td style="padding: 8px; border: 1px solid #ddd; font-size: 14px;" width="40%">{emails_str}</td>\n'
+            f'      </tr>\n'
         )
 
     html = f"""\
 <html>
 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-<div style="background-color: #dc3545; color: white; padding: 16px 20px; border-radius: 4px 4px 0 0;">
+<div style="background-color: #dc3545; color: white; padding: 16px 20px;">
   <h2 style="margin: 0;">&#9888;&#65039; ERROR: Conflicto de compradores detectado</h2>
 </div>
 
-<div style="padding: 20px; background: #fff3f3; border: 1px solid #dc3545; border-top: none; border-radius: 0 0 4px 4px;">
-  <p>El proceso de generaci&oacute;n de reportes se ha <strong>detenido</strong> porque se detectaron emails de comprador inconsistentes en el archivo <code>compradores_tecnipro.xlsx</code>.</p>
+<div style="padding: 20px; background: #fff3f3; border: 1px solid #dc3545; border-top: none;">
+  <p>El proceso de generaci&oacute;n de reportes se ha <strong>detenido</strong> porque se detectaron emails de comprador inconsistentes en el archivo <strong>compradores_tecnipro.xlsx</strong>.</p>
 
   <p><strong>Cursos con conflicto:</strong></p>
-  <table style="border-collapse: collapse; width: 100%; margin: 12px 0;">
+  <table border="1" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin: 12px 0;">
     <thead>
       <tr style="background-color: #dc3545; color: white;">
-        <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Curso</th>
-        <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">ID Moodle</th>
-        <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Emails encontrados</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 14px;" width="50%">Curso</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px;" width="10%">ID Moodle</th>
+        <th style="padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 14px;" width="40%">Emails encontrados</th>
       </tr>
     </thead>
     <tbody>
-      {filas_html}
+{filas_html}\
     </tbody>
   </table>
 
   <div style="background: #fff; border-left: 4px solid #dc3545; padding: 12px 16px; margin: 16px 0;">
-    <strong>Acci&oacute;n requerida:</strong> Corrija el archivo <code>compradores_tecnipro.xlsx</code> para que cada curso tenga un &uacute;nico email de comprador, y vuelva a ejecutar el proceso.
+    <strong>Acci&oacute;n requerida:</strong> Corrija el archivo <strong>compradores_tecnipro.xlsx</strong> para que cada curso tenga un &uacute;nico email de comprador, y vuelva a ejecutar el proceso.
   </div>
 
   <p style="color: #666; font-size: 13px;">Fecha y hora del intento: {fecha_hora}</p>

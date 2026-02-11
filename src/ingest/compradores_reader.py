@@ -138,11 +138,17 @@ def validar_emails_compradores(path=None):
             nombre = ""
             if col_nombre and col_nombre in grupo.columns:
                 nombre = grupo[col_nombre].dropna().iloc[0] if not grupo[col_nombre].dropna().empty else ""
-            emails_str = " vs ".join(sorted(emails))
-            errores.append(
-                f"ERROR: El curso {nombre!r} (ID Moodle: {id_moodle}) tiene "
-                f"emails de comprador inconsistentes: {emails_str}. "
-                f"Corrija el archivo compradores_tecnipro.xlsx antes de continuar."
-            )
+            emails_sorted = sorted(emails)
+            emails_str = " vs ".join(emails_sorted)
+            errores.append({
+                "curso": nombre or "Desconocido",
+                "id_moodle": str(id_moodle),
+                "emails": emails_sorted,
+                "mensaje": (
+                    f"ERROR: El curso {nombre!r} (ID Moodle: {id_moodle}) tiene "
+                    f"emails de comprador inconsistentes: {emails_str}. "
+                    f"Corrija el archivo compradores_tecnipro.xlsx antes de continuar."
+                ),
+            })
 
     return errores
