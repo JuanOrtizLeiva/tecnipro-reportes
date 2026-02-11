@@ -10,6 +10,9 @@ Modos de ejecución:
     python -m src.main --report --email --dry-run → PDFs + sin enviar correos
     python -m src.main --report-only → solo generar PDFs (usa JSON existente)
     python -m src.main --scrape --report --email → flujo completo
+    python -m src.main --web        → levantar servidor web (dashboard)
+    python -m src.main --web --port 8080 → servidor web en puerto específico
+    python -m src.main --report --web → pipeline + PDFs + dashboard
 """
 
 import argparse
@@ -153,6 +156,24 @@ def run_reports(send_email=False, dry_run=False, json_path=None):
     return report
 
 
+def run_web(port=None, host=None):
+    """Levanta el servidor web Flask con el dashboard."""
+    from src.web.app import create_app
+
+    _port = port or settings.WEB_PORT
+    _host = host or settings.WEB_HOST
+
+    app = create_app()
+
+    logger.info("=" * 60)
+    logger.info("Servidor web iniciando en http://%s:%s", _host, _port)
+    logger.info("Dashboard: http://localhost:%s", _port)
+    logger.info("Ctrl+C para detener")
+    logger.info("=" * 60)
+
+    app.run(host=_host, port=_port, debug=False)
+
+
 def main():
     """Punto de entrada principal con soporte de argumentos."""
     parser = argparse.ArgumentParser(description="Tecnipro Reportes")
@@ -192,6 +213,17 @@ def main():
         default=False,
         help="Modo prueba: genera PDFs pero NO envía correos",
     )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Levantar servidor web con dashboard después del pipeline",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Puerto para el servidor web (default: 5000)",
+    )
     args = parser.parse_args()
 
     # Log explícito del estado de flags de reporte
@@ -220,29 +252,43 @@ def main():
             logger.info("Pipeline Fase 1 ya ejecutado por el orquestador")
             # Si también pide reportes, ejecutarlos
             if args.report:
-                return run_reports(
+                run_reports(
                     send_email=args.email,
                     dry_run=args.dry_run,
                 )
+            if args.web:
+                run_web(port=args.port)
             return report
 
     # ── Modo report-only (sin pipeline) ─────────────────
     if args.report_only:
         logger.info("Modo report-only: generando PDFs desde JSON existente")
-        return run_reports(
+        run_reports(
             send_email=args.email,
             dry_run=args.dry_run,
         )
+        if args.web:
+            run_web(port=args.port)
+        return None
+
+    # ── Modo solo web (sin pipeline) ──────────────────
+    if args.web and not args.report:
+        run_web(port=args.port)
+        return None
 
     # ── Modo por defecto: pipeline ──────────────────────
     datos_json = run_pipeline()
 
     # ── Reportes si solicitados ─────────────────────────
     if args.report:
-        return run_reports(
+        run_reports(
             send_email=args.email,
             dry_run=args.dry_run,
         )
+
+    # ── Servidor web si solicitado ─────────────────────
+    if args.web:
+        run_web(port=args.port)
 
     return datos_json
 

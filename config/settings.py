@@ -50,5 +50,10 @@ AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET", "")
 EMAIL_REMITENTE = os.getenv("EMAIL_REMITENTE", "jortizleiva@duocapital.cl")
 EMAIL_CC = os.getenv("EMAIL_CC", "jortizleiva@duocapital.cl")
 
+# ── Dashboard Web (Fase 3.5) ──────────────────────────────
+WEB_PORT = int(os.getenv("WEB_PORT", "5000"))
+WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
+TEMPLATES_PATH = PROJECT_ROOT / "templates"
+
 # ── Logging ────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

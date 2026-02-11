@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Capacitación - Instituto Tecnipro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --slate-950: #020617;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --white: #ffffff;
+            --blue-600: #2563eb;
+            --blue-500: #3b82f6;
+            --blue-400: #60a5fa;
+            --blue-100: #dbeafe;
+            --blue-50: #eff6ff;
+            --green-600: #16a34a;
+            --green-500: #22c55e;
+            --green-100: #dcfce7;
+            --green-50: #f0fdf4;
+            --red-600: #dc2626;
+            --red-500: #ef4444;
+            --red-100: #fee2e2;
+            --red-50: #fef2f2;
+            --amber-600: #d97706;
+            --amber-500: #f59e0b;
+            --amber-100: #fef3c7;
+            --amber-50: #fffbeb;
+            --teal-600: #0d9488;
+            --teal-500: #14b8a6;
+            --teal-100: #ccfbf1;
+            --purple-600: #9333ea;
+            --purple-100: #f3e8ff;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.06);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.06);
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--slate-100);
+            color: var(--slate-800);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app { max-width: 1520px; margin: 0 auto; padding: 1.5rem; }
+
+        /* ── HEADER ── */
+        .header {
+            background: linear-gradient(135deg, var(--slate-900) 0%, var(--slate-800) 60%, #1a365d 100%);
+            color: white;
+            padding: 2rem 2.5rem;
+            border-radius: 20px;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px),
+                        repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px);
+        }
+        .header-inner { display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; flex-wrap:wrap; gap:1rem; }
+        .header-left { display:flex; align-items:center; gap:1.5rem; }
+        .logo-box {
+            width: 200px; height: 56px;
+            background: rgba(255,255,255,.95);
+            border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: .72rem; color: var(--slate-800);
+            letter-spacing: .3px; text-align:center; line-height:1.3;
+            box-shadow: var(--shadow-md);
+        }
+        .header-text h1 { font-size: 1.65rem; font-weight: 700; letter-spacing: -.02em; }
+        .header-text p { font-size: .9rem; opacity: .7; margin-top: .15rem; }
+        .header-meta {
+            display: flex; flex-direction: column; align-items: flex-end; gap: .35rem;
+            background: rgba(255,255,255,.08);
+            backdrop-filter: blur(12px);
+            padding: .85rem 1.25rem;
+            border-radius: var(--radius);
+            border: 1px solid rgba(255,255,255,.1);
+            font-size: .82rem;
+        }
+        .header-meta span { display:flex; align-items:center; gap:.5rem; opacity:.85; }
+
+        /* ── KPI CARDS ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .kpi-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--slate-200);
+            transition: transform .2s, box-shadow .2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .kpi-label { font-size: .78rem; font-weight: 500; color: var(--slate-500); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
+        .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+        .kpi-sub { font-size: .78rem; color: var(--slate-400); margin-top: .25rem; }
+        .kpi-value.blue { color: var(--blue-600); }
+        .kpi-value.green { color: var(--green-600); }
+        .kpi-value.red { color: var(--red-600); }
+        .kpi-value.amber { color: var(--amber-600); }
+        .kpi-value.teal { color: var(--teal-600); }
+        .kpi-value.purple { color: var(--purple-600); }
+
+        /* ── FILTERS BAR ── */
+        .filters-bar {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--slate-200);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group { display:flex; align-items:center; gap:.5rem; }
+        .filter-group label { font-size:.82rem; font-weight:600; color:var(--slate-600); white-space:nowrap; }
+        .filter-select, .filter-input {
+            padding: .5rem .85rem;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-xs);
+            font-size: .85rem;
+            font-family: inherit;
+            color: var(--slate-700);
+            background: var(--white);
+            transition: border-color .2s;
+        }
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--blue-500);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+        }
+        .filter-input { width: 220px; }
+        .filter-input::placeholder { color: var(--slate-400); }
+        .btn-clear {
+            padding: .45rem .85rem;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-xs);
+            background: var(--white);
+            color: var(--slate-600);
+            font-size: .82rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-clear:hover { background: var(--slate-100); border-color: var(--slate-400); }
+
+        /* ── COURSE SECTIONS ── */
+        .course-section {
+            background: var(--white);
+            border-radius: var(--radius);
+            margin-bottom: 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--slate-200);
+            overflow: hidden;
+        }
+        .course-header {
+            padding: 1.25rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background .2s;
+            user-select: none;
+        }
+        .course-header:hover { background: var(--slate-50); }
+        .course-header-left { display:flex; align-items:center; gap:1rem; flex:1; min-width:0; }
+        .course-indicator {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .ci-active { background: var(--green-500); box-shadow: 0 0 8px rgba(34,197,94,.4); }
+        .ci-finished { background: var(--slate-400); }
+        .ci-warning { background: var(--amber-500); box-shadow: 0 0 8px rgba(245,158,11,.4); }
+        .ci-danger { background: var(--red-500); box-shadow: 0 0 8px rgba(239,68,68,.4); }
+        .course-title { font-weight: 700; font-size: 1rem; color: var(--slate-800); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .course-meta { display:flex; gap:1.5rem; align-items:center; flex-shrink:0; }
+        .course-meta-item { display:flex; align-items:center; gap:.35rem; font-size:.8rem; color:var(--slate-500); }
+        .course-meta-item i { font-size:.75rem; }
+        .course-badges { display:flex; gap:.5rem; flex-shrink:0; }
+        .badge {
+            padding: .2rem .65rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            letter-spacing: .02em;
+        }
+        .badge-green { background:var(--green-100); color:var(--green-600); }
+        .badge-red { background:var(--red-100); color:var(--red-600); }
+        .badge-amber { background:var(--amber-100); color:var(--amber-600); }
+        .badge-blue { background:var(--blue-100); color:var(--blue-600); }
+        .badge-purple { background:var(--purple-100); color:var(--purple-600); }
+        .chevron {
+            color: var(--slate-400);
+            transition: transform .3s;
+            font-size: .85rem;
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+        .course-section.open .chevron { transform: rotate(180deg); }
+
+        .course-body { display:none; border-top:1px solid var(--slate-200); }
+        .course-section.open .course-body { display:block; }
+
+        /* ── STATS ROW ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: .75rem;
+            padding: 1rem 1.5rem;
+            background: var(--slate-50);
+            border-bottom: 1px solid var(--slate-200);
+        }
+        .stat-mini {
+            text-align: center;
+            padding: .5rem;
+        }
+        .stat-mini-val { font-size: 1.35rem; font-weight: 700; }
+        .stat-mini-label { font-size: .72rem; color: var(--slate-500); font-weight: 500; }
+
+        /* ── TABLE ── */
+        .table-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .75rem 1.5rem;
+            border-bottom: 1px solid var(--slate-100);
+        }
+        .table-actions-left { display:flex; gap:.75rem; align-items:center; }
+        .select-all-label {
+            display:flex; align-items:center; gap:.4rem;
+            font-size:.82rem; color:var(--slate-600); cursor:pointer; font-weight:500;
+        }
+        .select-all-label input { width:16px; height:16px; accent-color:var(--blue-600); cursor:pointer; }
+        .table-wrapper { overflow-x: auto; }
+        table { width:100%; border-collapse:collapse; font-size:.84rem; }
+        thead { background: var(--slate-50); position:sticky; top:0; z-index:2; }
+        th {
+            padding: .7rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--slate-600);
+            font-size: .76rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--slate-200);
+            cursor: pointer;
+            user-select: none;
+            transition: color .2s;
+        }
+        th:hover { color: var(--blue-600); }
+        th .sort-icon { margin-left:.3rem; font-size:.65rem; opacity:.4; }
+        th.sorted .sort-icon { opacity:1; color:var(--blue-600); }
+        td {
+            padding: .65rem 1rem;
+            border-bottom: 1px solid var(--slate-100);
+            color: var(--slate-700);
+            vertical-align: middle;
+        }
+        tr:hover td { background: var(--blue-50); }
+        tr.selected td { background: rgba(37,99,235,.06); }
+        td.cb-cell { width:36px; text-align:center; }
+        td.cb-cell input { width:16px; height:16px; accent-color:var(--blue-600); cursor:pointer; }
+
+        /* Progress bar */
+        .progress-cell { min-width:120px; }
+        .progress-bar-bg {
+            width:100%; height:8px; background:var(--slate-200); border-radius:99px; overflow:hidden;
+        }
+        .progress-bar-fill { height:100%; border-radius:99px; transition: width .5s; }
+        .progress-text { font-size:.78rem; font-weight:600; margin-top:.15rem; font-family:'Space Mono',monospace; }
+
+        /* Status chips */
+        .status { display:inline-flex; align-items:center; gap:.3rem; padding:.15rem .55rem; border-radius:999px; font-size:.75rem; font-weight:600; }
+        .status-a { background:var(--green-100); color:var(--green-600); }
+        .status-r { background:var(--red-100); color:var(--red-600); }
+        .status-p { background:var(--amber-100); color:var(--amber-600); }
+
+        .risk { display:inline-flex; padding:.15rem .55rem; border-radius:999px; font-size:.72rem; font-weight:600; }
+        .risk-alto { background:var(--red-100); color:var(--red-600); }
+        .risk-medio { background:var(--amber-100); color:var(--amber-600); }
+        .risk-bajo { background:var(--green-50); color:var(--green-600); }
+
+        .sence-chip { display:inline-flex; align-items:center; gap:.25rem; font-size:.78rem; font-weight:600; }
+        .sence-chip.connected { color: var(--green-600); }
+        .sence-chip.disconnected { color: var(--slate-400); }
+        .sence-num { font-family:'Space Mono',monospace; }
+
+        .grade { font-family:'Space Mono',monospace; font-weight:700; font-size:.88rem; }
+        .grade-pass { color: var(--green-600); }
+        .grade-fail { color: var(--red-600); }
+        .grade-na { color: var(--slate-400); }
+
+        .email-cell { font-size:.78rem; color:var(--slate-500); max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+        .rut-cell { font-family:'Space Mono',monospace; font-size:.78rem; color:var(--slate-600); white-space:nowrap; }
+
+        /* ── FLOATING BUTTON ── */
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--blue-600), var(--blue-500));
+            color: white;
+            border: none;
+            box-shadow: 0 8px 24px rgba(37,99,235,.4);
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            z-index: 100;
+            transition: all .3s cubic-bezier(.34,1.56,.64,1);
+        }
+        .fab.visible { display:flex; animation: fabIn .4s cubic-bezier(.68,-.55,.265,1.55); }
+        .fab:hover { transform:scale(1.1) translateY(-3px); box-shadow: 0 12px 32px rgba(37,99,235,.5); }
+        .fab-count {
+            position:absolute; top:-4px; right:-4px;
+            width:24px; height:24px;
+            background:var(--red-500);
+            color:white;
+            border-radius:50%;
+            font-size:.72rem;
+            font-weight:700;
+            display:flex; align-items:center; justify-content:center;
+            border: 3px solid white;
+            box-shadow: var(--shadow);
+        }
+        @keyframes fabIn {
+            0% { transform:scale(0); opacity:0; }
+            60% { transform:scale(1.2); }
+            100% { transform:scale(1); opacity:1; }
+        }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,.5);
+            backdrop-filter:blur(4px);
+            z-index:200;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            padding: 2rem;
+        }
+        .modal-overlay.open { display:flex; animation: fadeIn .2s; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .modal {
+            background:var(--white);
+            border-radius:16px;
+            width:100%;
+            max-width:640px;
+            max-height:90vh;
+            overflow-y:auto;
+            box-shadow: var(--shadow-xl);
+        }
+        .modal-head {
+            padding:1.25rem 1.5rem;
+            border-bottom:1px solid var(--slate-200);
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        }
+        .modal-head h2 { font-size:1.15rem; font-weight:700; }
+        .modal-close {
+            width:32px; height:32px; border-radius:50%;
+            border:none; background:var(--slate-100);
+            color:var(--slate-600);
+            cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.1rem;
+            transition:all .2s;
+        }
+        .modal-close:hover { background:var(--slate-200); }
+        .modal-body { padding:1.5rem; }
+        .modal-footer {
+            padding:1rem 1.5rem;
+            border-top:1px solid var(--slate-200);
+            display:flex;
+            justify-content:flex-end;
+            gap:.75rem;
+        }
+        .form-group { margin-bottom:1rem; }
+        .form-label { display:block; font-size:.82rem; font-weight:600; color:var(--slate-700); margin-bottom:.35rem; }
+        .form-control {
+            width:100%;
+            padding:.55rem .85rem;
+            border:1px solid var(--slate-300);
+            border-radius:var(--radius-xs);
+            font-size:.88rem;
+            font-family:inherit;
+            color:var(--slate-700);
+        }
+        .form-control:focus { outline:none; border-color:var(--blue-500); box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+        textarea.form-control { resize:vertical; min-height:120px; }
+        .selected-students-list {
+            max-height:160px; overflow-y:auto;
+            border:1px solid var(--slate-200);
+            border-radius:var(--radius-xs);
+            padding:.5rem;
+        }
+        .sel-student {
+            display:flex; justify-content:space-between; align-items:center;
+            padding:.35rem .5rem;
+            border-radius:var(--radius-xs);
+            font-size:.82rem;
+        }
+        .sel-student:nth-child(even) { background:var(--slate-50); }
+        .sel-student-name { font-weight:600; color:var(--slate-800); }
+        .sel-student-email { color:var(--slate-500); font-size:.78rem; }
+        .sel-student-course { color:var(--blue-600); font-size:.72rem; font-weight:500; }
+        .btn {
+            padding:.55rem 1.25rem;
+            border-radius:var(--radius-xs);
+            font-size:.88rem;
+            font-weight:600;
+            font-family:inherit;
+            cursor:pointer;
+            border:none;
+            display:inline-flex;
+            align-items:center;
+            gap:.4rem;
+            transition:all .2s;
+        }
+        .btn-primary { background:var(--blue-600); color:white; }
+        .btn-primary:hover { background:var(--blue-500); box-shadow:0 4px 12px rgba(37,99,235,.3); }
+        .btn-secondary { background:var(--white); color:var(--slate-700); border:1px solid var(--slate-300); }
+        .btn-secondary:hover { background:var(--slate-50); }
+        .email-preview {
+            background:var(--slate-50);
+            border:1px solid var(--slate-200);
+            border-radius:var(--radius-xs);
+            padding:1rem;
+            font-size:.85rem;
+            color:var(--slate-600);
+            white-space:pre-wrap;
+            line-height:1.6;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .app { padding:.75rem; }
+            .header { padding:1.25rem; }
+            .header-text h1 { font-size:1.2rem; }
+            .kpi-grid { grid-template-columns: repeat(2,1fr); }
+            .filters-bar { flex-direction:column; align-items:stretch; }
+            .filter-input { width:100%; }
+            .course-meta { display:none; }
+        }
+
+        /* ── TOAST NOTIFICATION ── */
+        .toast {
+            position: fixed;
+            bottom: 6rem;
+            right: 2rem;
+            padding: .85rem 1.5rem;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-weight: 600;
+            font-size: .88rem;
+            z-index: 300;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all .3s ease;
+            max-width: 400px;
+        }
+        .toast.visible { transform: translateY(0); opacity: 1; }
+        .toast-success { background: var(--green-600); }
+        .toast-error { background: var(--red-600); }
+
+        /* ── LOADING STATE ── */
+        .loading-container {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--slate-500);
+        }
+        .loading-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--slate-200);
+            border-top-color: var(--blue-600);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── UTILITY ── */
+        .hidden { display:none !important; }
+        .text-center { text-align:center; }
+        .mono { font-family:'Space Mono',monospace; }
+    </style>
+</head>
+<body>
+<div class="app" id="app">
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="logo-box">Instituto de Capacitaciones Tecnipro</div>
+                <div class="header-text">
+                    <h1>Sistema de Gestión de Capacitación</h1>
+                    <p>Instituto de Capacitación Tecnipro · Panel de Control</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <span><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
+                <span><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
+                <span><i class="fas fa-database"></i> Datos actualizados: <strong id="dataDate">10/02/2026</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- FILTERS -->
+    <div class="filters-bar">
+        <div class="filter-group">
+            <label><i class="fas fa-filter"></i> Curso:</label>
+            <select class="filter-select" id="filterCourse">
+                <option value="">Todos los cursos</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-tags"></i> Categoría:</label>
+            <select class="filter-select" id="filterCategory">
+                <option value="">Todas</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-flag"></i> Estado:</label>
+            <select class="filter-select" id="filterStatus">
+                <option value="">Todos</option>
+                <option value="A">Aprobados</option>
+                <option value="R">Reprobados</option>
+                <option value="P">En proceso</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-exclamation-triangle"></i> Riesgo:</label>
+            <select class="filter-select" id="filterRisk">
+                <option value="">Todos</option>
+                <option value="alto">Alto</option>
+                <option value="medio">Medio</option>
+                <option value="bajo">Bajo</option>
+            </select>
+        </div>
+        <div class="filter-group" style="flex:1;">
+            <label><i class="fas fa-search"></i></label>
+            <input type="text" class="filter-input" id="filterSearch" placeholder="Buscar participante, RUT, correo...">
+        </div>
+        <button class="btn-clear" onclick="clearFilters()"><i class="fas fa-times"></i> Limpiar</button>
+    </div>
+
+    <!-- COURSES -->
+    <div id="courseSections"></div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabEmail" onclick="openEmailModal()">
+        <i class="fas fa-envelope"></i>
+        <span class="fab-count" id="fabCount">0</span>
+    </button>
+
+    <!-- EMAIL MODAL -->
+    <div class="modal-overlay" id="emailModalOverlay">
+        <div class="modal">
+            <div class="modal-head">
+                <h2><i class="fas fa-paper-plane" style="color:var(--blue-600);margin-right:.5rem;"></i> Enviar Correo a Seleccionados</h2>
+                <button class="modal-close" onclick="closeEmailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Participantes seleccionados (<span id="modalCount">0</span>)</label>
+                    <div class="selected-students-list" id="selectedList"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Asunto</label>
+                    <input type="text" class="form-control" id="emailSubject" value="Información sobre tu curso de capacitación - Instituto Tecnipro">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mensaje</label>
+                    <textarea class="form-control" id="emailBody">Estimado/a participante,
+
+Le escribimos para informarle sobre el estado de su curso de capacitación.
+
+[Personalizar mensaje aquí]
+
+Saludos cordiales,
+Instituto de Capacitación Tecnipro
+www.institutotecnipro.cl</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vista previa</label>
+                    <div class="email-preview" id="emailPreview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEmailModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btnSendEmail" onclick="sendEmails()">
+                    <i class="fas fa-paper-plane"></i> Enviar Correo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA — loaded dynamically from /api/datos
+// ═══════════════════════════════════════════════════════
+let DATA = null;
+
+// ═══════════════════════════════════════════════════════
+// FIELD MAPPING: real JSON → dashboard field names
+// ═══════════════════════════════════════════════════════
+function normalizeData(raw) {
+    // Normalize student fields from real JSON to dashboard conventions
+    if (!raw || !raw.cursos) return raw;
+    for (const curso of raw.cursos) {
+        if (!curso.estudiantes) continue;
+        for (const est of curso.estudiantes) {
+            // id → rut
+            if (est.id && !est.rut) est.rut = est.id;
+            // dias_sin_ingreso → dias_sin_acceso
+            if (est.dias_sin_ingreso !== undefined && est.dias_sin_acceso === undefined)
+                est.dias_sin_acceso = est.dias_sin_ingreso;
+            // riesgo: empty string → ""
+            if (!est.riesgo) est.riesgo = "";
+            // sence normalization
+            if (est.sence) {
+                // declaracion_jurada → estado_dj
+                if (est.sence.declaracion_jurada !== undefined && est.sence.estado_dj === undefined) {
+                    est.sence.estado_dj = est.sence.declaracion_jurada || null;
+                }
+            }
+        }
+    }
+    return raw;
+}
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const selectedStudents = new Map(); // key: rut+courseId, value: {student, courseName}
+let sortState = {}; // courseId -> { field, asc }
+
+// ═══════════════════════════════════════════════════════
+// INIT — load data from API
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    updateClock();
+    setInterval(updateClock, 60000);
+    loadData();
+});
+
+async function loadData() {
+    // Show loading state
+    document.getElementById('courseSections').innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p style="font-size:1.1rem;font-weight:600;">Cargando datos del pipeline...</p>
+            <p style="font-size:.85rem;margin-top:.5rem;">Conectando con /api/datos</p>
+        </div>`;
+
+    try {
+        const response = await fetch('/api/datos');
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${response.status}`);
+        }
+        DATA = normalizeData(await response.json());
+        // Update data date in header
+        if (DATA.metadata && DATA.metadata.fecha_procesamiento) {
+            const d = new Date(DATA.metadata.fecha_procesamiento);
+            document.getElementById('dataDate').textContent = d.toLocaleDateString('es-CL');
+        }
+        populateFilters();
+        renderKPIs();
+        renderCourses();
+        setupFilterListeners();
+    } catch (error) {
+        document.getElementById('kpiGrid').innerHTML = '';
+        document.getElementById('courseSections').innerHTML = `
+            <div style="text-align:center;padding:4rem;background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+                <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:var(--amber-500);margin-bottom:1rem;"></i>
+                <h2 style="margin-bottom:.5rem;">Error al cargar datos</h2>
+                <p style="color:var(--slate-500);">No se pudo conectar con el servidor. Verifique que el pipeline se ejecutó correctamente.</p>
+                <p style="color:var(--red-500);margin-top:.75rem;font-family:'Space Mono',monospace;font-size:.85rem;">${error.message}</p>
+                <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="loadData()">
+                    <i class="fas fa-redo"></i> Reintentar
+                </button>
+            </div>`;
+    }
+}
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ═══════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════
+function renderKPIs(filteredStudents) {
+    const all = filteredStudents || DATA.cursos.flatMap(c => c.estudiantes);
+    const totalStudents = all.length;
+    const approved = all.filter(s => s.estado === 'A').length;
+    const failed = all.filter(s => s.estado === 'R').length;
+    const inProcess = all.filter(s => s.estado === 'P').length;
+    const highRisk = all.filter(s => s.riesgo === 'alto').length;
+    const avgProgress = totalStudents ? (all.reduce((s,e)=>s+e.progreso,0)/totalStudents).toFixed(1) : 0;
+    const connected = all.filter(s => s.sence && s.sence.n_ingresos > 0).length;
+
+    // Count visible courses
+    const visibleCourses = filteredStudents
+        ? document.querySelectorAll('.course-section:not([style*="display: none"])').length
+        : DATA.cursos.length;
+
+    const kpis = [
+        { label:'Cursos', value: visibleCourses, cls:'blue', sub:'visibles', icon:'fa-book' },
+        { label:'Participantes', value: totalStudents, cls:'blue', sub:`en ${visibleCourses} cursos`, icon:'fa-users' },
+        { label:'Aprobados', value: approved, cls:'green', sub:`${totalStudents?((approved/totalStudents)*100).toFixed(0):0}% del total`, icon:'fa-check-circle' },
+        { label:'Reprobados', value: failed, cls:'red', sub:`${totalStudents?((failed/totalStudents)*100).toFixed(0):0}% del total`, icon:'fa-times-circle' },
+        { label:'En Proceso', value: inProcess, cls:'amber', sub:`${totalStudents?((inProcess/totalStudents)*100).toFixed(0):0}% del total`, icon:'fa-clock' },
+        { label:'Riesgo Alto', value: highRisk, cls:'red', sub:'requieren atención', icon:'fa-exclamation-triangle' },
+        { label:'Progreso Prom.', value: avgProgress+'%', cls:'teal', sub:'promedio general', icon:'fa-chart-line' },
+        { label:'Conectados SENCE', value: connected, cls:'purple', sub:`de ${totalStudents} participantes`, icon:'fa-plug' },
+    ];
+
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+        <div class="kpi-card">
+            <div class="kpi-label"><i class="fas ${k.icon}" style="margin-right:.3rem;"></i> ${k.label}</div>
+            <div class="kpi-value ${k.cls}">${k.value}</div>
+            <div class="kpi-sub">${k.sub}</div>
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════
+function populateFilters() {
+    const courseSelect = document.getElementById('filterCourse');
+    const catSelect = document.getElementById('filterCategory');
+    const categories = [...new Set(DATA.cursos.map(c=>c.categoria))];
+
+    DATA.cursos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id_moodle;
+        opt.textContent = c.nombre;
+        courseSelect.appendChild(opt);
+    });
+    categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        catSelect.appendChild(opt);
+    });
+}
+
+function setupFilterListeners() {
+    ['filterCourse','filterCategory','filterStatus','filterRisk'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+    document.getElementById('filterSearch').addEventListener('input', applyFilters);
+}
+
+function clearFilters() {
+    document.getElementById('filterCourse').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterRisk').value = '';
+    document.getElementById('filterSearch').value = '';
+    applyFilters();
+    renderKPIs(); // Reset to all students
+}
+
+function applyFilters() {
+    const courseFilter = document.getElementById('filterCourse').value;
+    const catFilter = document.getElementById('filterCategory').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const riskFilter = document.getElementById('filterRisk').value;
+    const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+
+    const visibleStudents = [];
+
+    document.querySelectorAll('.course-section').forEach(section => {
+        const cid = section.dataset.courseId;
+        const course = DATA.cursos.find(c => c.id_moodle === cid);
+        if (!course) return;
+
+        // Course-level filters
+        let showCourse = true;
+        if (courseFilter && cid !== courseFilter) showCourse = false;
+        if (catFilter && course.categoria !== catFilter) showCourse = false;
+
+        section.style.display = showCourse ? '' : 'none';
+        if (!showCourse) return;
+
+        // Student-level filters
+        const rows = section.querySelectorAll('tbody tr');
+        let visibleCount = 0;
+        rows.forEach(row => {
+            const studentIdx = parseInt(row.dataset.studentIdx);
+            const student = course.estudiantes[studentIdx];
+            if (!student) return;
+
+            let show = true;
+            if (statusFilter && student.estado !== statusFilter) show = false;
+            if (riskFilter && student.riesgo !== riskFilter) show = false;
+            if (search) {
+                const haystack = `${student.nombre} ${student.rut||student.id||''} ${student.email}`.toLowerCase();
+                if (!haystack.includes(search)) show = false;
+            }
+            row.style.display = show ? '' : 'none';
+            if (show) {
+                visibleCount++;
+                visibleStudents.push(student);
+            }
+        });
+
+        // Show section count
+        const countEl = section.querySelector('.student-count-display');
+        if (countEl) countEl.textContent = visibleCount;
+    });
+
+    // Update KPIs with visible students only
+    renderKPIs(visibleStudents);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER COURSES
+// ═══════════════════════════════════════════════════════
+function renderCourses() {
+    const container = document.getElementById('courseSections');
+    container.innerHTML = DATA.cursos.map((course, ci) => {
+        const stats = course.estadisticas;
+        const indicator = course.dias_restantes < 0 ? 'ci-finished' :
+                         course.dias_restantes <= 7 ? 'ci-danger' :
+                         course.dias_restantes <= 30 ? 'ci-warning' : 'ci-active';
+
+        const daysLabel = course.dias_restantes < 0
+            ? `Vencido hace ${Math.abs(course.dias_restantes)} días`
+            : `${course.dias_restantes} días restantes`;
+
+        return `
+        <div class="course-section${ci===0?' open':''}" data-course-id="${course.id_moodle}">
+            <div class="course-header" onclick="toggleCourse(this)">
+                <div class="course-header-left">
+                    <span class="course-indicator ${indicator}"></span>
+                    <span class="course-title">${course.nombre}</span>
+                </div>
+                <div class="course-meta">
+                    <span class="course-meta-item"><i class="fas fa-users"></i> <strong><span class="student-count-display">${stats.total_estudiantes}</span></strong></span>
+                    <span class="course-meta-item"><i class="fas fa-calendar"></i> ${daysLabel}</span>
+                    <span class="course-meta-item"><i class="fas fa-id-card"></i> SENCE ${course.id_sence||'—'}</span>
+                </div>
+                <div class="course-badges">
+                    <span class="badge badge-green">${stats.aprobados} Aprob.</span>
+                    ${stats.reprobados?`<span class="badge badge-red">${stats.reprobados} Reprob.</span>`:''}
+                    ${stats.en_proceso?`<span class="badge badge-amber">${stats.en_proceso} Proc.</span>`:''}
+                    ${stats.riesgo_alto?`<span class="badge badge-red"><i class="fas fa-exclamation-triangle"></i> ${stats.riesgo_alto}</span>`:''}
+                </div>
+                <i class="fas fa-chevron-down chevron"></i>
+            </div>
+            <div class="course-body">
+                <div class="stats-row">
+                    <div class="stat-mini"><div class="stat-mini-val blue">${stats.total_estudiantes}</div><div class="stat-mini-label">Participantes</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val">${stats.promedio_progreso}%</div><div class="stat-mini-label">Progreso Prom.</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val green">${stats.aprobados}</div><div class="stat-mini-label">Aprobados</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val red">${stats.reprobados}</div><div class="stat-mini-label">Reprobados</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val amber">${stats.en_proceso}</div><div class="stat-mini-label">En Proceso</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val purple">${stats.conectados_sence}</div><div class="stat-mini-label">SENCE</div></div>
+                </div>
+                <div class="table-actions">
+                    <div class="table-actions-left">
+                        <label class="select-all-label">
+                            <input type="checkbox" onchange="toggleSelectAll(this,'${course.id_moodle}')">
+                            Seleccionar todos
+                        </label>
+                    </div>
+                    <div style="font-size:.8rem;color:var(--slate-500);">
+                        Empresa: <strong>${course.comprador?.empresa||'Sin asignar'}</strong>
+                        ${course.comprador?.nombre?` · ${course.comprador.nombre}`:''}
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:36px;"></th>
+                                <th onclick="sortTable('${course.id_moodle}','nombre')">Participante <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','rut')">RUT <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','email')">Correo <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','progreso')">Progreso <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','calificacion')">Nota <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','estado')">Estado <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','riesgo')">Riesgo <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','sence_ingresos')">Conex. SENCE <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','sence_dj')">DJ <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','dias_sin_acceso')">Días s/acceso <span class="sort-icon">⇅</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-${course.id_moodle}">
+                            ${renderStudentRows(course)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderStudentRows(course) {
+    return course.estudiantes.map((s, i) => {
+        const key = `${s.rut}_${course.id_moodle}`;
+        const isSelected = selectedStudents.has(key);
+        const progColor = s.progreso >= 80 ? 'var(--green-500)' : s.progreso >= 50 ? 'var(--amber-500)' : 'var(--red-500)';
+        const gradeClass = s.calificacion === null ? 'grade-na' : s.calificacion >= 4 ? 'grade-pass' : 'grade-fail';
+        const gradeText = s.calificacion !== null ? s.calificacion.toFixed(1) : '—';
+        const statusLabel = s.estado==='A'?'Aprobado':s.estado==='R'?'Reprobado':'En proceso';
+        const statusIcon = s.estado==='A'?'✓':s.estado==='R'?'✗':'◉';
+        const senceIngresos = s.sence ? s.sence.n_ingresos : '—';
+        const senceClass = s.sence && s.sence.n_ingresos > 0 ? 'connected' : 'disconnected';
+        const djText = s.sence && s.sence.estado_dj ? s.sence.estado_dj : '—';
+        const djColor = djText === 'Emitida' ? 'var(--green-600)' : 'var(--slate-400)';
+
+        return `
+        <tr data-student-idx="${i}" class="${isSelected?'selected':''}">
+            <td class="cb-cell">
+                <input type="checkbox" ${isSelected?'checked':''}
+                    onchange="toggleStudent(this,'${course.id_moodle}',${i})">
+            </td>
+            <td><strong>${s.nombre}</strong></td>
+            <td class="rut-cell">${s.rut}</td>
+            <td class="email-cell" title="${s.email}">${s.email}</td>
+            <td class="progress-cell">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width:${s.progreso}%;background:${progColor};"></div>
+                </div>
+                <div class="progress-text" style="color:${progColor}">${s.progreso}%</div>
+            </td>
+            <td><span class="grade ${gradeClass}">${gradeText}</span></td>
+            <td><span class="status status-${s.estado.toLowerCase()}">${statusIcon} ${statusLabel}</span></td>
+            <td>${s.riesgo ? `<span class="risk risk-${s.riesgo}">${s.riesgo.charAt(0).toUpperCase()+s.riesgo.slice(1)}</span>` : '<span style="color:var(--slate-400);">—</span>'}</td>
+            <td>
+                <span class="sence-chip ${senceClass}">
+                    <i class="fas ${senceClass==='connected'?'fa-plug':'fa-plug-circle-xmark'}"></i>
+                    <span class="sence-num">${senceIngresos}</span>
+                </span>
+            </td>
+            <td style="color:${djColor};font-weight:600;font-size:.82rem;">${djText}</td>
+            <td class="text-center mono" style="font-size:.82rem;${s.dias_sin_acceso>30?'color:var(--red-600);font-weight:700;':''}">${s.dias_sin_acceso||'—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════════════════
+function toggleCourse(el) {
+    el.closest('.course-section').classList.toggle('open');
+}
+
+function toggleStudent(cb, courseId, idx) {
+    const course = DATA.cursos.find(c => c.id_moodle === courseId);
+    const student = course.estudiantes[idx];
+    const key = `${student.rut}_${courseId}`;
+
+    if (cb.checked) {
+        selectedStudents.set(key, { student, courseName: course.nombre });
+        cb.closest('tr').classList.add('selected');
+    } else {
+        selectedStudents.delete(key);
+        cb.closest('tr').classList.remove('selected');
+    }
+    updateFab();
+}
+
+function toggleSelectAll(cb, courseId) {
+    const course = DATA.cursos.find(c => c.id_moodle === courseId);
+    const tbody = document.getElementById(`tbody-${courseId}`);
+    const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+
+    checkboxes.forEach((checkbox, idx) => {
+        const row = checkbox.closest('tr');
+        if (row.style.display === 'none') return; // skip filtered out
+        const student = course.estudiantes[parseInt(row.dataset.studentIdx)];
+        const key = `${student.rut}_${courseId}`;
+
+        checkbox.checked = cb.checked;
+        if (cb.checked) {
+            selectedStudents.set(key, { student, courseName: course.nombre });
+            row.classList.add('selected');
+        } else {
+            selectedStudents.delete(key);
+            row.classList.remove('selected');
+        }
+    });
+    updateFab();
+}
+
+function updateFab() {
+    const fab = document.getElementById('fabEmail');
+    const count = selectedStudents.size;
+    document.getElementById('fabCount').textContent = count;
+    if (count > 0) {
+        fab.classList.add('visible');
+    } else {
+        fab.classList.remove('visible');
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// SORTING
+// ═══════════════════════════════════════════════════════
+function sortTable(courseId, field) {
+    const course = DATA.cursos.find(c => c.id_moodle === courseId);
+    if (!sortState[courseId]) sortState[courseId] = { field, asc: true };
+    else if (sortState[courseId].field === field) sortState[courseId].asc = !sortState[courseId].asc;
+    else sortState[courseId] = { field, asc: true };
+
+    const { asc } = sortState[courseId];
+
+    course.estudiantes.sort((a, b) => {
+        let va, vb;
+        switch(field) {
+            case 'nombre': va=a.nombre; vb=b.nombre; break;
+            case 'rut': va=a.rut; vb=b.rut; break;
+            case 'email': va=a.email; vb=b.email; break;
+            case 'progreso': va=a.progreso; vb=b.progreso; break;
+            case 'calificacion': va=a.calificacion??-1; vb=b.calificacion??-1; break;
+            case 'estado': va=a.estado; vb=b.estado; break;
+            case 'riesgo': va={alto:3,medio:2,bajo:1}[a.riesgo]||0; vb={alto:3,medio:2,bajo:1}[b.riesgo]||0; break;
+            case 'sence_ingresos': va=a.sence?.n_ingresos??-1; vb=b.sence?.n_ingresos??-1; break;
+            case 'sence_dj': va=a.sence?.estado_dj||''; vb=b.sence?.estado_dj||''; break;
+            case 'dias_sin_acceso': va=a.dias_sin_acceso||0; vb=b.dias_sin_acceso||0; break;
+            default: va=0; vb=0;
+        }
+        if (typeof va === 'string') return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+        return asc ? va-vb : vb-va;
+    });
+
+    document.getElementById(`tbody-${courseId}`).innerHTML = renderStudentRows(course);
+    applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════
+// EMAIL MODAL
+// ═══════════════════════════════════════════════════════
+function openEmailModal() {
+    const overlay = document.getElementById('emailModalOverlay');
+    overlay.classList.add('open');
+
+    const list = document.getElementById('selectedList');
+    const entries = [...selectedStudents.values()];
+    document.getElementById('modalCount').textContent = entries.length;
+
+    list.innerHTML = entries.map(e => `
+        <div class="sel-student">
+            <div>
+                <div class="sel-student-name">${e.student.nombre}</div>
+                <div class="sel-student-email">${e.student.email}</div>
+            </div>
+            <div class="sel-student-course">${e.courseName}</div>
+        </div>
+    `).join('');
+
+    updateEmailPreview();
+}
+
+function closeEmailModal() {
+    document.getElementById('emailModalOverlay').classList.remove('open');
+}
+
+function updateEmailPreview() {
+    const subject = document.getElementById('emailSubject').value;
+    const body = document.getElementById('emailBody').value;
+    const entries = [...selectedStudents.values()];
+    const emails = entries.map(e => e.student.email).join(', ');
+
+    document.getElementById('emailPreview').innerHTML =
+        `<strong>Para:</strong> ${emails}\n<strong>Asunto:</strong> ${subject}\n\n${body}`;
+}
+
+async function sendEmails() {
+    const entries = [...selectedStudents.values()];
+    const emails = entries.map(e => e.student.email).filter(e => e);
+    const subject = document.getElementById('emailSubject').value;
+    const body = document.getElementById('emailBody').value;
+
+    if (!emails.length) {
+        showToast('No hay destinatarios con correo válido', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnSendEmail');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/enviar-correo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                destinatarios: emails,
+                asunto: subject,
+                cuerpo: body,
+            }),
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(`Correo enviado a ${result.enviados} destinatario(s)`, 'success');
+            closeEmailModal();
+            // Limpiar selección
+            selectedStudents.clear();
+            document.querySelectorAll('tr.selected').forEach(tr => tr.classList.remove('selected'));
+            document.querySelectorAll('td.cb-cell input:checked').forEach(cb => { cb.checked = false; });
+            updateFab();
+        } else {
+            showToast(result.error || 'Error al enviar correo', 'error');
+        }
+    } catch (error) {
+        showToast(`Error de conexión: ${error.message}`, 'error');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function showToast(message, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast toast-${type} visible`;
+    setTimeout(() => { toast.classList.remove('visible'); }, 4000);
+}
+
+// Close modal on overlay click
+document.getElementById('emailModalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeEmailModal();
+});
+
+// Update preview on input changes
+document.getElementById('emailSubject')?.addEventListener('input', updateEmailPreview);
+document.getElementById('emailBody')?.addEventListener('input', updateEmailPreview);
+</script>
+</body>
+</html>
