@@ -118,6 +118,11 @@ async def login_clave_unica(page):
     rut = re.sub(r"[^0-9kK]", "", rut_raw)
     logger.info("Iniciando login Clave Única (RUT: %s...)", rut[:4])
 
+    # Verificar si ya estamos en SENCE (sesión activa)
+    if "sence.cl" in page.url and "claveunica" not in page.url.lower():
+        logger.info("Ya estamos en SENCE - sesión activa detectada")
+        return True
+
     # Detectar captcha
     captcha = page.locator("iframe[src*='captcha'], .g-recaptcha, #captcha")
     if await captcha.count() > 0:
@@ -127,7 +132,43 @@ async def login_clave_unica(page):
 
     # Ingresar RUT — selector real: input[name='run'] id='uname'
     campo_rut = page.locator("input#uname")
-    await campo_rut.wait_for(state="visible", timeout=PAGE_TIMEOUT)
+
+    try:
+        await campo_rut.wait_for(state="visible", timeout=PAGE_TIMEOUT)
+    except Exception as e:
+        # El campo no apareció - capturar diagnósticos
+        logger.error("Campo RUT no encontrado - capturando diagnósticos")
+        logger.error("URL actual: %s", page.url)
+        logger.error("Título página: %s", await page.title())
+
+        # Buscar mensajes de error comunes
+        posibles_errores = [
+            ".alert", ".error", ".mensaje-error",
+            "[class*='error']", "[class*='alert']",
+            "#error-message", ".notification"
+        ]
+        for selector in posibles_errores:
+            elementos = page.locator(selector)
+            if await elementos.count() > 0:
+                for i in range(await elementos.count()):
+                    texto = await elementos.nth(i).text_content()
+                    if texto and texto.strip():
+                        logger.error("Posible error en página: %s", texto.strip())
+
+        # Capturar HTML parcial para diagnóstico (primeros 2000 chars del body)
+        try:
+            body_text = await page.locator("body").text_content()
+            if body_text:
+                logger.error("Contenido página (primeros 500 chars): %s", body_text[:500])
+        except Exception:
+            pass
+
+        # Re-lanzar el error original
+        raise RuntimeError(
+            f"Campo de RUT (input#uname) no encontrado. "
+            f"URL: {page.url}, Error: {e}"
+        )
+
     await campo_rut.fill(rut)
     logger.debug("RUT ingresado")
 
