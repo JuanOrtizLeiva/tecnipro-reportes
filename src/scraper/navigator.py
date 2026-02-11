@@ -169,7 +169,7 @@ async def configurar_busqueda(page):
     # Verificar que el campo de búsqueda por código de curso sea visible
     campo_codigo = page.locator("input#FilterCodigoCurso")
     try:
-        await campo_codigo.wait_for(state="visible", timeout=10000)
+        await campo_codigo.wait_for(state="visible", timeout=PAGE_TIMEOUT)
         logger.info("Búsqueda configurada — campo #FilterCodigoCurso visible")
     except Exception:
         logger.warning(

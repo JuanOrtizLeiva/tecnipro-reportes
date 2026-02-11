@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 SENCE_URL = "https://lce.sence.cl/CertificadoAsistencia/"
 MAX_RETRIES_LOGIN = 1
-PAGE_TIMEOUT = settings.SCRAPER_TIMEOUT
+PAGE_TIMEOUT = settings.SCRAPER_TIMEOUT  # 90s para operaciones normales
+GOTO_TIMEOUT = 120000  # 120s para cargas iniciales de página (muy lentas)
 
 
 async def abrir_portal(page):
@@ -31,7 +32,7 @@ async def abrir_portal(page):
         ``True`` si se llegó a la página intermedia de SENCE.
     """
     logger.info("Abriendo portal SENCE: %s", SENCE_URL)
-    await page.goto(SENCE_URL, wait_until="networkidle", timeout=PAGE_TIMEOUT)
+    await page.goto(SENCE_URL, wait_until="networkidle", timeout=GOTO_TIMEOUT)
 
     # Esperar a que la página termine de cargar completamente
     await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
@@ -83,7 +84,7 @@ async def seleccionar_clave_unica(page):
         base = page.url.split("/ClaveUnica")[0]
         await page.goto(
             f"{base}/ClaveUnica/Autorizacion/IniciarClaveUnica",
-            timeout=PAGE_TIMEOUT,
+            timeout=GOTO_TIMEOUT,
         )
 
     # Esperar redirección a accounts.claveunica.gob.cl

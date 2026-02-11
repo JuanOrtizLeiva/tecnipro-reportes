@@ -23,7 +23,7 @@ async def capture_error_screenshot(page, error_name, sence_id=None):
     filepath = screenshots_dir / filename
 
     try:
-        await page.screenshot(path=str(filepath), full_page=True)
+        await page.screenshot(path=str(filepath), full_page=True, timeout=15000)
         logger.error("Screenshot guardado: %s", filepath)
     except Exception as e:
         logger.error("No se pudo guardar screenshot: %s", e)
@@ -41,13 +41,23 @@ class SenceScraper:
     async def start(self):
         """Inicia Playwright y crea el navegador."""
         from playwright.async_api import async_playwright
+        from urllib.parse import urlparse
 
         self.playwright = await async_playwright().start()
 
         # Configurar proxy si está disponible
         launch_options = {"headless": self.headless}
         if settings.PROXY_URL:
-            launch_options["proxy"] = {"server": settings.PROXY_URL}
+            # Parsear URL del proxy para extraer credenciales y servidor
+            parsed = urlparse(settings.PROXY_URL)
+            proxy_config = {
+                "server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+            }
+            if parsed.username:
+                proxy_config["username"] = parsed.username
+            if parsed.password:
+                proxy_config["password"] = parsed.password
+            launch_options["proxy"] = proxy_config
 
         self.browser = await self.playwright.chromium.launch(**launch_options)
         context = await self.browser.new_context(

@@ -25,8 +25,8 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-PAGE_TIMEOUT = settings.SCRAPER_TIMEOUT
-DOWNLOAD_TIMEOUT = 60000
+PAGE_TIMEOUT = settings.SCRAPER_TIMEOUT  # 90s
+DOWNLOAD_TIMEOUT = 120000  # 120s para descargas (archivos pueden ser grandes)
 
 
 async def descargar_curso(page, sence_id, output_dir=None):

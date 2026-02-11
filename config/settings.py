@@ -34,7 +34,7 @@ if not SQLITE_PATH.is_absolute():
 CLAVE_UNICA_RUT = os.getenv("CLAVE_UNICA_RUT", "")
 CLAVE_UNICA_PASSWORD = os.getenv("CLAVE_UNICA_PASSWORD", "")
 SCRAPER_HEADLESS = os.getenv("SCRAPER_HEADLESS", "true").lower() == "true"
-SCRAPER_TIMEOUT = int(os.getenv("SCRAPER_TIMEOUT", "60000"))  # 60s para proxy
+SCRAPER_TIMEOUT = int(os.getenv("SCRAPER_TIMEOUT", "90000"))  # 90s (SENCE es muy lento)
 PROXY_URL = os.getenv("PROXY_URL", None)  # Proxy residencial (opcional)
 SCREENSHOTS_PATH = OUTPUT_PATH / "screenshots"
 
