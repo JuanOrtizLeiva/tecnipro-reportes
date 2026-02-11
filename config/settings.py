@@ -37,5 +37,18 @@ SCRAPER_HEADLESS = os.getenv("SCRAPER_HEADLESS", "true").lower() == "true"
 SCRAPER_TIMEOUT = int(os.getenv("SCRAPER_TIMEOUT", "30000"))
 SCREENSHOTS_PATH = OUTPUT_PATH / "screenshots"
 
+# ── Reportes PDF y Correo (Fase 3) ────────────────────────
+REPORTS_PATH = OUTPUT_PATH / "reportes"
+JSON_DATOS_PATH = OUTPUT_PATH / "datos_procesados.json"
+
+# Azure AD — para envío de correo vía Microsoft Graph
+AZURE_CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "")
+AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
+AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET", "")
+
+# Correo
+EMAIL_REMITENTE = os.getenv("EMAIL_REMITENTE", "jortizleiva@duocapital.cl")
+EMAIL_CC = os.getenv("EMAIL_CC", "jortizleiva@duocapital.cl")
+
 # ── Logging ────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

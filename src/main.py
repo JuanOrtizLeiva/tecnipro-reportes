@@ -5,6 +5,11 @@ Modos de ejecución:
     python -m src.main --scrape     → scraper SENCE + pipeline
     python -m src.main --scrape-only → solo scraper sin pipeline
     python -m src.main --visible    → (con --scrape) muestra el navegador
+    python -m src.main --report     → pipeline + generar PDFs
+    python -m src.main --report --email → pipeline + PDFs + enviar correos
+    python -m src.main --report --email --dry-run → PDFs + sin enviar correos
+    python -m src.main --report-only → solo generar PDFs (usa JSON existente)
+    python -m src.main --scrape --report --email → flujo completo
 """
 
 import argparse
@@ -133,6 +138,15 @@ async def run_scraper(headless=True):
     return report
 
 
+def run_reports(send_email=False, dry_run=False, json_path=None):
+    """Ejecuta la generación de reportes PDF y envío de correos."""
+    from src.reports.reports_orchestrator import ReportsOrchestrator
+
+    orchestrator = ReportsOrchestrator(send_email=send_email, dry_run=dry_run)
+    report = orchestrator.run(json_path=json_path)
+    return report
+
+
 def main():
     """Punto de entrada principal con soporte de argumentos."""
     parser = argparse.ArgumentParser(description="Tecnipro Reportes")
@@ -151,10 +165,39 @@ def main():
         action="store_true",
         help="Mostrar el navegador durante el scraping (headless=False)",
     )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Generar reportes PDF por comprador después del pipeline",
+    )
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Solo generar reportes PDF (usa JSON existente, sin pipeline)",
+    )
+    parser.add_argument(
+        "--email",
+        action="store_true",
+        help="Enviar reportes por correo (requiere --report o --report-only)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Modo prueba: genera PDFs pero NO envía correos",
+    )
     args = parser.parse_args()
+
+    # Log explícito del estado de flags de reporte
+    if args.report or args.report_only:
+        logger.info(
+            "Flags: report=%s, report_only=%s, email=%s, dry_run=%s",
+            args.report, args.report_only, args.email, args.dry_run,
+        )
 
     headless = not args.visible
 
+    # ── Modo scraper ────────────────────────────────────
     if args.scrape or args.scrape_only:
         logger.info("Modo scraper activado (headless=%s)", headless)
         report = asyncio.run(run_scraper(headless=headless))
@@ -169,10 +212,33 @@ def main():
         # --scrape: continuar con pipeline si hubo descargas
         if report.get("pipeline_fase1") == "OK":
             logger.info("Pipeline Fase 1 ya ejecutado por el orquestador")
+            # Si también pide reportes, ejecutarlos
+            if args.report:
+                return run_reports(
+                    send_email=args.email,
+                    dry_run=args.dry_run,
+                )
             return report
 
-    # Modo por defecto: solo pipeline
-    return run_pipeline()
+    # ── Modo report-only (sin pipeline) ─────────────────
+    if args.report_only:
+        logger.info("Modo report-only: generando PDFs desde JSON existente")
+        return run_reports(
+            send_email=args.email,
+            dry_run=args.dry_run,
+        )
+
+    # ── Modo por defecto: pipeline ──────────────────────
+    datos_json = run_pipeline()
+
+    # ── Reportes si solicitados ─────────────────────────
+    if args.report:
+        return run_reports(
+            send_email=args.email,
+            dry_run=args.dry_run,
+        )
+
+    return datos_json
 
 
 if __name__ == "__main__":

@@ -152,15 +152,19 @@ class SenceScraper:
                 report["fallidos"].append(sence_id)
                 await capture_error_screenshot(self.page, "download", sence_id)
 
-            # Limpiar búsqueda para el siguiente
-            try:
-                await limpiar_busqueda(self.page)
-            except Exception:
-                pass
-
-            # Espera entre descargas
+            # Re-configurar búsqueda para el siguiente curso.
+            # Tras "Volver" desde DetalleAccion, la página resetea los
+            # dropdowns (Línea / Criterio), así que hay que re-seleccionar
+            # Franquicia + Curso antes de buscar el siguiente ID.
             if idx < len(sence_ids):
                 await self.page.wait_for_timeout(WAIT_BETWEEN_DOWNLOADS * 1000)
+                try:
+                    await limpiar_busqueda(self.page)
+                    await configurar_busqueda(self.page)
+                except Exception as e:
+                    logger.warning(
+                        "Error re-configurando búsqueda: %s", e
+                    )
 
         logger.info(
             "Scraping completado: %d descargados, %d fallidos",

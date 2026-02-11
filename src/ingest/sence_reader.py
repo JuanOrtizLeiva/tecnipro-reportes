@@ -63,9 +63,27 @@ def leer_sence(carpeta=None):
 
 
 def _leer_archivo_sence(archivo):
-    """Lee un CSV individual de SENCE con fallback de encoding."""
+    """Lee un CSV individual de SENCE con fallback de encoding.
+
+    SENCE "Descargar Conectividad" a veces devuelve archivos Excel (.xlsx)
+    disfrazados con extensión .csv.  Se detecta por los bytes mágicos ``PK``
+    (cabecera ZIP) y se lee con ``pd.read_excel`` en esos casos.
+    """
     id_sence = archivo.stem  # nombre sin extensión = ID SENCE
 
+    # ── Detectar si es Excel disfrazado de CSV ──────────────
+    es_excel = False
+    try:
+        cabecera = archivo.read_bytes()[:4]
+        if cabecera[:2] == b"PK":
+            es_excel = True
+    except Exception:
+        pass
+
+    if es_excel:
+        return _leer_excel_sence(archivo, id_sence)
+
+    # ── Lectura normal como CSV ─────────────────────────────
     # Intentar leer con utf-8 primero, luego latin-1
     contenido = None
     for enc in ("utf-8", "latin-1"):
@@ -129,6 +147,75 @@ def _leer_archivo_sence(archivo):
 
     logger.debug("SENCE %s: %d registros", archivo.name, len(df))
     return df
+
+
+def _leer_excel_sence(archivo, id_sence):
+    """Lee un archivo Excel de conectividad SENCE (.xlsx disfrazado de .csv).
+
+    El Excel tiene una fila por sesión de conectividad con columnas como:
+    "Rut Participante", "Nombre Participante", "Fecha Inicio Conectividad", etc.
+
+    Se agrupa por RUT para contar sesiones (N_Ingresos).
+    """
+    try:
+        df = pd.read_excel(archivo, header=0, dtype=str)
+    except Exception as e:
+        logger.warning("Error leyendo Excel SENCE %s: %s", archivo.name, e)
+        return None
+
+    if df.empty:
+        logger.debug("Excel SENCE vacío: %s", archivo.name)
+        return None
+
+    # Buscar columnas específicas por nombre parcial
+    col_rut = _buscar_columna(df, "rut participante")
+    col_nombre = _buscar_columna(df, "nombre participante")
+
+    if col_rut is None:
+        logger.warning(
+            "Excel SENCE %s: no se encontró 'Rut Participante' en %s",
+            archivo.name, list(df.columns),
+        )
+        return None
+
+    # Extraer solo las columnas necesarias
+    rut_series = df[col_rut].astype(str).str.strip()
+    nombre_series = df[col_nombre].astype(str).str.strip() if col_nombre else pd.Series("", index=df.index)
+
+    # Filtrar filas sin RUT válido
+    mask = rut_series.str.contains(r"\d", na=False)
+    rut_series = rut_series[mask]
+    nombre_series = nombre_series[mask]
+
+    if rut_series.empty:
+        return None
+
+    # Limpiar RUT
+    id_user = rut_series.str.replace(".", "", regex=False).str.strip().str.lower()
+
+    # Agrupar por RUT: contar sesiones, tomar primer nombre
+    agrupado = pd.DataFrame({"IDUser": id_user, "Nombre": nombre_series})
+    conteo = agrupado.groupby("IDUser").agg(
+        Nombre=("Nombre", "first"),
+        N_Ingresos=("IDUser", "size"),
+    ).reset_index()
+
+    conteo["IDSence"] = id_sence
+    conteo["LLave"] = conteo["IDUser"] + id_sence
+    conteo["DJ"] = ""
+
+    conteo = conteo[["LLave", "IDUser", "IDSence", "N_Ingresos", "DJ"]].copy()
+
+    logger.debug("Excel SENCE %s: %d participantes (%d sesiones)", archivo.name, len(conteo), len(rut_series))
+    return conteo
+
+
+def _buscar_columna(df, patron):
+    """Busca una columna cuyo nombre contenga el patrón (case-insensitive)."""
+    for col in df.columns:
+        if patron in str(col).lower():
+            return col
+    return None
 
 
 def _detectar_encoding(archivo):
