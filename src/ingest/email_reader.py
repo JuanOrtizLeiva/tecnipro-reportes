@@ -138,6 +138,10 @@ def descargar_adjuntos_moodle():
 
             logger.info("✓ Email válido de Moodle - procesando adjuntos")
 
+            # Determinar tipo de archivo basado en asunto
+            es_greporte = "control de cursos" in subject.lower() or "sincrónico" in subject.lower()
+            tipo_archivo = "Greporte.csv" if es_greporte else "Dreporte.csv"
+
             # Procesar adjuntos
             if msg.is_multipart():
                 for part in msg.walk():
@@ -146,10 +150,10 @@ def descargar_adjuntos_moodle():
                         if filename and filename.lower().endswith(".csv"):
                             # Descargar adjunto
                             try:
-                                _guardar_adjunto(part, filename, archivos_encontrados)
-                                resultado["archivos_descargados"].append(filename)
+                                _guardar_adjunto(part, tipo_archivo, archivos_encontrados)
+                                resultado["archivos_descargados"].append(tipo_archivo)
                             except Exception as e:
-                                logger.error("Error guardando %s: %s", filename, e)
+                                logger.error("Error guardando %s: %s", tipo_archivo, e)
                                 resultado["errores"].append(str(e))
 
             # Marcar como leído
@@ -255,34 +259,32 @@ def _obtener_nombre_adjunto(part):
     return _decodificar_header(filename)
 
 
-def _guardar_adjunto(part, filename, archivos_encontrados):
-    """Guarda un adjunto en DATA_INPUT_PATH.
-
-    Solo guarda si es Greporte.csv o Dreporte.csv.
+def _guardar_adjunto(part, target_filename, archivos_encontrados):
+    """Guarda un adjunto en DATA_INPUT_PATH con el nombre especificado.
 
     Parameters
     ----------
     part : email.message.Message
         Parte del mensaje con adjunto.
-    filename : str
-        Nombre del archivo.
+    target_filename : str
+        Nombre con el que se guardará (Greporte.csv o Dreporte.csv).
     archivos_encontrados : dict
         Dict para trackear qué archivos se encontraron.
     """
-    # Solo procesar Greporte.csv y Dreporte.csv
-    nombre_base = filename.lower()
+    # Validar que sea uno de los archivos esperados
+    nombre_base = target_filename.lower()
     if nombre_base not in ("greporte.csv", "dreporte.csv"):
-        logger.debug("Adjunto ignorado (no es G/Dreporte): %s", filename)
+        logger.warning("Nombre destino inválido: %s", target_filename)
         return
 
     # Obtener contenido
     payload = part.get_payload(decode=True)
     if not payload:
-        logger.warning("Adjunto %s no tiene contenido", filename)
+        logger.warning("Adjunto no tiene contenido")
         return
 
-    # Guardar en DATA_INPUT_PATH
-    output_path = settings.DATA_INPUT_PATH / filename
+    # Guardar en DATA_INPUT_PATH con el nombre destino
+    output_path = settings.DATA_INPUT_PATH / target_filename
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "wb") as f:
