@@ -18,6 +18,35 @@ echo "============================================"
 echo "Inicio pipeline: $(date)"
 echo "============================================"
 
+# Paso 0: RESPALDO de archivos existentes
+FECHA=$(date +%Y-%m-%d)
+BACKUP_DIR="$APP_DIR/data/backup/$FECHA"
+
+echo "[$(date)] Creando respaldo de archivos existentes..."
+mkdir -p "$BACKUP_DIR/sence"
+
+# Respaldar Greporte y Dreporte si existen
+if [ -f "$APP_DIR/data/Greporte.csv" ]; then
+    mv "$APP_DIR/data/Greporte.csv" "$BACKUP_DIR/"
+    echo "[$(date)] Greporte.csv respaldado"
+fi
+
+if [ -f "$APP_DIR/data/Dreporte.csv" ]; then
+    mv "$APP_DIR/data/Dreporte.csv" "$BACKUP_DIR/"
+    echo "[$(date)] Dreporte.csv respaldado"
+fi
+
+# Respaldar archivos SENCE
+ARCHIVOS_SENCE=$(find "$APP_DIR/data/sence" -maxdepth 1 -name "*.csv" 2>/dev/null | wc -l)
+if [ "$ARCHIVOS_SENCE" -gt 0 ]; then
+    mv "$APP_DIR/data/sence"/*.csv "$BACKUP_DIR/sence/" 2>/dev/null || true
+    echo "[$(date)] $ARCHIVOS_SENCE archivos SENCE respaldados"
+else
+    echo "[$(date)] Sin archivos SENCE para respaldar"
+fi
+
+echo "[$(date)] Respaldo completado en: $BACKUP_DIR"
+
 # Paso 1: Descargar archivos Moodle — Email primero, OneDrive como backup
 echo "[$(date)] Descargando archivos Moodle desde email..."
 python3 -c "
