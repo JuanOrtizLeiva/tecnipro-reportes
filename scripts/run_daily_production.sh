@@ -18,13 +18,28 @@ echo "============================================"
 echo "Inicio pipeline: $(date)"
 echo "============================================"
 
-# Paso 1: Descargar archivos desde OneDrive/SharePoint
-echo "[$(date)] Descargando archivos de OneDrive..."
+# Paso 1: Descargar archivos Moodle — Email primero, OneDrive como backup
+echo "[$(date)] Descargando archivos Moodle desde email..."
 python3 -c "
+from src.ingest.email_reader import descargar_adjuntos_moodle
+try:
+    resultado = descargar_adjuntos_moodle()
+    if resultado['status'] == 'OK':
+        print(f'Email OK: {len(resultado[\"archivos_descargados\"])} archivos descargados')
+    else:
+        print(f'Email PARCIAL: {resultado.get(\"archivos_faltantes\", [])}')
+        exit(1)
+except Exception as e:
+    print(f'Email FALLÓ: {e}')
+    exit(1)
+" 2>&1 || {
+    echo "[$(date)] WARN: Email falló, intentando OneDrive como backup..."
+    python3 -c "
 from src.ingest.onedrive_client import download_moodle_csvs
 download_moodle_csvs()
 " 2>&1 || {
-    echo "[$(date)] WARN: Error descargando de OneDrive, usando archivos locales"
+        echo "[$(date)] ERROR: OneDrive también falló, usando archivos locales"
+    }
 }
 
 # Paso 2: Scraper SENCE + Pipeline + Reportes

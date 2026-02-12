@@ -51,7 +51,12 @@ AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET", "")
 EMAIL_REMITENTE = os.getenv("EMAIL_REMITENTE", "jortizleiva@duocapital.cl")
 EMAIL_CC = os.getenv("EMAIL_CC", "jortizleiva@duocapital.cl")
 
-# ── OneDrive / SharePoint (Fase 5) ────────────────────────
+# ── Email IMAP (Fase 5.1 - Email directo) ────────────────
+EMAIL_MOODLE_USER = os.getenv("EMAIL_MOODLE_USER", "")
+EMAIL_MOODLE_PASSWORD = os.getenv("EMAIL_MOODLE_PASSWORD", "")
+IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
+
+# ── OneDrive / SharePoint (Fase 5 - Backup) ───────────────
 ONEDRIVE_SITE_ID = os.getenv("ONEDRIVE_SITE_ID", "")
 ONEDRIVE_MOODLE_FOLDER = os.getenv(
     "ONEDRIVE_MOODLE_FOLDER",
