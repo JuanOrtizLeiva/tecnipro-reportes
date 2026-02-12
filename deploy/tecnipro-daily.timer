@@ -1,8 +1,11 @@
 [Unit]
-Description=Tecnipro Daily Pipeline Timer
+Description=Tecnipro Daily Pipeline Timer (8 AM y 11 PM Chile)
 
 [Timer]
-OnCalendar=*-*-* 17:30
+# 8:00 AM Chile (UTC-3) = 11:00 UTC
+OnCalendar=*-*-* 11:00
+# 23:00 Chile (UTC-3) = 02:00 UTC (día siguiente)
+OnCalendar=*-*-* 02:00
 Persistent=true
 RandomizedDelaySec=300
 
