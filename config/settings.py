@@ -54,6 +54,7 @@ EMAIL_CC = os.getenv("EMAIL_CC", "jortizleiva@duocapital.cl")
 # ── Email IMAP (Fase 5.1 - Email directo) ────────────────
 EMAIL_MOODLE_USER = os.getenv("EMAIL_MOODLE_USER", "")
 EMAIL_MOODLE_PASSWORD = os.getenv("EMAIL_MOODLE_PASSWORD", "")
+EMAIL_MOODLE_FROM = os.getenv("EMAIL_MOODLE_FROM", "noreply@virtual.institutotecnipro.cl")
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
 
 # ── OneDrive / SharePoint (Fase 5 - Backup) ───────────────

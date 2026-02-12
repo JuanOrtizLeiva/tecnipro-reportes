@@ -23,6 +23,7 @@ Edita tu archivo `.env` (en el servidor VPS) y agrega/actualiza estas líneas:
 # Email IMAP — para recibir archivos Moodle directo por email
 EMAIL_MOODLE_USER=reportetecnipro@gmail.com
 EMAIL_MOODLE_PASSWORD=TU_APP_PASSWORD_AQUI
+EMAIL_MOODLE_FROM=noreply@virtual.institutotecnipro.cl
 IMAP_SERVER=imap.gmail.com
 ```
 
@@ -53,6 +54,29 @@ python -m src.main --scrape --report --email
 ```
 
 ## Cómo Funciona
+
+### Filtros de Seguridad
+
+El sistema aplica **múltiples filtros** para asegurar que solo procesa emails legítimos de Moodle:
+
+1. **Filtro de Remitente (FROM)**
+   - Solo emails de: `noreply@virtual.institutotecnipro.cl`
+   - Ignora emails de otras fuentes (spam, notificaciones de Google, etc.)
+
+2. **Filtro de Asunto (SUBJECT)**
+   - Email 1: "Control de cursos Asincrónicos y Sincrónicos" → Greporte.csv
+   - Email 2: "Reporte Asincronico" → Dreporte.csv
+   - Ignora emails con asuntos no reconocidos
+
+3. **Filtro de Estado (UNSEEN)**
+   - Solo emails no leídos
+   - Marca como leído después de procesar (evita duplicados)
+
+4. **Filtro de Adjuntos**
+   - Solo archivos .csv nombrados "Greporte.csv" o "Dreporte.csv"
+   - Ignora otros adjuntos
+
+**Resultado:** El sistema **solo descarga archivos de emails legítimos de Moodle**, ignorando cualquier otro correo que llegue a la bandeja.
 
 ### Flujo de Descarga
 

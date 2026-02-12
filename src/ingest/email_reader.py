@@ -20,10 +20,15 @@ def descargar_adjuntos_moodle():
 
     Proceso:
     1. Conecta a Gmail vía IMAP
-    2. Busca emails no leídos de Moodle
+    2. Busca emails no leídos de Moodle (filtra por FROM)
     3. Descarga adjuntos .csv (Greporte.csv, Dreporte.csv)
     4. Guarda en DATA_INPUT_PATH
     5. Marca emails como leídos
+
+    Filtros aplicados:
+    - FROM: Solo emails de noreply@virtual.institutotecnipro.cl
+    - SUBJECT: "Control de cursos" → Greporte.csv, "Reporte Asincronico" → Dreporte.csv
+    - UNSEEN: Solo emails no leídos
 
     Returns
     -------
@@ -38,6 +43,7 @@ def descargar_adjuntos_moodle():
     user = settings.EMAIL_MOODLE_USER
     password = settings.EMAIL_MOODLE_PASSWORD
     imap_server = settings.IMAP_SERVER
+    moodle_from = settings.EMAIL_MOODLE_FROM
 
     if not user or not password:
         raise RuntimeError(
@@ -66,14 +72,18 @@ def descargar_adjuntos_moodle():
         mail.select("inbox")
 
         # Buscar emails no leídos de Moodle
-        # Criterio: UNSEEN (no leídos) y FROM contiene "@" (ajustar según remitente real)
-        status, messages = mail.search(None, "UNSEEN")
+        # Criterio: UNSEEN (no leídos) + FROM (remitente Moodle)
+        search_criteria = f'(UNSEEN FROM "{moodle_from}")'
+        status, messages = mail.search(None, search_criteria)
 
         if status != "OK":
             raise RuntimeError("Error buscando emails no leídos")
 
         email_ids = messages[0].split()
-        logger.info("Emails no leídos encontrados: %d", len(email_ids))
+        logger.info(
+            "Emails no leídos de %s encontrados: %d",
+            moodle_from, len(email_ids)
+        )
 
         if not email_ids:
             logger.info("No hay emails nuevos de Moodle")
@@ -103,9 +113,30 @@ def descargar_adjuntos_moodle():
 
             logger.info("Procesando email: '%s' de %s", subject, from_addr)
 
-            # Verificar si es de Moodle (ajustar según remitente real)
-            # Moodle típicamente envía desde noreply@... o el dominio del sitio
-            # Por ahora procesamos todos los no leídos con adjuntos .csv
+            # Verificar que el email es de Moodle
+            if moodle_from.lower() not in from_addr.lower():
+                logger.warning(
+                    "Email de remitente desconocido (%s), esperado %s - ignorando",
+                    from_addr, moodle_from
+                )
+                continue
+
+            # Validar asunto (debe contener palabras clave de Moodle)
+            asunto_valido = (
+                "control de cursos" in subject.lower() or
+                "reporte asincronico" in subject.lower() or
+                "asíncrono" in subject.lower() or
+                "sincrónico" in subject.lower()
+            )
+
+            if not asunto_valido:
+                logger.warning(
+                    "Asunto no reconocido como reporte Moodle: '%s' - ignorando",
+                    subject
+                )
+                continue
+
+            logger.info("✓ Email válido de Moodle - procesando adjuntos")
 
             # Procesar adjuntos
             if msg.is_multipart():

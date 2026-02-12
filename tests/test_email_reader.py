@@ -152,6 +152,7 @@ class TestDescargarAdjuntosMoodle:
         """Retorna OK si no hay emails nuevos."""
         mock_settings.EMAIL_MOODLE_USER = "test@gmail.com"
         mock_settings.EMAIL_MOODLE_PASSWORD = "password"
+        mock_settings.EMAIL_MOODLE_FROM = "noreply@virtual.institutotecnipro.cl"
         mock_settings.IMAP_SERVER = "imap.gmail.com"
 
         # Mock conexión IMAP
@@ -171,6 +172,7 @@ class TestDescargarAdjuntosMoodle:
         """Error de conexión IMAP."""
         mock_settings.EMAIL_MOODLE_USER = "test@gmail.com"
         mock_settings.EMAIL_MOODLE_PASSWORD = "wrong_password"
+        mock_settings.EMAIL_MOODLE_FROM = "noreply@virtual.institutotecnipro.cl"
         mock_settings.IMAP_SERVER = "imap.gmail.com"
 
         # Mock error de login
