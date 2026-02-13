@@ -321,6 +321,31 @@
             cursor: not-allowed;
             box-shadow: none;
         }
+        .btn-refresh {
+            background: var(--teal-600);
+            color: white;
+            border: 1px solid var(--teal-500);
+        }
+        .btn-refresh:hover {
+            background: var(--teal-500);
+            box-shadow: 0 4px 12px rgba(13,148,136,.3);
+        }
+        .btn-refresh:disabled {
+            background: var(--slate-300);
+            border-color: var(--slate-400);
+            color: var(--slate-500);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .data-age-warning {
+            background: var(--amber-100);
+            color: var(--amber-600);
+            padding: .4rem .75rem;
+            border-radius: var(--radius-xs);
+            font-size: .75rem;
+            font-weight: 600;
+            border: 1px solid var(--amber-500);
+        }
 
         /* ── COURSE CHECKBOXES ── */
         .course-checkbox {
@@ -374,6 +399,8 @@
         .badge-amber { background:var(--amber-100); color:var(--amber-600); }
         .badge-blue { background:var(--blue-100); color:var(--blue-600); }
         .badge-purple { background:var(--purple-100); color:var(--purple-600); }
+        .badge-pink { background:#fce7f3; color:#db2777; }
+        .badge-teal { background:var(--teal-100); color:var(--teal-600); }
         .chevron {
             color: var(--slate-400);
             transition: transform .3s;
@@ -730,7 +757,7 @@
                 <div class="logo-box">Instituto de Capacitaciones Tecnipro</div>
                 <div class="header-text">
                     <h1>Sistema de Gestión de Capacitación</h1>
-                    <p>Instituto de Capacitación Tecnipro · Panel de Control</p>
+                    <p>Panel de Control Operacional</p>
                 </div>
             </div>
 
@@ -765,11 +792,17 @@
                             <i class="fas fa-database"></i>
                             <span>Actualizado: <strong id="dataDate">—</strong></span>
                         </div>
+                        <div class="info-box-row" id="dataAgeWarning" style="display:none;">
+                            <span class="data-age-warning" id="dataAgeText"></span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Action Buttons Row -->
                 <div class="header-actions" id="headerActions" style="display:none;">
+                    <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;">
+                        <i class="fas fa-sync-alt"></i> Actualizar Moodle
+                    </button>
                     <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                         <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                     </a>
@@ -982,6 +1015,7 @@ async function loadData() {
         renderKPIs();
         renderCourses();
         setupFilterListeners();
+        checkDataAge();  // Check if data is old and show warning
     } catch (error) {
         document.getElementById('kpiGrid').innerHTML = '';
         document.getElementById('courseSections').innerHTML = `
@@ -1148,6 +1182,10 @@ function renderCourses() {
             ? `Vencido hace ${Math.abs(course.dias_restantes)} días`
             : `${course.dias_restantes} días restantes`;
 
+        // Determine modalidad badge color
+        const modalidadBadgeClass = course.modalidad === 'Asincrónico' ? 'badge-teal' :
+                                     course.modalidad === 'Sincrónico' ? 'badge-pink' : 'badge-blue';
+
         return `
         <div class="course-section${ci===0?' open':''}" data-course-id="${course.id_moodle}">
             <div class="course-header" onclick="toggleCourse(this)">
@@ -1155,6 +1193,7 @@ function renderCourses() {
                     <input type="checkbox" class="course-checkbox" data-course-id="${course.id_moodle}" onclick="event.stopPropagation(); updateSelectedCourses();">
                     <span class="course-indicator ${indicator}"></span>
                     <span class="course-title">${course.nombre}</span>
+                    ${course.modalidad ? `<span class="badge ${modalidadBadgeClass}">${course.modalidad}</span>` : ''}
                 </div>
                 <div class="course-meta">
                     <span class="course-meta-item"><i class="fas fa-users"></i> <strong><span class="student-count-display">${stats.total_estudiantes}</span></strong></span>
@@ -1199,7 +1238,9 @@ function renderCourses() {
                                 <th onclick="sortTable('${course.id_moodle}','rut')">RUT <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','email')">Correo <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','progreso')">Progreso <span class="sort-icon">⇅</span></th>
-                                <th onclick="sortTable('${course.id_moodle}','calificacion')">Nota <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','calificacion')">Nota Final <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','evaluaciones')">Evaluaciones <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','promedio_eval')">Prom. Eval. <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','estado')">Estado <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','riesgo')">Riesgo <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_ingresos')">Conex. SENCE <span class="sort-icon">⇅</span></th>
@@ -1231,6 +1272,19 @@ function renderStudentRows(course) {
         const djText = s.sence && s.sence.estado_dj ? s.sence.estado_dj : '—';
         const djColor = djText === 'Emitida' ? 'var(--green-600)' : 'var(--slate-400)';
 
+        // Evaluation data
+        const evaluacionesRendidas = s.evaluaciones_rendidas || 0;
+        const totalEvaluaciones = s.total_evaluaciones || 0;
+        const promedioEvaluadas = s.promedio_evaluadas;
+        const resumenEvaluaciones = s.resumen_evaluaciones || `${evaluacionesRendidas}/${totalEvaluaciones}`;
+
+        const promedioEvalText = promedioEvaluadas !== null && promedioEvaluadas !== undefined
+            ? promedioEvaluadas.toFixed(1)
+            : '—';
+        const promedioEvalClass = promedioEvaluadas !== null
+            ? (promedioEvaluadas >= 4 ? 'grade-pass' : 'grade-fail')
+            : 'grade-na';
+
         const isAdmin = CURRENT_USER && CURRENT_USER.rol === 'admin';
         return `
         <tr data-student-idx="${i}" class="${isSelected?'selected':''}">
@@ -1248,6 +1302,8 @@ function renderStudentRows(course) {
                 <div class="progress-text" style="color:${progColor}">${s.progreso}%</div>
             </td>
             <td><span class="grade ${gradeClass}">${gradeText}</span></td>
+            <td class="text-center mono" style="font-size:.82rem;font-weight:600;color:var(--slate-600);">${resumenEvaluaciones}</td>
+            <td><span class="grade ${promedioEvalClass}">${promedioEvalText}</span></td>
             <td><span class="status status-${s.estado.toLowerCase()}">${statusIcon} ${statusLabel}</span></td>
             <td>${s.riesgo ? `<span class="risk risk-${s.riesgo}">${s.riesgo.charAt(0).toUpperCase()+s.riesgo.slice(1)}</span>` : '<span style="color:var(--slate-400);">—</span>'}</td>
             <td>
@@ -1337,6 +1393,8 @@ function sortTable(courseId, field) {
             case 'email': va=a.email; vb=b.email; break;
             case 'progreso': va=a.progreso; vb=b.progreso; break;
             case 'calificacion': va=a.calificacion??-1; vb=b.calificacion??-1; break;
+            case 'evaluaciones': va=a.evaluaciones_rendidas??0; vb=b.evaluaciones_rendidas??0; break;
+            case 'promedio_eval': va=a.promedio_evaluadas??-1; vb=b.promedio_evaluadas??-1; break;
             case 'estado': va=a.estado; vb=b.estado; break;
             case 'riesgo': va={alto:3,medio:2,bajo:1}[a.riesgo]||0; vb={alto:3,medio:2,bajo:1}[b.riesgo]||0; break;
             case 'sence_ingresos': va=a.sence?.n_ingresos??-1; vb=b.sence?.n_ingresos??-1; break;
@@ -1505,6 +1563,70 @@ function updateSelectedCourses() {
     } else {
         btnSeleccion.disabled = true;
         btnSeleccion.title = 'Seleccione al menos un curso';
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// REFRESH MOODLE DATA
+// ═══════════════════════════════════════════════════════
+function checkDataAge() {
+    // Check if data is older than 1 hour and show warning + auto-refresh option
+    if (!DATA || !DATA.metadata || !DATA.metadata.fecha_procesamiento) return;
+
+    const dataDate = new Date(DATA.metadata.fecha_procesamiento);
+    const now = new Date();
+    const ageInHours = (now - dataDate) / (1000 * 60 * 60);
+
+    const warningBox = document.getElementById('dataAgeWarning');
+    const warningText = document.getElementById('dataAgeText');
+
+    if (ageInHours > 1) {
+        // Data is old - show warning
+        const hoursAgo = Math.floor(ageInHours);
+        warningText.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Datos con ${hoursAgo}h de antigüedad`;
+        warningBox.style.display = '';
+
+        // Show refresh button for admin
+        if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
+            document.getElementById('btnRefresh').style.display = '';
+        }
+    } else {
+        warningBox.style.display = 'none';
+    }
+}
+
+async function refreshMoodleData() {
+    const btn = document.getElementById('btnRefresh');
+    const originalHTML = btn.innerHTML;
+
+    // Disable button and show spinner
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+
+    try {
+        const response = await fetch('/api/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(`Datos actualizados: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
+
+            // Reload data after 1 second
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast(result.error || 'Error al actualizar datos', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    } catch (error) {
+        showToast(`Error de conexión: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
     }
 }
 </script>

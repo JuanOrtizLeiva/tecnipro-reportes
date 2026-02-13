@@ -172,6 +172,40 @@ def register_routes(app):
             "fecha_datos": fecha_datos,
         })
 
+    # ── API: refresh datos (solo admin) ──────────────────
+
+    @app.route("/api/refresh", methods=["POST"])
+    @login_required
+    def api_refresh():
+        """Ejecuta el pipeline para refrescar datos desde Moodle API. Solo admin."""
+        # Solo admin puede refrescar datos
+        if current_user.is_authenticated and current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        # Importar y ejecutar pipeline en el mismo thread
+        # (En producción con Gunicorn esto no bloqueará otras requests)
+        try:
+            from src.main import run_pipeline
+            logger.info("Iniciando refresh manual de datos por %s", current_user.email)
+
+            # Ejecutar pipeline
+            datos_json = run_pipeline()
+
+            logger.info("Refresh completado exitosamente")
+            return jsonify({
+                "status": "ok",
+                "message": "Datos actualizados exitosamente",
+                "cursos": datos_json["metadata"]["total_cursos"],
+                "estudiantes": datos_json["metadata"]["total_estudiantes"],
+                "fecha": datos_json["metadata"]["fecha_procesamiento"]
+            })
+
+        except Exception as e:
+            logger.error("Error ejecutando pipeline desde API: %s", e, exc_info=True)
+            return jsonify({
+                "error": f"Error al actualizar datos: {str(e)}"
+            }), 500
+
     # ── API: enviar correo (solo admin) ───────────────────
 
     @app.route("/api/enviar-correo", methods=["POST"])

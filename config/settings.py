@@ -91,5 +91,16 @@ WEB_PORT = int(os.getenv("WEB_PORT", "5000"))
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
 TEMPLATES_PATH = PROJECT_ROOT / "templates"
 
+# ── Moodle API (Fase 6) ───────────────────────────────────
+MOODLE_URL = os.getenv("MOODLE_URL", "")
+MOODLE_TOKEN = os.getenv("MOODLE_TOKEN", "")
+MOODLE_TIMEOUT = int(os.getenv("MOODLE_TIMEOUT", "30"))
+MOODLE_CATEGORY_IDS = [int(x.strip()) for x in os.getenv(
+    "MOODLE_CATEGORY_IDS", "3,6,10,11,14,16,17,18,19,20,24,27,28,29"
+).split(",")]
+
+# Flag para elegir fuente de datos: "csv" o "api"
+DATA_SOURCE = os.getenv("DATA_SOURCE", "csv").lower()
+
 # ── Logging ────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

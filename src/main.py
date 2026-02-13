@@ -41,29 +41,48 @@ def run_pipeline():
     logger.info("─── PASO 1: Lectura de datos ───")
 
     from src.ingest.sence_reader import leer_sence
-    from src.ingest.dreporte_reader import leer_dreporte
-    from src.ingest.greporte_reader import leer_greporte
     from src.ingest.compradores_reader import leer_compradores
 
+    # ── Lectura de datos Moodle (CSV o API) ────────────────────
+    if settings.DATA_SOURCE == "api":
+        logger.info("Modo API: leyendo desde Moodle API REST")
+        from src.ingest.moodle_api_reader import leer_datos_moodle
+
+        try:
+            df_merged_base = leer_datos_moodle()
+        except Exception as e:
+            logger.error("Error leyendo Moodle API: %s", e)
+            logger.error("No se puede continuar sin datos Moodle")
+            sys.exit(1)
+    else:
+        logger.info("Modo CSV: leyendo desde Greporte.csv y Dreporte.csv")
+        from src.ingest.dreporte_reader import leer_dreporte
+        from src.ingest.greporte_reader import leer_greporte
+
+        try:
+            df_dreporte = leer_dreporte()
+        except Exception as e:
+            logger.error("Error leyendo Dreporte: %s", e)
+            logger.error("No se puede continuar sin Dreporte")
+            sys.exit(1)
+
+        try:
+            df_greporte = leer_greporte()
+        except Exception as e:
+            logger.error("Error leyendo Greporte: %s", e)
+            logger.error("No se puede continuar sin Greporte")
+            sys.exit(1)
+
+        # Merge Greporte+Dreporte solo en modo CSV
+        from src.transform.merger import merge_greporte_dreporte
+        df_merged_base = merge_greporte_dreporte(df_greporte, df_dreporte)
+
+    # Lectura de SENCE y compradores (común a ambos modos)
     try:
         df_sence = leer_sence()
     except Exception as e:
         logger.error("Error leyendo SENCE: %s", e)
         df_sence = None
-
-    try:
-        df_dreporte = leer_dreporte()
-    except Exception as e:
-        logger.error("Error leyendo Dreporte: %s", e)
-        logger.error("No se puede continuar sin Dreporte")
-        sys.exit(1)
-
-    try:
-        df_greporte = leer_greporte()
-    except Exception as e:
-        logger.error("Error leyendo Greporte: %s", e)
-        logger.error("No se puede continuar sin Greporte")
-        sys.exit(1)
 
     try:
         df_compradores = leer_compradores()
@@ -76,21 +95,18 @@ def run_pipeline():
 
     from src.transform.merger import (
         merge_sence_into_dreporte,
-        merge_greporte_dreporte,
         merge_compradores,
     )
     from src.transform.calculator import calcular_campos
 
-    # 2a. Cruzar SENCE con Dreporte
+    # 2a. Cruzar SENCE con df_merged_base
     if df_sence is not None and not df_sence.empty:
-        df_dreporte = merge_sence_into_dreporte(df_dreporte, df_sence)
+        df_merged = merge_sence_into_dreporte(df_merged_base, df_sence)
     else:
-        df_dreporte["N_Ingresos"] = 0
-        df_dreporte["DJ"] = ""
+        df_merged = df_merged_base.copy()
+        df_merged["N_Ingresos"] = 0
+        df_merged["DJ"] = ""
         logger.warning("Sin datos SENCE — continuando sin cruce")
-
-    # 2b. Cruzar Greporte con Dreporte
-    df_merged = merge_greporte_dreporte(df_greporte, df_dreporte)
 
     # 2c. Cruzar con compradores
     if df_compradores is not None and not df_compradores.empty:

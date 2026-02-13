@@ -59,6 +59,7 @@ def _construir_estructura(df):
                 "nombre": _safe_str(row.get("nombre_curso", "")),
                 "nombre_corto": nombre_corto,
                 "categoria": _safe_str(row.get("categoria", "")),
+                "modalidad": _safe_str(row.get("Modalidad", "")),  # NUEVO
                 "fecha_inicio": _format_date(row.get("fecha_inicio_dt")),
                 "fecha_fin": _format_date(row.get("fecha_fin_dt")),
                 "estado": _safe_str(row.get("estado_curso", "active")),
@@ -81,6 +82,10 @@ def _construir_estructura(df):
                 "email": _safe_str(row.get("Dirección de correo", "")),
                 "progreso": _safe_float(row.get("Progreso del estudiante")),
                 "calificacion": _safe_float(row.get("Calificación")),
+                "evaluaciones_rendidas": _safe_int(row.get("Evaluaciones Rendidas", 0)),  # NUEVO
+                "total_evaluaciones": _safe_int(row.get("Total Evaluaciones", 0)),  # NUEVO
+                "promedio_evaluadas": _safe_float(row.get("Promedio Evaluadas")),  # NUEVO
+                "resumen_evaluaciones": _safe_str(row.get("Resumen Evaluaciones", "0/0")),  # NUEVO
                 "ultimo_acceso": _format_date(row.get("ultimo_acceso_dt")),
                 "dias_sin_ingreso": _safe_int(row.get("dias_sin_ingreso")),
                 "estado": _safe_str(row.get("estado_participante", "")),
@@ -165,9 +170,9 @@ def _safe_int(val):
 
 
 def _format_date(dt):
-    if dt is None or (isinstance(dt, float) and pd.isna(dt)):
+    if dt is None or (isinstance(dt, float) and pd.isna(dt)) or pd.isna(dt):
         return None
     try:
         return dt.strftime("%Y-%m-%d")
-    except AttributeError:
+    except (AttributeError, ValueError):
         return None
