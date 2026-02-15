@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Gestión de Capacitación - Instituto Tecnipro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         :root {
             --slate-950: #020617;
@@ -20,6 +21,7 @@
             --slate-100: #f1f5f9;
             --slate-50: #f8fafc;
             --white: #ffffff;
+            --blue-700: #1d4ed8;
             --blue-600: #2563eb;
             --blue-500: #3b82f6;
             --blue-400: #60a5fa;
@@ -40,37 +42,40 @@
             --teal-600: #0d9488;
             --teal-500: #14b8a6;
             --teal-100: #ccfbf1;
-            --purple-600: #9333ea;
-            --purple-100: #f3e8ff;
-            --radius: 12px;
-            --radius-sm: 8px;
+            --purple-600: #7c3aed;
+            --purple-500: #8b5cf6;
+            --purple-100: #ede9fe;
+            --radius: 16px;
+            --radius-sm: 10px;
             --radius-xs: 6px;
-            --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
-            --shadow-md: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.06);
+            --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.05);
             --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.06);
+            --shadow-glow: 0 0 20px rgba(37,99,235,.12);
         }
 
         * { margin:0; padding:0; box-sizing:border-box; }
 
         body {
-            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--slate-100);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(145deg, #f0f4f8 0%, #e8edf5 50%, #f0f4f8 100%);
             color: var(--slate-800);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
         }
 
         .app { max-width: 1520px; margin: 0 auto; padding: 1.5rem; }
 
         /* ── HEADER ── */
         .header {
-            background: linear-gradient(135deg, var(--slate-900) 0%, var(--slate-800) 60%, #1a365d 100%);
+            background: linear-gradient(135deg, #0c1222 0%, #162036 40%, #1a2d52 70%, #1e3a5f 100%);
             color: white;
             padding: 2rem 2.5rem;
             border-radius: 20px;
             margin-bottom: 1.5rem;
-            box-shadow: var(--shadow-xl);
+            box-shadow: 0 8px 32px rgba(12,18,34,.35), 0 2px 8px rgba(0,0,0,.12);
             position: relative;
             overflow: hidden;
         }
@@ -78,8 +83,22 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px),
-                        repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px);
+            background:
+                radial-gradient(ellipse 600px 300px at 10% 90%, rgba(37,99,235,.12) 0%, transparent 70%),
+                radial-gradient(ellipse 400px 200px at 90% 20%, rgba(14,184,166,.08) 0%, transparent 70%),
+                repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,.015) 80px, rgba(255,255,255,.015) 81px),
+                repeating-linear-gradient(0deg, transparent, transparent 80px, rgba(255,255,255,.015) 80px, rgba(255,255,255,.015) 81px);
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,130,246,.06) 0%, transparent 70%);
+            pointer-events: none;
         }
         .header-inner {
             display: flex;
@@ -98,34 +117,38 @@
         }
         .logo-box {
             width: 200px;
-            height: 56px;
+            height: 58px;
             flex-shrink: 0;
-            background: rgba(255,255,255,.95);
-            border-radius: var(--radius);
+            background: linear-gradient(135deg, rgba(255,255,255,.97) 0%, rgba(241,245,249,.95) 100%);
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: .72rem;
             color: var(--slate-800);
-            letter-spacing: .3px;
             text-align: center;
             line-height: 1.3;
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 4px 16px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.8);
+            border: 1px solid rgba(255,255,255,.3);
         }
         .header-text {
             flex: 1;
             min-width: 0;
         }
         .header-text h1 {
-            font-size: 1.65rem;
-            font-weight: 700;
-            letter-spacing: -.02em;
-            margin-bottom: .25rem;
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -.03em;
+            margin-bottom: .3rem;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         .header-text p {
-            font-size: .9rem;
-            opacity: .7;
+            font-size: .85rem;
+            opacity: .55;
+            font-weight: 400;
+            letter-spacing: .01em;
         }
 
         /* Header Right Section */
@@ -145,16 +168,20 @@
 
         /* Info Box Styles */
         .info-box {
-            background: rgba(255,255,255,.12);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,.2);
+            background: rgba(255,255,255,.08);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,.12);
             border-radius: var(--radius-sm);
             padding: .65rem 1rem;
             font-size: .82rem;
             display: flex;
             flex-direction: column;
             gap: .25rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+            box-shadow: 0 2px 12px rgba(0,0,0,.12);
+            transition: background .2s;
+        }
+        .info-box:hover {
+            background: rgba(255,255,255,.12);
         }
 
         .info-box-row {
@@ -203,14 +230,32 @@
             background: var(--white);
             border-radius: var(--radius);
             padding: 1.25rem 1.5rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--slate-200);
-            transition: transform .2s, box-shadow .2s;
+            box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,.03);
+            border: none;
+            transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s;
+            position: relative;
+            overflow: hidden;
         }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-        .kpi-label { font-size: .78rem; font-weight: 500; color: var(--slate-500); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
-        .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
-        .kpi-sub { font-size: .78rem; color: var(--slate-400); margin-top: .25rem; }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue-500), var(--teal-500));
+            opacity: .6;
+        }
+        .kpi-card:nth-child(3)::before { background: linear-gradient(90deg, var(--green-500), var(--teal-500)); }
+        .kpi-card:nth-child(4)::before { background: linear-gradient(90deg, var(--red-500), var(--amber-500)); }
+        .kpi-card:nth-child(5)::before { background: linear-gradient(90deg, var(--amber-500), #f97316); }
+        .kpi-card:nth-child(6)::before { background: linear-gradient(90deg, var(--red-600), var(--red-500)); }
+        .kpi-card:nth-child(7)::before { background: linear-gradient(90deg, var(--teal-500), var(--blue-500)); }
+        .kpi-card:nth-child(8)::before { background: linear-gradient(90deg, var(--purple-500), var(--blue-500)); }
+        .kpi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg), var(--shadow-glow); }
+        .kpi-label { font-size: .72rem; font-weight: 600; color: var(--slate-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+        .kpi-value { font-size: 2.1rem; font-weight: 800; line-height: 1.1; font-family: 'JetBrains Mono', monospace; }
+        .kpi-sub { font-size: .75rem; color: var(--slate-400); margin-top: .3rem; font-weight: 500; }
         .kpi-value.blue { color: var(--blue-600); }
         .kpi-value.green { color: var(--green-600); }
         .kpi-value.red { color: var(--red-600); }
@@ -224,8 +269,7 @@
             border-radius: var(--radius);
             padding: 1rem 1.5rem;
             margin-bottom: 1rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--slate-200);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,.03);
             display: flex;
             gap: 1rem;
             align-items: center;
@@ -360,9 +404,12 @@
             background: var(--white);
             border-radius: var(--radius);
             margin-bottom: 1.25rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--slate-200);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,.03);
             overflow: hidden;
+            transition: box-shadow .3s;
+        }
+        .course-section.open {
+            box-shadow: var(--shadow-md), 0 0 0 1px rgba(37,99,235,.08);
         }
         .course-header {
             padding: 1.25rem 1.5rem;
@@ -475,36 +522,160 @@
         td.cb-cell input { width:16px; height:16px; accent-color:var(--blue-600); cursor:pointer; }
 
         /* Progress bar */
-        .progress-cell { min-width:120px; }
+        .progress-cell { min-width:130px; }
         .progress-bar-bg {
-            width:100%; height:8px; background:var(--slate-200); border-radius:99px; overflow:hidden;
+            width:100%; height:7px; background:var(--slate-100); border-radius:99px; overflow:hidden;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
         }
-        .progress-bar-fill { height:100%; border-radius:99px; transition: width .5s; }
-        .progress-text { font-size:.78rem; font-weight:600; margin-top:.15rem; font-family:'Space Mono',monospace; }
+        .progress-bar-fill { height:100%; border-radius:99px; transition: width .6s cubic-bezier(.34,1.56,.64,1); }
+        .progress-text { font-size:.76rem; font-weight:700; margin-top:.2rem; font-family:'JetBrains Mono',monospace; }
+
+        /* Time progress marker */
+        .time-marker {
+            position: absolute;
+            top: -3px;
+            bottom: -3px;
+            width: 2px;
+            background: var(--slate-700);
+            border-radius: 2px;
+            z-index: 1;
+            cursor: help;
+            transition: background .2s;
+        }
+        .time-marker::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            width: 6px;
+            height: 6px;
+            background: var(--slate-700);
+            border-radius: 50%;
+        }
+        .time-marker:hover { background: var(--blue-600); }
+        .time-marker:hover::before { background: var(--blue-600); }
 
         /* Status chips */
-        .status { display:inline-flex; align-items:center; gap:.3rem; padding:.15rem .55rem; border-radius:999px; font-size:.75rem; font-weight:600; }
-        .status-a { background:var(--green-100); color:var(--green-600); }
-        .status-r { background:var(--red-100); color:var(--red-600); }
-        .status-p { background:var(--amber-100); color:var(--amber-600); }
+        .status { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:999px; font-size:.73rem; font-weight:700; letter-spacing:.01em; }
+        .status-a { background:var(--green-100); color:var(--green-600); box-shadow: 0 1px 3px rgba(22,163,74,.12); }
+        .status-r { background:var(--red-100); color:var(--red-600); box-shadow: 0 1px 3px rgba(220,38,38,.12); }
+        .status-p { background:var(--amber-100); color:var(--amber-600); box-shadow: 0 1px 3px rgba(217,119,6,.12); }
 
-        .risk { display:inline-flex; padding:.15rem .55rem; border-radius:999px; font-size:.72rem; font-weight:600; }
-        .risk-alto { background:var(--red-100); color:var(--red-600); }
-        .risk-medio { background:var(--amber-100); color:var(--amber-600); }
-        .risk-bajo { background:var(--green-50); color:var(--green-600); }
+        .risk { display:inline-flex; padding:.2rem .6rem; border-radius:999px; font-size:.72rem; font-weight:700; }
+        .risk-alto { background:var(--red-100); color:var(--red-600); box-shadow: 0 1px 3px rgba(220,38,38,.12); }
+        .risk-medio { background:var(--amber-100); color:var(--amber-600); box-shadow: 0 1px 3px rgba(217,119,6,.12); }
+        .risk-bajo { background:var(--green-50); color:var(--green-600); box-shadow: 0 1px 3px rgba(22,163,74,.08); }
 
         .sence-chip { display:inline-flex; align-items:center; gap:.25rem; font-size:.78rem; font-weight:600; }
         .sence-chip.connected { color: var(--green-600); }
         .sence-chip.disconnected { color: var(--slate-400); }
-        .sence-num { font-family:'Space Mono',monospace; }
+        .sence-num { font-family:'JetBrains Mono',monospace; }
 
-        .grade { font-family:'Space Mono',monospace; font-weight:700; font-size:.88rem; }
-        .grade-pass { color: var(--green-600); }
-        .grade-fail { color: var(--red-600); }
+        .grade { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:.85rem; padding:.15rem .4rem; border-radius:4px; }
+        .grade-pass { color: var(--green-600); background: var(--green-50); }
+        .grade-fail { color: var(--red-600); background: var(--red-50); }
         .grade-na { color: var(--slate-400); }
 
         .email-cell { font-size:.78rem; color:var(--slate-500); max-width:180px; overflow:hidden; text-overflow:ellipsis; }
-        .rut-cell { font-family:'Space Mono',monospace; font-size:.78rem; color:var(--slate-600); white-space:nowrap; }
+        .rut-cell { font-family:'JetBrains Mono',monospace; font-size:.78rem; color:var(--slate-600); white-space:nowrap; }
+
+        /* Email icon tooltip */
+        .email-icon-cell { width: 40px; }
+        .email-tooltip-wrap { position: relative; display: inline-block; }
+        .email-icon-btn {
+            color: var(--slate-400);
+            cursor: pointer;
+            font-size: .85rem;
+            transition: color .2s;
+            padding: .35rem;
+        }
+        .email-icon-btn:hover { color: var(--blue-600); }
+        .email-tooltip-box {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--slate-900);
+            color: white;
+            padding: .5rem .75rem;
+            border-radius: 8px;
+            font-size: .75rem;
+            white-space: nowrap;
+            z-index: 50;
+            box-shadow: 0 8px 24px rgba(0,0,0,.2);
+            align-items: center;
+            gap: .5rem;
+        }
+        .email-tooltip-box::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--slate-900);
+        }
+        /* Invisible bridge between icon and tooltip to prevent gap */
+        .email-tooltip-wrap::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            height: 10px;
+            display: none;
+        }
+        .email-tooltip-wrap:hover .email-tooltip-box { display: flex; }
+        .email-tooltip-wrap:hover::after { display: block; }
+        .email-tooltip-box:hover { display: flex; }
+        .email-tooltip-text { font-family: 'JetBrains Mono', monospace; }
+        .email-copy-btn {
+            background: rgba(255,255,255,.15);
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: .2rem .35rem;
+            border-radius: 4px;
+            font-size: .7rem;
+            transition: background .2s;
+        }
+        .email-copy-btn:hover { background: rgba(255,255,255,.3); }
+
+        /* Course ID link */
+        .course-id-link {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            padding: .15rem .55rem;
+            border-radius: 6px;
+            font-size: .7rem;
+            font-weight: 700;
+            color: var(--blue-500);
+            background: var(--blue-50);
+            border: 1px solid var(--blue-100);
+            text-decoration: none;
+            transition: all .2s;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .course-id-link:hover {
+            background: var(--blue-100);
+            color: var(--blue-700);
+            box-shadow: 0 2px 8px rgba(37,99,235,.15);
+        }
+        .course-id-link i { font-size: .6rem; }
+
+        /* Print button */
+        .btn-print {
+            background: rgba(139,92,246,.9);
+            color: white;
+            border: 1px solid rgba(124,58,237,.8);
+        }
+        .btn-print:hover {
+            background: var(--purple-600);
+            box-shadow: 0 4px 12px rgba(124,58,237,.3);
+        }
 
         /* ── FLOATING BUTTON ── */
         .fab {
@@ -684,9 +855,8 @@
             .header-inner { gap: 1rem; }
             .header-left { gap: 1rem; }
             .logo-box {
-                width: 160px;
-                height: 48px;
-                font-size: .65rem;
+                width: 170px;
+                height: 50px;
             }
             .header-text h1 { font-size:1.2rem; }
             .header-text p { font-size: .8rem; }
@@ -698,10 +868,47 @@
                 padding: .45rem .85rem;
                 font-size: .8rem;
             }
-            .kpi-grid { grid-template-columns: repeat(2,1fr); }
+            .kpi-grid { grid-template-columns: repeat(2,1fr); gap:.75rem; }
+            .charts-row { grid-template-columns: 1fr !important; }
             .filters-bar { flex-direction:column; align-items:stretch; }
             .filter-input { width:100%; }
             .course-meta { display:none; }
+        }
+
+        /* ── CHARTS ROW ── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .chart-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,.03);
+            overflow: hidden;
+        }
+        .chart-card-header {
+            padding: .85rem 1.25rem;
+            border-bottom: 1px solid var(--slate-100);
+        }
+        .chart-card-header h3 {
+            font-size: .82rem;
+            font-weight: 700;
+            color: var(--slate-700);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+        .chart-card-header h3 i {
+            color: var(--blue-500);
+            font-size: .75rem;
+        }
+        .chart-card-body {
+            padding: 1rem 1.25rem;
+        }
+        @media (max-width: 1024px) {
+            .charts-row { grid-template-columns: 1fr; }
         }
 
         /* ── TOAST NOTIFICATION ── */
@@ -744,7 +951,91 @@
         /* ── UTILITY ── */
         .hidden { display:none !important; }
         .text-center { text-align:center; }
-        .mono { font-family:'Space Mono',monospace; }
+        .mono { font-family:'JetBrains Mono',monospace; }
+
+        /* ── STAGGER ANIMATION ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .kpi-card { animation: fadeUp .5s ease both; }
+        .kpi-card:nth-child(1) { animation-delay: .05s; }
+        .kpi-card:nth-child(2) { animation-delay: .1s; }
+        .kpi-card:nth-child(3) { animation-delay: .15s; }
+        .kpi-card:nth-child(4) { animation-delay: .2s; }
+        .kpi-card:nth-child(5) { animation-delay: .25s; }
+        .kpi-card:nth-child(6) { animation-delay: .3s; }
+        .kpi-card:nth-child(7) { animation-delay: .35s; }
+        .kpi-card:nth-child(8) { animation-delay: .4s; }
+        .chart-card { animation: fadeUp .5s ease both; }
+        .chart-card:nth-child(1) { animation-delay: .45s; }
+        .chart-card:nth-child(2) { animation-delay: .5s; }
+        .chart-card:nth-child(3) { animation-delay: .55s; }
+
+        /* ── PRINT STYLES ── */
+        @media print {
+            @page {
+                size: letter landscape;
+                margin: 1.5cm 1cm 1.5cm 1cm;
+            }
+            body {
+                background: white !important;
+                font-size: 9pt !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .app { max-width: 100% !important; padding: 0 !important; }
+            .header { border-radius: 0 !important; margin-bottom: .5rem !important; padding: 1rem 1.5rem !important; box-shadow: none !important; page-break-after: avoid; }
+            .header::before, .header::after { display: none !important; }
+            .header-right { display: none !important; }
+            .kpi-grid { grid-template-columns: repeat(8, 1fr) !important; gap: .4rem !important; margin-bottom: .5rem !important; }
+            .kpi-card { padding: .5rem .6rem !important; box-shadow: none !important; border: 1px solid #ddd !important; border-radius: 6px !important; animation: none !important; }
+            .kpi-card::before { display: none !important; }
+            .kpi-value { font-size: 1.2rem !important; }
+            .kpi-label { font-size: .55rem !important; }
+            .kpi-sub { display: none !important; }
+            .charts-row { display: none !important; }
+            .filters-bar { display: none !important; }
+            .course-section { box-shadow: none !important; border: 1px solid #ddd !important; margin-bottom: .4rem !important; page-break-inside: avoid; }
+            .course-section .course-body { display: block !important; }
+            .course-header { padding: .5rem 1rem !important; }
+            .course-badges { display: none !important; }
+            .chevron { display: none !important; }
+            .course-checkbox { display: none !important; }
+            .stats-row { padding: .4rem 1rem !important; gap: .3rem !important; }
+            .stat-mini-val { font-size: 1rem !important; }
+            .stat-mini-label { font-size: .55rem !important; }
+            .table-actions { display: none !important; }
+            table { font-size: 7.5pt !important; }
+            th { padding: .3rem .4rem !important; font-size: .55rem !important; }
+            td { padding: .25rem .4rem !important; }
+            .progress-cell { min-width: 80px !important; }
+            .progress-bar-bg { height: 4px !important; }
+            .time-marker { top: -2px !important; bottom: -2px !important; }
+            .email-tooltip-box { display: none !important; }
+            .email-icon-btn { display: none !important; }
+            .email-icon-cell::after { content: attr(data-email); font-size: 6pt; color: #666; }
+            .fab { display: none !important; }
+            .modal-overlay { display: none !important; }
+            .toast { display: none !important; }
+            .course-id-link { color: var(--blue-600) !important; background: none !important; border: none !important; padding: 0 !important; font-size: .6rem !important; }
+            /* Watermark */
+            .print-watermark {
+                display: block !important;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(-35deg);
+                font-size: 2.5rem;
+                font-weight: 800;
+                color: rgba(0,0,0,.04);
+                white-space: nowrap;
+                pointer-events: none;
+                z-index: 0;
+                letter-spacing: .08em;
+            }
+        }
+        .print-watermark { display: none; }
     </style>
 </head>
 <body>
@@ -754,10 +1045,15 @@
         <div class="header-inner">
             <!-- Left Section: Logo + Title -->
             <div class="header-left">
-                <div class="logo-box">Instituto de Capacitaciones Tecnipro</div>
+                <div class="logo-box">
+                    <div>
+                        <div style="font-weight:500; font-size:.58rem; letter-spacing:.12em; text-transform:uppercase; color:var(--slate-500); margin-bottom:1px;">Instituto de Capacitación</div>
+                        <div style="font-weight:800; font-size:1.05rem; letter-spacing:.04em; color:var(--slate-900); line-height:1.1;">TECNIPRO</div>
+                    </div>
+                </div>
                 <div class="header-text">
                     <h1>Sistema de Gestión de Capacitación</h1>
-                    <p>Panel de Control Operacional</p>
+                    <p>Panel de Control · Monitoreo de Cursos en Tiempo Real</p>
                 </div>
             </div>
 
@@ -800,8 +1096,11 @@
 
                 <!-- Action Buttons Row -->
                 <div class="header-actions" id="headerActions" style="display:none;">
-                    <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;">
-                        <i class="fas fa-sync-alt"></i> Actualizar Moodle
+                    <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor (los datos SENCE se actualizan cada 12/24h)">
+                        <i class="fas fa-sync-alt"></i> Actualizar Datos
+                    </button>
+                    <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
+                        <i class="fas fa-file-pdf"></i> Imprimir PDF
                     </button>
                     <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                         <i class="fas fa-arrow-left"></i> Volver a Tecnipro
@@ -816,6 +1115,34 @@
 
     <!-- KPIs -->
     <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- CHARTS -->
+    <div class="charts-row" id="chartsRow" style="display:none;">
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-chart-pie"></i> Estado de Participantes</h3>
+            </div>
+            <div class="chart-card-body">
+                <canvas id="chartEstados" height="220"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-chart-bar"></i> Progreso por Curso</h3>
+            </div>
+            <div class="chart-card-body">
+                <canvas id="chartProgreso" height="220"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <h3><i class="fas fa-bolt"></i> Nivel de Riesgo</h3>
+            </div>
+            <div class="chart-card-body">
+                <canvas id="chartRiesgo" height="220"></canvas>
+            </div>
+        </div>
+    </div>
 
     <!-- FILTERS -->
     <div class="filters-bar">
@@ -915,6 +1242,9 @@ www.institutotecnipro.cl</textarea>
 
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
+
+    <!-- PRINT WATERMARK -->
+    <div class="print-watermark">INSTITUTO DE CAPACITACIÓN TECNIPRO</div>
 </div>
 
 <script>
@@ -984,6 +1314,12 @@ async function loadUserInfo() {
                 document.getElementById('fabEmail').style.display = 'none';
                 document.getElementById('emailModalOverlay').style.display = 'none';
             }
+            // Show refresh button for admin
+            if (CURRENT_USER.rol === 'admin') {
+                document.getElementById('btnRefresh').style.display = '';
+            }
+            // Print available for all users
+            document.getElementById('btnPrint').style.display = '';
         }
     } catch (e) {
         // If /api/me fails, user info section stays hidden
@@ -991,39 +1327,109 @@ async function loadUserInfo() {
 }
 
 async function loadData() {
-    // Show loading state
-    document.getElementById('courseSections').innerHTML = `
-        <div class="loading-container">
-            <div class="loading-spinner"></div>
-            <p style="font-size:1.1rem;font-weight:600;">Cargando datos del pipeline...</p>
-            <p style="font-size:.85rem;margin-top:.5rem;">Conectando con /api/datos</p>
-        </div>`;
+    const container = document.getElementById('courseSections');
+    const isAdmin = CURRENT_USER && CURRENT_USER.rol === 'admin';
+
+    // ── Animated loading messages ──
+    const loadingSteps = [
+        { icon: 'fa-satellite-dish', text: 'Conectando con el servidor...', sub: 'Estableciendo conexión con la plataforma' },
+        { icon: 'fa-users', text: 'Obteniendo participantes...', sub: 'Descargando matrículas y datos de estudiantes' },
+        { icon: 'fa-tasks', text: 'Calculando progreso...', sub: 'Revisando actividades completadas por cada estudiante' },
+        { icon: 'fa-star-half-alt', text: 'Procesando evaluaciones...', sub: 'Extrayendo notas y promedios de cada curso' },
+        { icon: 'fa-chart-pie', text: 'Generando estadísticas...', sub: 'Cruzando datos y calculando indicadores' },
+        { icon: 'fa-magic', text: 'Casi listo...', sub: 'Preparando tu dashboard personalizado' },
+    ];
+
+    let stepIndex = 0;
+
+    function renderLoadingStep() {
+        const step = loadingSteps[stepIndex % loadingSteps.length];
+        const progress = Math.min(((stepIndex + 1) / loadingSteps.length) * 100, 95);
+        container.innerHTML = `
+            <div class="loading-container" style="padding:5rem 2rem;">
+                <div style="position:relative;width:72px;height:72px;margin:0 auto 2rem;">
+                    <div class="loading-spinner" style="width:72px;height:72px;border-width:5px;"></div>
+                    <i class="fas ${step.icon}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.5rem;color:var(--blue-600);"></i>
+                </div>
+                <p style="font-size:1.2rem;font-weight:700;color:var(--slate-800);margin-bottom:.35rem;">
+                    ${step.text}
+                </p>
+                <p style="font-size:.85rem;color:var(--slate-500);margin-bottom:1.5rem;">
+                    ${step.sub}
+                </p>
+                <div style="max-width:320px;margin:0 auto;height:6px;background:var(--slate-200);border-radius:99px;overflow:hidden;">
+                    <div style="height:100%;width:${progress}%;background:linear-gradient(90deg,var(--blue-600),var(--teal-500));border-radius:99px;transition:width .8s ease;"></div>
+                </div>
+                <p style="font-size:.72rem;color:var(--slate-400);margin-top:.75rem;font-family:'JetBrains Mono',monospace;">
+                    Paso ${Math.min(stepIndex + 1, loadingSteps.length)} de ${loadingSteps.length}
+                </p>
+            </div>`;
+    }
+
+    renderLoadingStep();
+    const stepInterval = setInterval(() => {
+        stepIndex++;
+        if (stepIndex < loadingSteps.length) renderLoadingStep();
+    }, 5000);
 
     try {
+        // If admin → refresh from Moodle API first (runs full pipeline)
+        if (isAdmin) {
+            try {
+                const refreshResp = await fetch('/api/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!refreshResp.ok) {
+                    const err = await refreshResp.json().catch(() => ({}));
+                    console.warn('Refresh warning:', err.error || 'No se pudo actualizar');
+                }
+            } catch (refreshErr) {
+                console.warn('Refresh failed, loading cached data:', refreshErr.message);
+            }
+        }
+
+        // Now load the (possibly refreshed) data
         const response = await fetch('/api/datos');
+        clearInterval(stepInterval);
+
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             throw new Error(err.error || `HTTP ${response.status}`);
         }
+
+        // Show final step
+        container.innerHTML = `
+            <div class="loading-container" style="padding:5rem 2rem;">
+                <i class="fas fa-check-circle" style="font-size:3rem;color:var(--green-500);margin-bottom:1rem;"></i>
+                <p style="font-size:1.2rem;font-weight:700;color:var(--green-600);">¡Datos cargados!</p>
+            </div>`;
+
         DATA = normalizeData(await response.json());
         // Update data date in header
         if (DATA.metadata && DATA.metadata.fecha_procesamiento) {
             const d = new Date(DATA.metadata.fecha_procesamiento);
             document.getElementById('dataDate').textContent = d.toLocaleDateString('es-CL');
         }
+
+        // Brief pause to show success, then render
+        await new Promise(r => setTimeout(r, 600));
+
         populateFilters();
         renderKPIs();
         renderCourses();
+        renderCharts();
         setupFilterListeners();
-        checkDataAge();  // Check if data is old and show warning
+        checkDataAge();
     } catch (error) {
+        clearInterval(stepInterval);
         document.getElementById('kpiGrid').innerHTML = '';
-        document.getElementById('courseSections').innerHTML = `
+        container.innerHTML = `
             <div style="text-align:center;padding:4rem;background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
                 <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:var(--amber-500);margin-bottom:1rem;"></i>
                 <h2 style="margin-bottom:.5rem;">Error al cargar datos</h2>
                 <p style="color:var(--slate-500);">No se pudo conectar con el servidor. Verifique que el pipeline se ejecutó correctamente.</p>
-                <p style="color:var(--red-500);margin-top:.75rem;font-family:'Space Mono',monospace;font-size:.85rem;">${error.message}</p>
+                <p style="color:var(--red-500);margin-top:.75rem;font-family:'JetBrains Mono',monospace;font-size:.85rem;">${error.message}</p>
                 <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="loadData()">
                     <i class="fas fa-redo"></i> Reintentar
                 </button>
@@ -1073,6 +1479,126 @@ function renderKPIs(filteredStudents) {
             <div class="kpi-sub">${k.sub}</div>
         </div>
     `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+let chartEstados = null, chartProgreso = null, chartRiesgo = null;
+
+function renderCharts() {
+    if (!DATA || !DATA.cursos || DATA.cursos.length === 0) return;
+    document.getElementById('chartsRow').style.display = 'grid';
+
+    const allStudents = DATA.cursos.flatMap(c => c.estudiantes);
+    const approved = allStudents.filter(s => s.estado === 'A').length;
+    const failed = allStudents.filter(s => s.estado === 'R').length;
+    const inProcess = allStudents.filter(s => s.estado === 'P').length;
+
+    // Chart defaults
+    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+    Chart.defaults.font.size = 12;
+
+    // ── Donut: Estados ──
+    if (chartEstados) chartEstados.destroy();
+    chartEstados = new Chart(document.getElementById('chartEstados'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Aprobados', 'Reprobados', 'En Proceso'],
+            datasets: [{
+                data: [approved, failed, inProcess],
+                backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+                borderWidth: 0,
+                spacing: 3,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: '600' } }
+                }
+            }
+        }
+    });
+
+    // ── Bar: Progreso por Curso ──
+    const cursoLabels = DATA.cursos.map(c => c.nombre.length > 25 ? c.nombre.substring(0, 25) + '…' : c.nombre);
+    const progresoData = DATA.cursos.map(c => c.estadisticas.promedio_progreso);
+    const barColors = progresoData.map(p => p >= 80 ? '#22c55e' : p >= 50 ? '#f59e0b' : '#ef4444');
+
+    if (chartProgreso) chartProgreso.destroy();
+    chartProgreso = new Chart(document.getElementById('chartProgreso'), {
+        type: 'bar',
+        data: {
+            labels: cursoLabels,
+            datasets: [{
+                label: 'Progreso Promedio %',
+                data: progresoData,
+                backgroundColor: barColors,
+                borderRadius: 6,
+                borderSkipped: false,
+                barThickness: DATA.cursos.length > 6 ? 'flex' : 32,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: DATA.cursos.length > 4 ? 'y' : 'x',
+            scales: {
+                x: {
+                    grid: { display: DATA.cursos.length > 4, color: 'rgba(0,0,0,.04)' },
+                    max: DATA.cursos.length > 4 ? 100 : undefined,
+                    ticks: { font: { size: 10, weight: '500' } }
+                },
+                y: {
+                    grid: { display: DATA.cursos.length <= 4, color: 'rgba(0,0,0,.04)' },
+                    max: DATA.cursos.length <= 4 ? 100 : undefined,
+                    ticks: { font: { size: 10 } }
+                },
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx) => ` ${ctx.parsed.x || ctx.parsed.y}%` } }
+            }
+        }
+    });
+
+    // ── Donut: Riesgo ──
+    const rAlto = allStudents.filter(s => s.riesgo === 'alto').length;
+    const rMedio = allStudents.filter(s => s.riesgo === 'medio').length;
+    const rBajo = allStudents.filter(s => s.riesgo === 'bajo').length;
+    const rNone = allStudents.filter(s => !s.riesgo).length;
+
+    if (chartRiesgo) chartRiesgo.destroy();
+    chartRiesgo = new Chart(document.getElementById('chartRiesgo'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Alto', 'Medio', 'Bajo', 'Sin riesgo'],
+            datasets: [{
+                data: [rAlto, rMedio, rBajo, rNone],
+                backgroundColor: ['#ef4444', '#f59e0b', '#22c55e', '#cbd5e1'],
+                borderWidth: 0,
+                spacing: 3,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: '600' } }
+                }
+            }
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1186,6 +1712,13 @@ function renderCourses() {
         const modalidadBadgeClass = course.modalidad === 'Asincrónico' ? 'badge-teal' :
                                      course.modalidad === 'Sincrónico' ? 'badge-pink' : 'badge-blue';
 
+        // Collect all unique SENCE IDs from students
+        const senceIds = [...new Set(course.estudiantes.map(e => e.sence?.id_sence).filter(Boolean))];
+        const senceDisplay = senceIds.length > 0 ? senceIds.join(', ') : '—';
+
+        // Course link to platform
+        const courseLink = `https://virtual.institutotecnipro.cl/course/view.php?id=${course.id_moodle}`;
+
         return `
         <div class="course-section${ci===0?' open':''}" data-course-id="${course.id_moodle}">
             <div class="course-header" onclick="toggleCourse(this)">
@@ -1193,12 +1726,15 @@ function renderCourses() {
                     <input type="checkbox" class="course-checkbox" data-course-id="${course.id_moodle}" onclick="event.stopPropagation(); updateSelectedCourses();">
                     <span class="course-indicator ${indicator}"></span>
                     <span class="course-title">${course.nombre}</span>
+                    <a href="${courseLink}" target="_blank" class="course-id-link" onclick="event.stopPropagation();" title="Abrir curso en plataforma">
+                        <i class="fas fa-external-link-alt"></i> ID ${course.id_moodle}
+                    </a>
                     ${course.modalidad ? `<span class="badge ${modalidadBadgeClass}">${course.modalidad}</span>` : ''}
                 </div>
                 <div class="course-meta">
                     <span class="course-meta-item"><i class="fas fa-users"></i> <strong><span class="student-count-display">${stats.total_estudiantes}</span></strong></span>
                     <span class="course-meta-item"><i class="fas fa-calendar"></i> ${daysLabel}</span>
-                    <span class="course-meta-item"><i class="fas fa-id-card"></i> SENCE ${course.id_sence||'—'}</span>
+                    <span class="course-meta-item" title="ID${senceIds.length > 1 ? 's' : ''} SENCE: ${senceDisplay}"><i class="fas fa-id-card"></i> SENCE ${senceDisplay}</span>
                 </div>
                 <div class="course-badges">
                     <span class="badge badge-green">${stats.aprobados} Aprob.</span>
@@ -1236,7 +1772,7 @@ function renderCourses() {
                                 ${CURRENT_USER && CURRENT_USER.rol === 'admin' ? '<th style="width:36px;"></th>' : ''}
                                 <th onclick="sortTable('${course.id_moodle}','nombre')">Participante <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','rut')">RUT <span class="sort-icon">⇅</span></th>
-                                <th onclick="sortTable('${course.id_moodle}','email')">Correo <span class="sort-icon">⇅</span></th>
+                                <th style="width:40px;text-align:center;" title="Correo electrónico"><i class="fas fa-envelope" style="font-size:.7rem;"></i></th>
                                 <th onclick="sortTable('${course.id_moodle}','progreso')">Progreso <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','calificacion')">Nota Final <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','evaluaciones')">Evaluaciones <span class="sort-icon">⇅</span></th>
@@ -1245,7 +1781,7 @@ function renderCourses() {
                                 <th onclick="sortTable('${course.id_moodle}','riesgo')">Riesgo <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_ingresos')">Conex. SENCE <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_dj')">DJ <span class="sort-icon">⇅</span></th>
-                                <th onclick="sortTable('${course.id_moodle}','dias_sin_acceso')">Días s/acceso <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','dias_sin_acceso')">Últ. Conexión <span class="sort-icon">⇅</span></th>
                             </tr>
                         </thead>
                         <tbody id="tbody-${course.id_moodle}">
@@ -1259,6 +1795,20 @@ function renderCourses() {
 }
 
 function renderStudentRows(course) {
+    // Calculate time progress % for this course
+    let timeProgress = null;
+    if (course.fecha_inicio && course.fecha_fin) {
+        const inicio = new Date(course.fecha_inicio);
+        const fin = new Date(course.fecha_fin);
+        const hoy = new Date();
+        const totalMs = fin - inicio;
+        const elapsedMs = hoy - inicio;
+        if (totalMs > 0) {
+            timeProgress = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+            timeProgress = Math.round(timeProgress * 10) / 10;
+        }
+    }
+
     return course.estudiantes.map((s, i) => {
         const key = `${s.rut}_${course.id_moodle}`;
         const isSelected = selectedStudents.has(key);
@@ -1276,7 +1826,7 @@ function renderStudentRows(course) {
         const evaluacionesRendidas = s.evaluaciones_rendidas || 0;
         const totalEvaluaciones = s.total_evaluaciones || 0;
         const promedioEvaluadas = s.promedio_evaluadas;
-        const resumenEvaluaciones = s.resumen_evaluaciones || `${evaluacionesRendidas}/${totalEvaluaciones}`;
+        const resumenEvaluaciones = s.resumen_evaluaciones || (totalEvaluaciones > 0 ? `${evaluacionesRendidas}/${totalEvaluaciones}` : '—');
 
         const promedioEvalText = promedioEvaluadas !== null && promedioEvaluadas !== undefined
             ? promedioEvaluadas.toFixed(1)
@@ -1284,6 +1834,25 @@ function renderStudentRows(course) {
         const promedioEvalClass = promedioEvaluadas !== null
             ? (promedioEvaluadas >= 4 ? 'grade-pass' : 'grade-fail')
             : 'grade-na';
+
+        // Last connection display
+        const diasSinAcceso = s.dias_sin_acceso;
+        const ultimoAcceso = s.ultimo_acceso;
+        let conexionText, conexionColor;
+        if (diasSinAcceso === null || diasSinAcceso === undefined || (!ultimoAcceso && !diasSinAcceso)) {
+            conexionText = 'Nunca';
+            conexionColor = 'color:var(--red-600);font-weight:700;';
+        } else if (diasSinAcceso === 0) {
+            conexionText = 'Hoy';
+            conexionColor = 'color:var(--green-600);font-weight:700;';
+        } else if (diasSinAcceso === 1) {
+            conexionText = 'Ayer';
+            conexionColor = 'color:var(--green-600);font-weight:600;';
+        } else {
+            conexionText = `${diasSinAcceso} días`;
+            conexionColor = diasSinAcceso > 7 ? 'color:var(--red-600);font-weight:700;' : diasSinAcceso > 3 ? 'color:var(--amber-600);font-weight:600;' : 'color:var(--slate-600);';
+        }
+        const conexionTitle = ultimoAcceso ? `Último acceso: ${ultimoAcceso}` : 'Sin registro de acceso';
 
         const isAdmin = CURRENT_USER && CURRENT_USER.rol === 'admin';
         return `
@@ -1294,10 +1863,21 @@ function renderStudentRows(course) {
             </td>` : ''}
             <td><strong>${s.nombre}</strong></td>
             <td class="rut-cell">${s.rut}</td>
-            <td class="email-cell" title="${s.email}">${s.email}</td>
+            <td class="email-icon-cell" style="text-align:center;">
+                <div class="email-tooltip-wrap">
+                    <i class="fas fa-envelope email-icon-btn" title="${s.email}"></i>
+                    <div class="email-tooltip-box">
+                        <span class="email-tooltip-text">${s.email}</span>
+                        <button class="email-copy-btn" onclick="event.stopPropagation();copyEmail('${s.email}',this);" title="Copiar correo">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </td>
             <td class="progress-cell">
-                <div class="progress-bar-bg">
+                <div class="progress-bar-bg" style="position:relative;">
                     <div class="progress-bar-fill" style="width:${s.progreso}%;background:${progColor};"></div>
+                    ${timeProgress !== null ? `<div class="time-marker" style="left:${timeProgress}%;" title="Avance del curso: ${timeProgress.toFixed(0)}% del tiempo transcurrido"></div>` : ''}
                 </div>
                 <div class="progress-text" style="color:${progColor}">${s.progreso}%</div>
             </td>
@@ -1313,7 +1893,7 @@ function renderStudentRows(course) {
                 </span>
             </td>
             <td style="color:${djColor};font-weight:600;font-size:.82rem;">${djText}</td>
-            <td class="text-center mono" style="font-size:.82rem;${s.dias_sin_acceso>30?'color:var(--red-600);font-weight:700;':''}">${s.dias_sin_acceso||'—'}</td>
+            <td class="text-center mono" style="font-size:.82rem;${conexionColor}" title="${conexionTitle}">${conexionText}</td>
         </tr>`;
     }).join('');
 }
@@ -1596,38 +2176,51 @@ function checkDataAge() {
 }
 
 async function refreshMoodleData() {
-    const btn = document.getElementById('btnRefresh');
-    const originalHTML = btn.innerHTML;
+    // Simply reload the page — loadData() already calls /api/refresh for admins
+    window.location.reload();
+}
 
-    // Disable button and show spinner
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+// ═══════════════════════════════════════════════════════
+// COPY EMAIL
+// ═══════════════════════════════════════════════════════
+function copyEmail(email, btn) {
+    navigator.clipboard.writeText(email).then(() => {
+        const icon = btn.querySelector('i');
+        icon.className = 'fas fa-check';
+        btn.style.background = 'rgba(34,197,94,.3)';
+        setTimeout(() => {
+            icon.className = 'fas fa-copy';
+            btn.style.background = '';
+        }, 1500);
+    }).catch(() => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = email;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('Correo copiado', 'success');
+    });
+}
 
-    try {
-        const response = await fetch('/api/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
+// ═══════════════════════════════════════════════════════
+// PRINT REPORT
+// ═══════════════════════════════════════════════════════
+function printReport() {
+    // Open all course sections before printing
+    document.querySelectorAll('.course-section').forEach(s => s.classList.add('open'));
 
-        const result = await response.json();
+    // Set data-email attribute on email cells for print
+    document.querySelectorAll('.email-icon-cell').forEach(cell => {
+        const icon = cell.querySelector('.email-icon-btn');
+        if (icon) cell.setAttribute('data-email', icon.getAttribute('title') || '');
+    });
 
-        if (response.ok) {
-            showToast(`Datos actualizados: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
-
-            // Reload data after 1 second
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(result.error || 'Error al actualizar datos', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        }
-    } catch (error) {
-        showToast(`Error de conexión: ${error.message}`, 'error');
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-    }
+    // Small delay to let DOM update, then print
+    setTimeout(() => {
+        window.print();
+    }, 300);
 }
 </script>
 </body>
