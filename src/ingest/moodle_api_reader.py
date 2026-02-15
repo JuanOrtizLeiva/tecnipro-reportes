@@ -254,8 +254,7 @@ def _construir_fila(
         # ── SENCE (se llenará después con merge) ────────────
         "IDSence": id_sence,
         "LLave": llave,
-        "N_Ingresos": 0,  # Se llena con merge SENCE
-        "DJ": "",  # Se llena con merge SENCE
+        # N_Ingresos y DJ se agregan en el merge con SENCE
 
         # ── Para compatibilidad con merge ───────────────────
         "Nombre corto del curso con enlace": nombre_corto,
@@ -333,8 +332,7 @@ def _construir_fila_curso_vacio(curso: dict, categories: dict[int, str]) -> dict
         # ── SENCE (vacíos) ──────────────────────────────────
         "IDSence": "",
         "LLave": "",
-        "N_Ingresos": 0,
-        "DJ": "",
+        # N_Ingresos y DJ se agregan en el merge con SENCE
 
         # ── Compatibilidad ──────────────────────────────────
         "Nombre corto del curso con enlace": nombre_corto,
@@ -414,7 +412,6 @@ def _get_column_names() -> list[str]:
         "Resumen Evaluaciones",  # NUEVO
         "IDSence",
         "LLave",
-        "N_Ingresos",
-        "DJ",
+        # N_Ingresos y DJ se agregan después en el merge
         "Nombre corto del curso con enlace",
     ]
