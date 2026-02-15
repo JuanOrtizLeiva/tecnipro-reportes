@@ -182,8 +182,17 @@ def _leer_excel_sence(archivo, id_sence):
     rut_series = df[col_rut].astype(str).str.strip()
     nombre_series = df[col_nombre].astype(str).str.strip() if col_nombre else pd.Series("", index=df.index)
 
+    # Buscar columna de fecha de inicio de conectividad
+    col_fecha = _buscar_columna(df, "fecha inicio conectividad")
+
     # Filtrar filas sin RUT válido
     mask = rut_series.str.contains(r"\d", na=False)
+
+    # NUEVO: Filtrar también filas sin fecha válida de conectividad
+    if col_fecha is not None:
+        mask = mask & df[col_fecha].notna()
+        logger.debug("Filtrando filas con fecha de conectividad válida")
+
     rut_series = rut_series[mask]
     nombre_series = nombre_series[mask]
 
@@ -193,7 +202,7 @@ def _leer_excel_sence(archivo, id_sence):
     # Limpiar RUT
     id_user = rut_series.str.replace(".", "", regex=False).str.strip().str.lower()
 
-    # Agrupar por RUT: contar sesiones, tomar primer nombre
+    # Agrupar por RUT: contar sesiones (solo las que tienen fecha válida), tomar primer nombre
     agrupado = pd.DataFrame({"IDUser": id_user, "Nombre": nombre_series})
     conteo = agrupado.groupby("IDUser").agg(
         Nombre=("Nombre", "first"),
