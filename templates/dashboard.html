@@ -397,6 +397,15 @@
             cursor: not-allowed;
             box-shadow: none;
         }
+        .btn-cancel {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            border: 1px solid #dc2626;
+        }
+        .btn-cancel:hover {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            box-shadow: 0 4px 12px rgba(220,38,38,.3);
+        }
         .data-age-warning {
             background: var(--amber-100);
             color: var(--amber-600);
@@ -1117,6 +1126,9 @@
                     </button>
                     <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (1-2 minutos)">
                         <i class="fas fa-cloud-download-alt"></i> Actualización Completa
+                    </button>
+                    <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
+                        <i class="fas fa-times-circle"></i> Cancelar
                     </button>
                     <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
                         <i class="fas fa-file-pdf"></i> Imprimir PDF
@@ -2116,11 +2128,11 @@ async function sendEmails() {
     }
 }
 
-function showToast(message, type) {
+function showToast(message, type, duration = 4000) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = `toast toast-${type} visible`;
-    setTimeout(() => { toast.classList.remove('visible'); }, 4000);
+    setTimeout(() => { toast.classList.remove('visible'); }, duration);
 }
 
 // Close modal on overlay click
@@ -2251,35 +2263,94 @@ async function refreshMoodleData() {
     }
 }
 
+// Variable global para controlar la cancelación
+let fullRefreshController = null;
+
+function disableAllButtons() {
+    // Deshabilitar todos los botones de acción
+    const buttons = document.querySelectorAll('button:not(#btnCancelRefresh)');
+    buttons.forEach(btn => {
+        if (!btn.disabled) {
+            btn.disabled = true;
+            btn.dataset.wasEnabled = 'true';
+        }
+    });
+}
+
+function enableAllButtons() {
+    // Re-habilitar botones que estaban habilitados
+    const buttons = document.querySelectorAll('button[data-was-enabled="true"]');
+    buttons.forEach(btn => {
+        btn.disabled = false;
+        delete btn.dataset.wasEnabled;
+    });
+}
+
 async function refreshFullData() {
     const btn = document.getElementById('btnRefreshFull');
+    const btnCancel = document.getElementById('btnCancelRefresh');
     const originalHTML = btn.innerHTML;
 
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
+    // Deshabilitar todos los botones
+    disableAllButtons();
 
-    showToast('Actualización completa iniciada (Moodle + SENCE). Esto toma 1-2 minutos...', 'success');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando... <span style="font-size: 0.85em;">(~2 min)</span>';
+
+    // Mostrar botón de cancelar
+    btnCancel.style.display = '';
+
+    // Crear AbortController para poder cancelar
+    fullRefreshController = new AbortController();
+
+    // Mostrar mensaje con opción de cancelar
+    showToast('⏳ Actualización completa en progreso (Moodle + SENCE). Por favor no cierre esta ventana.', 'info', 120000);
 
     try {
         const response = await fetch('/api/refresh-full', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            signal: fullRefreshController.signal
         });
 
         const result = await response.json();
 
         if (response.ok) {
-            showToast(`Actualización completa exitosa: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
-            setTimeout(() => { window.location.reload(); }, 1200);
+            showToast(`✅ Actualización completa exitosa: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
+            setTimeout(() => { window.location.reload(); }, 1500);
         } else {
             showToast(result.error || 'Error en actualización completa', 'error');
-            btn.disabled = false;
+            enableAllButtons();
             btn.innerHTML = originalHTML;
+            btnCancel.style.display = 'none';
         }
     } catch (error) {
-        showToast(`Error de conexión: ${error.message}`, 'error');
-        btn.disabled = false;
+        if (error.name === 'AbortError') {
+            showToast('⚠️ Actualización cancelada. El proceso en servidor puede seguir ejecutándose.', 'warning');
+        } else {
+            showToast(`Error: ${error.message}`, 'error');
+        }
+        enableAllButtons();
         btn.innerHTML = originalHTML;
+        btnCancel.style.display = 'none';
+    } finally {
+        fullRefreshController = null;
+    }
+}
+
+function cancelFullRefresh() {
+    if (fullRefreshController) {
+        fullRefreshController.abort();
+        enableAllButtons();
+        document.getElementById('btnCancelRefresh').style.display = 'none';
+        showToast('Cancelando actualización completa...', 'warning');
+    }
+}
+
+function cancelFullRefresh() {
+    if (fullRefreshController) {
+        fullRefreshController.abort();
+        enableAllButtons();
+        showToast('Cancelando actualización completa...', 'warning');
     }
 }
 
