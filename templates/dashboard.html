@@ -397,6 +397,15 @@
             cursor: not-allowed;
             box-shadow: none;
         }
+        .btn-coordinadores {
+            background: linear-gradient(135deg, #7c3aed, #d97706);
+            color: white;
+            border: 1px solid #7c3aed;
+        }
+        .btn-coordinadores:hover {
+            background: linear-gradient(135deg, #8b5cf6, #f59e0b);
+            box-shadow: 0 4px 12px rgba(124,58,237,.3);
+        }
         .btn-cancel {
             background: linear-gradient(135deg, #dc2626, #ef4444);
             color: white;
@@ -414,6 +423,178 @@
             font-size: .75rem;
             font-weight: 600;
             border: 1px solid var(--amber-500);
+        }
+
+        /* ── MODAL COORDINADORES ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.5);
+            z-index: 9999;
+            animation: fadeIn .2s ease;
+        }
+        .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-xl);
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp .3s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--slate-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--slate-500);
+            cursor: pointer;
+            padding: .25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-xs);
+            transition: all .2s;
+        }
+        .modal-close:hover { background: var(--slate-100); color: var(--slate-900); }
+        .modal-body {
+            padding: 2rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .coord-form {
+            background: var(--slate-50);
+            border-radius: var(--radius-sm);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--slate-200);
+        }
+        .coord-form h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--slate-800);
+            margin-bottom: 1rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-size: .85rem;
+            font-weight: 600;
+            color: var(--slate-700);
+            margin-bottom: .35rem;
+        }
+        .form-group input {
+            padding: .6rem .85rem;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-xs);
+            font-size: .9rem;
+            transition: all .2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--blue-500);
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+        }
+        .coord-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--slate-200);
+        }
+        .coord-table thead {
+            background: var(--slate-100);
+        }
+        .coord-table th {
+            padding: .85rem 1rem;
+            text-align: left;
+            font-size: .85rem;
+            font-weight: 600;
+            color: var(--slate-700);
+            border-bottom: 2px solid var(--slate-200);
+        }
+        .coord-table td {
+            padding: .85rem 1rem;
+            border-bottom: 1px solid var(--slate-100);
+            font-size: .9rem;
+            color: var(--slate-700);
+        }
+        .coord-table tbody tr:hover {
+            background: var(--slate-50);
+        }
+        .coord-actions {
+            display: flex;
+            gap: .5rem;
+        }
+        .btn-icon {
+            background: none;
+            border: 1px solid var(--slate-300);
+            border-radius: var(--radius-xs);
+            padding: .4rem .6rem;
+            cursor: pointer;
+            font-size: .85rem;
+            transition: all .2s;
+            color: var(--slate-600);
+        }
+        .btn-icon:hover { background: var(--slate-100); }
+        .btn-icon.btn-edit:hover { border-color: var(--blue-500); color: var(--blue-600); }
+        .btn-icon.btn-delete:hover { border-color: var(--red-500); color: var(--red-600); }
+        .btn-primary {
+            background: var(--blue-600);
+            color: white;
+            border: none;
+            padding: .65rem 1.25rem;
+            border-radius: var(--radius-xs);
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-primary:hover {
+            background: var(--blue-700);
+            box-shadow: 0 4px 12px rgba(37,99,235,.3);
+        }
+        .btn-secondary {
+            background: var(--slate-200);
+            color: var(--slate-700);
+            border: none;
+            padding: .65rem 1.25rem;
+            border-radius: var(--radius-xs);
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-secondary:hover {
+            background: var(--slate-300);
         }
 
         /* ── COURSE CHECKBOXES ── */
@@ -1127,6 +1308,9 @@
                     <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (1-2 minutos)">
                         <i class="fas fa-cloud-download-alt"></i> Actualización Completa
                     </button>
+                    <button class="btn-action btn-coordinadores" id="btnCoordinadores" onclick="abrirModalCoordinadores()" style="display:none;" title="Gestionar coordinadores de clientes por curso">
+                        <i class="fas fa-users-cog"></i> Gestionar Coordinadores Cliente
+                    </button>
                     <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
                         <i class="fas fa-times-circle"></i> Cancelar
                     </button>
@@ -1348,6 +1532,7 @@ async function loadUserInfo() {
             // Show refresh button for admin
             if (CURRENT_USER.rol === 'admin') {
                 document.getElementById('btnRefresh').style.display = '';
+                document.getElementById('btnCoordinadores').style.display = '';
             }
             // Botón actualización completa solo para superadmins
             const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
@@ -2232,6 +2417,7 @@ function checkDataAge() {
         // Show refresh button for admin
         if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
             document.getElementById('btnRefresh').style.display = '';
+            document.getElementById('btnCoordinadores').style.display = '';
         }
         // Show full refresh button for superadmins
         const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
@@ -2380,6 +2566,284 @@ function printReport() {
         window.print();
     }, 300);
 }
+
+// ═══════════════════════════════════════════════════════
+// COORDINADORES CLIENTE - GESTIÓN
+// ═══════════════════════════════════════════════════════
+
+let coordinadoresData = [];
+
+async function abrirModalCoordinadores() {
+    const modal = document.getElementById('modalCoordinadores');
+    modal.classList.add('active');
+    await cargarCoordinadores();
+}
+
+function cerrarModalCoordinadores() {
+    const modal = document.getElementById('modalCoordinadores');
+    modal.classList.remove('active');
+    cancelarEdicion();
+}
+
+async function cargarCoordinadores() {
+    try {
+        const response = await fetch('/api/coordinadores');
+        if (!response.ok) throw new Error('Error al cargar coordinadores');
+
+        const data = await response.json();
+        coordinadoresData = data.coordinadores.filter(c => c.activo);
+
+        renderizarTablaCoordinadores();
+    } catch (error) {
+        console.error('Error cargando coordinadores:', error);
+        document.getElementById('coordTableBody').innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--red-600); padding: 2rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Error al cargar coordinadores
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function renderizarTablaCoordinadores() {
+    const tbody = document.getElementById('coordTableBody');
+
+    if (coordinadoresData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                    <i class="fas fa-inbox"></i> No hay coordinadores registrados
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = coordinadoresData.map(coord => `
+        <tr>
+            <td><strong>${coord.id_curso_moodle}</strong></td>
+            <td>${coord.nombre}</td>
+            <td>${coord.email}</td>
+            <td>${coord.empresa || '—'}</td>
+            <td class="coord-actions">
+                <button class="btn-icon btn-edit" onclick="editarCoordinador(${coord.id})" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-delete" onclick="eliminarCoordinador(${coord.id}, '${coord.nombre.replace(/'/g, "\\'")})" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function guardarCoordinador(event) {
+    event.preventDefault();
+
+    const coordId = document.getElementById('coordId').value;
+    const data = {
+        nombre: document.getElementById('coordNombre').value.trim(),
+        email: document.getElementById('coordEmail').value.trim(),
+        id_curso_moodle: document.getElementById('coordCurso').value.trim(),
+        empresa: document.getElementById('coordEmpresa').value.trim()
+    };
+
+    try {
+        let response;
+        if (coordId) {
+            // Actualizar existente
+            response = await fetch(`/api/coordinadores/${coordId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } else {
+            // Crear nuevo
+            response = await fetch('/api/coordinadores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert(error.error || 'Error al guardar coordinador');
+            return;
+        }
+
+        // Éxito: recargar tabla y limpiar formulario
+        await cargarCoordinadores();
+        cancelarEdicion();
+
+        // Mostrar mensaje de éxito
+        const msg = coordId ? 'actualizado' : 'agregado';
+        showCoordToast(`Coordinador ${msg} exitosamente`, 'success');
+
+    } catch (error) {
+        console.error('Error guardando coordinador:', error);
+        alert('Error al guardar coordinador. Intente nuevamente.');
+    }
+}
+
+function editarCoordinador(id) {
+    const coord = coordinadoresData.find(c => c.id === id);
+    if (!coord) return;
+
+    // Llenar formulario con datos del coordinador
+    document.getElementById('coordId').value = coord.id;
+    document.getElementById('coordNombre').value = coord.nombre;
+    document.getElementById('coordEmail').value = coord.email;
+    document.getElementById('coordCurso').value = coord.id_curso_moodle;
+    document.getElementById('coordEmpresa').value = coord.empresa || '';
+
+    // Cambiar título del formulario
+    document.getElementById('formTitle').textContent = 'Editar Coordinador';
+
+    // Scroll al formulario
+    document.querySelector('.coord-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelarEdicion() {
+    document.getElementById('formCoordinador').reset();
+    document.getElementById('coordId').value = '';
+    document.getElementById('formTitle').textContent = 'Agregar Nuevo Coordinador';
+}
+
+async function eliminarCoordinador(id, nombre) {
+    if (!confirm(`¿Está seguro de eliminar al coordinador "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/coordinadores/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert(error.error || 'Error al eliminar coordinador');
+            return;
+        }
+
+        // Éxito: recargar tabla
+        await cargarCoordinadores();
+        showCoordToast('Coordinador eliminado exitosamente', 'success');
+
+    } catch (error) {
+        console.error('Error eliminando coordinador:', error);
+        alert('Error al eliminar coordinador. Intente nuevamente.');
+    }
+}
+
+function showCoordToast(message, type = 'info') {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: ${type === 'success' ? 'var(--green-600)' : 'var(--blue-600)'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-xs);
+        box-shadow: var(--shadow-lg);
+        z-index: 10000;
+        animation: slideInRight .3s ease;
+        font-weight: 600;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity .3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 </script>
+
+<!-- Modal Coordinadores Cliente -->
+<div class="modal-overlay" id="modalCoordinadores">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-users-cog"></i> Gestionar Coordinadores Cliente</h2>
+            <button class="modal-close" onclick="cerrarModalCoordinadores()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- Formulario para agregar/editar coordinador -->
+            <div class="coord-form">
+                <h3 id="formTitle">Agregar Nuevo Coordinador</h3>
+                <form id="formCoordinador" onsubmit="guardarCoordinador(event)">
+                    <input type="hidden" id="coordId" value="">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="coordNombre">Nombre Completo *</label>
+                            <input type="text" id="coordNombre" required placeholder="Ej: María González">
+                        </div>
+                        <div class="form-group">
+                            <label for="coordEmail">Email *</label>
+                            <input type="email" id="coordEmail" required placeholder="Ej: mgonzalez@empresa.cl">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="coordCurso">ID Curso Moodle *</label>
+                            <input type="text" id="coordCurso" required placeholder="Ej: 190">
+                        </div>
+                        <div class="form-group">
+                            <label for="coordEmpresa">Empresa</label>
+                            <input type="text" id="coordEmpresa" placeholder="Ej: Empresa ABC Ltda">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: .75rem; justify-content: flex-end;">
+                        <button type="button" class="btn-secondary" onclick="cancelarEdicion()">Cancelar</button>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-save"></i> Guardar Coordinador
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabla de coordinadores existentes -->
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--slate-800); margin-bottom: 1rem;">
+                    Coordinadores Registrados
+                </h3>
+                <table class="coord-table">
+                    <thead>
+                        <tr>
+                            <th>ID Curso</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Empresa</th>
+                            <th style="width: 120px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coordTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando coordinadores...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cerrar modal al hacer clic fuera del contenido
+document.getElementById('modalCoordinadores').addEventListener('click', (e) => {
+    if (e.target.id === 'modalCoordinadores') {
+        cerrarModalCoordinadores();
+    }
+});
+</script>
+
 </body>
 </html>

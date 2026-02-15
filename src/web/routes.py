@@ -529,3 +529,145 @@ def register_routes(app):
             as_attachment=True,
             download_name=filename
         )
+
+    # ── API: Coordinadores Cliente (solo admin) ──────────────
+
+    def _load_coordinadores():
+        """Carga coordinadores.json y retorna el dict completo."""
+        coord_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
+        if not coord_path.exists():
+            return {"coordinadores": [], "siguiente_id": 1}
+        with open(coord_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _save_coordinadores(data):
+        """Guarda coordinadores.json."""
+        coord_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
+        coord_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(coord_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    @app.route("/api/coordinadores", methods=["GET"])
+    @login_required
+    def api_coordinadores_list():
+        """Lista todos los coordinadores. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        data = _load_coordinadores()
+        return jsonify({"coordinadores": data["coordinadores"]})
+
+    @app.route("/api/coordinadores", methods=["POST"])
+    @login_required
+    def api_coordinadores_create():
+        """Crea un nuevo coordinador. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Body JSON requerido"}), 400
+
+        # Validar campos requeridos
+        nombre = body.get("nombre", "").strip()
+        email = body.get("email", "").strip()
+        id_curso_moodle = body.get("id_curso_moodle", "").strip()
+        empresa = body.get("empresa", "").strip()
+
+        if not nombre or not email or not id_curso_moodle:
+            return jsonify({"error": "Campos requeridos: nombre, email, id_curso_moodle"}), 400
+
+        # Validar email básico
+        if "@" not in email:
+            return jsonify({"error": "Email inválido"}), 400
+
+        data = _load_coordinadores()
+
+        # Verificar si ya existe un coordinador para este curso
+        for coord in data["coordinadores"]:
+            if coord["id_curso_moodle"].lower() == id_curso_moodle.lower() and coord.get("activo", True):
+                return jsonify({"error": f"Ya existe un coordinador activo para el curso {id_curso_moodle}"}), 409
+
+        # Crear nuevo coordinador
+        from datetime import datetime
+        nuevo_coord = {
+            "id": data["siguiente_id"],
+            "nombre": nombre,
+            "email": email,
+            "id_curso_moodle": id_curso_moodle,
+            "empresa": empresa,
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
+            "activo": True
+        }
+
+        data["coordinadores"].append(nuevo_coord)
+        data["siguiente_id"] += 1
+        _save_coordinadores(data)
+
+        logger.info("Coordinador creado por %s: %s para curso %s", current_user.email, nombre, id_curso_moodle)
+        return jsonify({"status": "ok", "coordinador": nuevo_coord}), 201
+
+    @app.route("/api/coordinadores/<int:coord_id>", methods=["PUT"])
+    @login_required
+    def api_coordinadores_update(coord_id):
+        """Actualiza un coordinador existente. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Body JSON requerido"}), 400
+
+        data = _load_coordinadores()
+        coordinador = None
+        for c in data["coordinadores"]:
+            if c["id"] == coord_id:
+                coordinador = c
+                break
+
+        if not coordinador:
+            return jsonify({"error": "Coordinador no encontrado"}), 404
+
+        # Actualizar campos si se proveen
+        if "nombre" in body:
+            coordinador["nombre"] = body["nombre"].strip()
+        if "email" in body:
+            email = body["email"].strip()
+            if "@" not in email:
+                return jsonify({"error": "Email inválido"}), 400
+            coordinador["email"] = email
+        if "id_curso_moodle" in body:
+            coordinador["id_curso_moodle"] = body["id_curso_moodle"].strip()
+        if "empresa" in body:
+            coordinador["empresa"] = body["empresa"].strip()
+        if "activo" in body:
+            coordinador["activo"] = bool(body["activo"])
+
+        _save_coordinadores(data)
+
+        logger.info("Coordinador %d actualizado por %s", coord_id, current_user.email)
+        return jsonify({"status": "ok", "coordinador": coordinador})
+
+    @app.route("/api/coordinadores/<int:coord_id>", methods=["DELETE"])
+    @login_required
+    def api_coordinadores_delete(coord_id):
+        """Elimina (desactiva) un coordinador. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        data = _load_coordinadores()
+        coordinador = None
+        for c in data["coordinadores"]:
+            if c["id"] == coord_id:
+                coordinador = c
+                break
+
+        if not coordinador:
+            return jsonify({"error": "Coordinador no encontrado"}), 404
+
+        # Desactivar en lugar de eliminar (soft delete)
+        coordinador["activo"] = False
+        _save_coordinadores(data)
+
+        logger.info("Coordinador %d desactivado por %s", coord_id, current_user.email)
+        return jsonify({"status": "ok", "mensaje": "Coordinador eliminado"})

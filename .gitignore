@@ -1,6 +1,7 @@
 # Credenciales
 .env
 data/config/usuarios.json
+data/config/coordinadores.json
 
 # Python
 __pycache__/

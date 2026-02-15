@@ -1,5 +1,6 @@
-"""Lee compradores_tecnipro.xlsx (tabla maestra de compradores)."""
+"""Lee compradores desde JSON o Excel (fallback)."""
 
+import json
 import logging
 from pathlib import Path
 
@@ -21,19 +22,81 @@ _COL_MAP = {
 }
 
 
+def _leer_desde_json():
+    """Lee coordinadores desde coordinadores.json.
+
+    Returns
+    -------
+    pd.DataFrame | None
+        DataFrame con coordinadores activos, o None si no existe o está vacío
+    """
+    json_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
+    if not json_path.exists():
+        return None
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        coordinadores = data.get("coordinadores", [])
+        # Filtrar solo activos
+        coordinadores_activos = [c for c in coordinadores if c.get("activo", True)]
+
+        if not coordinadores_activos:
+            return None
+
+        # Convertir a DataFrame con columnas esperadas
+        df = pd.DataFrame(coordinadores_activos)
+
+        # Mapear columnas al formato esperado
+        df = df.rename(columns={
+            "nombre": "comprador_nombre",
+            "email": "email_comprador",
+        })
+
+        # Asegurar que existan todas las columnas requeridas
+        for col in ["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]:
+            if col not in df.columns:
+                df[col] = ""
+
+        # Normalizar id_curso_moodle
+        df["id_curso_moodle"] = df["id_curso_moodle"].astype(str).str.strip().str.lower()
+
+        # Seleccionar solo columnas necesarias
+        df = df[["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]].copy()
+
+        logger.info("Coordinadores cargados desde JSON: %d registros", len(df))
+        return df
+
+    except Exception as e:
+        logger.warning("Error leyendo coordinadores desde JSON: %s", e)
+        return None
+
+
 def leer_compradores(path=None):
-    """Lee el Excel de compradores y retorna un DataFrame normalizado.
+    """Lee coordinadores desde JSON (preferencia) o Excel (fallback).
+
+    Intenta leer desde coordinadores.json primero. Si no existe o está vacío,
+    fallback al Excel de compradores.
 
     Parameters
     ----------
     path : Path | str | None
-        Ruta al archivo .xlsx.  Si es ``None`` usa ``settings.COMPRADORES_PATH``.
+        Ruta al archivo .xlsx (fallback).  Si es ``None`` usa ``settings.COMPRADORES_PATH``.
 
     Returns
     -------
     pd.DataFrame
         Con columnas: id_curso_moodle, comprador_nombre, empresa, email_comprador
     """
+    # Intentar leer desde JSON primero
+    df_json = _leer_desde_json()
+    if df_json is not None and len(df_json) > 0:
+        return df_json
+
+    # Fallback al Excel
+    logger.info("JSON no disponible o vacío, usando Excel como fallback")
+
     if path is None:
         path = settings.COMPRADORES_PATH
 
