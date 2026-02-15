@@ -384,3 +384,63 @@ def get_completion_status(courseid: int, userid: int) -> float:
     )
 
     return progreso
+
+
+def get_all_sence_ids() -> list[str]:
+    """Obtiene todos los IDs SENCE únicos de todos los cursos en las categorías configuradas.
+
+    Esta función es usada por el orchestrator del scraper para saber qué IDs descargar.
+    Extrae los IDs desde los grupos de usuario en cada curso.
+
+    Returns
+    -------
+    list[str]
+        Lista de IDs SENCE únicos como strings numéricos.
+        Ejemplo: ["6731347", "6763148", ...]
+    """
+    logger.info("Obteniendo IDs SENCE desde Moodle API...")
+
+    # Obtener todos los cursos de las categorías configuradas
+    courses = get_courses(settings.MOODLE_CATEGORY_IDS)
+
+    if not courses:
+        logger.warning("No se encontraron cursos en las categorías configuradas")
+        return []
+
+    sence_ids_set = set()
+
+    # Para cada curso, obtener los estudiantes y extraer sus grupos
+    for curso in courses:
+        curso_id = curso.get("id")
+        curso_nombre = curso.get("fullname", "")
+
+        try:
+            estudiantes = get_enrolled_users(curso_id)
+
+            for est in estudiantes:
+                groups = est.get("groups", [])
+
+                # El primer grupo contiene el ID SENCE
+                if groups and len(groups) > 0:
+                    id_sence = str(groups[0].get("name", "")).strip()
+
+                    # Validar que sea numérico
+                    if id_sence and id_sence.isdigit():
+                        sence_ids_set.add(id_sence)
+                    else:
+                        # Intentar extraer número de formato "6731347.0"
+                        try:
+                            num = int(float(id_sence))
+                            sence_ids_set.add(str(num))
+                        except (ValueError, TypeError):
+                            continue
+
+        except Exception as e:
+            logger.warning("Error obteniendo IDs SENCE del curso %d (%s): %s",
+                          curso_id, curso_nombre, e)
+            continue
+
+    sence_ids = sorted(sence_ids_set)
+    logger.info("IDs SENCE únicos encontrados: %d", len(sence_ids))
+
+    return sence_ids

@@ -112,13 +112,29 @@ class ScraperOrchestrator:
         return report
 
     def get_sence_ids(self):
-        """Obtiene lista de IDs SENCE únicos del Dreporte.
+        """Obtiene lista de IDs SENCE únicos.
+
+        Si DATA_SOURCE=api: Obtiene IDs desde Moodle API REST
+        Si DATA_SOURCE=csv: Obtiene IDs desde Dreporte.csv
 
         Returns
         -------
         list[str]
             IDs numéricos como strings.
         """
+        # Modo API: obtener IDs desde Moodle
+        if settings.DATA_SOURCE == "api":
+            logger.info("Modo API: obteniendo IDs SENCE desde Moodle API")
+            try:
+                from src.ingest.moodle_api_client import get_all_sence_ids
+                ids = get_all_sence_ids()
+                return ids
+            except Exception as e:
+                logger.error("Error obteniendo IDs SENCE desde API: %s", e)
+                raise RuntimeError(f"No se pueden obtener IDs SENCE desde API: {e}") from e
+
+        # Modo CSV: obtener IDs desde Dreporte.csv
+        logger.info("Modo CSV: obteniendo IDs SENCE desde Dreporte.csv")
         dreporte_path = settings.DATA_INPUT_PATH
         dreporte_file = None
         for f in sorted(dreporte_path.iterdir()):
