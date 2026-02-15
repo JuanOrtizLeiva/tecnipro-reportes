@@ -2,6 +2,8 @@
 
 import json
 import logging
+import secrets
+import string
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -10,7 +12,8 @@ from flask import jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from config import settings
-from src.web.auth import check_login_rate_limit, verify_password
+from src.web.auth import check_login_rate_limit, hash_password, verify_password
+from src.web import password_reset, user_manager
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +105,107 @@ def register_routes(app):
         response.set_cookie("session", "", expires=0)
 
         return response
+
+    # ── Password Reset ────────────────────────────────────
+
+    @app.route("/forgot-password", methods=["GET", "POST"])
+    def forgot_password():
+        """Solicitud de recuperación de contraseña."""
+        if request.method == "GET":
+            # TODO: Crear template forgot_password.html
+            return render_template("forgot_password.html")
+
+        # POST: solicitar reset
+        email = request.form.get("email", "").strip()
+        if not email:
+            return render_template(
+                "forgot_password.html",
+                error="Por favor ingresa tu email"
+            )
+
+        # Generar token (siempre retornar éxito para evitar enumerar usuarios)
+        token = password_reset.generar_token_reset(email)
+
+        if token:
+            # Enviar email (base_url desde request)
+            base_url = request.url_root.rstrip('/')
+            password_reset.enviar_email_reset(email, token, base_url)
+
+        # Siempre mostrar mensaje de éxito (seguridad)
+        return render_template(
+            "forgot_password.html",
+            success=True,
+            message="Si el email existe, recibirás un enlace de recuperación."
+        )
+
+    @app.route("/reset-password", methods=["GET", "POST"])
+    def reset_password():
+        """Página para restablecer contraseña con token."""
+        token = request.args.get("token", "")
+
+        if request.method == "GET":
+            # Validar token
+            email = password_reset.validar_token_reset(token)
+            if not email:
+                return render_template(
+                    "reset_password.html",
+                    error="El enlace de recuperación es inválido o ha expirado."
+                )
+
+            return render_template("reset_password.html", token=token)
+
+        # POST: cambiar contraseña
+        new_password = request.form.get("password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+
+        if not new_password or not confirm_password:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                error="Por favor completa ambos campos"
+            )
+
+        if new_password != confirm_password:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                error="Las contraseñas no coinciden"
+            )
+
+        if len(new_password) < 6:
+            return render_template(
+                "reset_password.html",
+                token=token,
+                error="La contraseña debe tener al menos 6 caracteres"
+            )
+
+        # Validar token nuevamente
+        email = password_reset.validar_token_reset(token)
+        if not email:
+            return render_template(
+                "reset_password.html",
+                error="El enlace de recuperación es inválido o ha expirado."
+            )
+
+        # Cambiar contraseña
+        try:
+            user_manager.change_password(email, new_password)
+            password_reset.invalidar_token_reset(token)
+
+            logger.info("Contraseña restablecida exitosamente para %s", email)
+
+            return render_template(
+                "reset_password.html",
+                success=True,
+                message="Contraseña restablecida exitosamente. Ya puedes iniciar sesión."
+            )
+        except Exception as e:
+            logger.error("Error restableciendo contraseña: %s", e)
+            return render_template(
+                "reset_password.html",
+                token=token,
+                error="Error al restablecer contraseña. Intenta nuevamente."
+            )
 
     # ── Dashboard ─────────────────────────────────────────
 
@@ -530,37 +634,57 @@ def register_routes(app):
             download_name=filename
         )
 
-    # ── API: Coordinadores Cliente (solo admin) ──────────────
+    # ── API: Coordinadores Cliente (Usuarios Compradores - solo admin) ──────────────
 
-    def _load_coordinadores():
-        """Carga coordinadores.json y retorna el dict completo."""
-        coord_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
-        if not coord_path.exists():
-            return {"coordinadores": [], "siguiente_id": 1}
-        with open(coord_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+    def _generar_password():
+        """Genera contraseña aleatoria segura de 12 caracteres."""
+        alphabet = string.ascii_letters + string.digits + "!@#$%&"
+        return ''.join(secrets.choice(alphabet) for _ in range(12))
 
-    def _save_coordinadores(data):
-        """Guarda coordinadores.json."""
-        coord_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
-        coord_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(coord_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    def _parsear_cursos(cursos_str):
+        """Parse string de cursos separados por coma a lista de ints.
+
+        Ejemplos:
+            "190, 192, 193" → [190, 192, 193]
+            "190" → [190]
+            "" → []
+        """
+        if not cursos_str or not cursos_str.strip():
+            return []
+
+        cursos = []
+        for curso in cursos_str.split(","):
+            curso = curso.strip()
+            if curso.isdigit():
+                cursos.append(int(curso))
+        return cursos
 
     @app.route("/api/coordinadores", methods=["GET"])
     @login_required
     def api_coordinadores_list():
-        """Lista todos los coordinadores. Solo admin."""
+        """Lista todos los coordinadores (usuarios con rol=comprador). Solo admin."""
         if current_user.rol != "admin":
             return jsonify({"error": "No autorizado"}), 403
 
-        data = _load_coordinadores()
-        return jsonify({"coordinadores": data["coordinadores"]})
+        # Leer usuarios y filtrar solo compradores
+        usuarios = user_manager._load_users()
+        compradores = [
+            {
+                "email": u["email"],
+                "nombre": u["nombre"],
+                "empresa": u.get("empresa", ""),
+                "cursos": u.get("cursos", []),
+            }
+            for u in usuarios.get("usuarios", [])
+            if u.get("rol") == "comprador"
+        ]
+
+        return jsonify({"coordinadores": compradores})
 
     @app.route("/api/coordinadores", methods=["POST"])
     @login_required
     def api_coordinadores_create():
-        """Crea un nuevo coordinador. Solo admin."""
+        """Crea un nuevo coordinador (usuario comprador) con contraseña generada. Solo admin."""
         if current_user.rol != "admin":
             return jsonify({"error": "No autorizado"}), 403
 
@@ -571,45 +695,61 @@ def register_routes(app):
         # Validar campos requeridos
         nombre = body.get("nombre", "").strip()
         email = body.get("email", "").strip()
-        id_curso_moodle = body.get("id_curso_moodle", "").strip()
+        cursos_str = body.get("cursos", "").strip()  # "190, 192, 193"
         empresa = body.get("empresa", "").strip()
 
-        if not nombre or not email or not id_curso_moodle:
-            return jsonify({"error": "Campos requeridos: nombre, email, id_curso_moodle"}), 400
+        if not nombre or not email or not cursos_str:
+            return jsonify({"error": "Campos requeridos: nombre, email, cursos"}), 400
 
         # Validar email básico
         if "@" not in email:
             return jsonify({"error": "Email inválido"}), 400
 
-        data = _load_coordinadores()
+        # Parsear cursos
+        cursos = _parsear_cursos(cursos_str)
+        if not cursos:
+            return jsonify({"error": "Debe especificar al menos un curso válido"}), 400
 
-        # Verificar si ya existe un coordinador para este curso
-        for coord in data["coordinadores"]:
-            if coord["id_curso_moodle"].lower() == id_curso_moodle.lower() and coord.get("activo", True):
-                return jsonify({"error": f"Ya existe un coordinador activo para el curso {id_curso_moodle}"}), 409
+        # Verificar si el usuario ya existe
+        if user_manager._find_user_data(email):
+            return jsonify({"error": f"Ya existe un usuario con el email {email}"}), 409
 
-        # Crear nuevo coordinador
-        from datetime import datetime
-        nuevo_coord = {
-            "id": data["siguiente_id"],
-            "nombre": nombre,
-            "email": email,
-            "id_curso_moodle": id_curso_moodle,
-            "empresa": empresa,
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%d"),
-            "activo": True
-        }
+        # Generar contraseña aleatoria
+        password = _generar_password()
 
-        data["coordinadores"].append(nuevo_coord)
-        data["siguiente_id"] += 1
-        _save_coordinadores(data)
+        # Crear usuario comprador
+        try:
+            user_manager.add_user(
+                email=email,
+                nombre=nombre,
+                rol="comprador",
+                password=password,
+                cursos=cursos,
+                empresa=empresa
+            )
+        except Exception as e:
+            logger.error("Error creando coordinador: %s", e)
+            return jsonify({"error": f"Error creando usuario: {str(e)}"}), 500
 
-        logger.info("Coordinador creado por %s: %s para curso %s", current_user.email, nombre, id_curso_moodle)
-        return jsonify({"status": "ok", "coordinador": nuevo_coord}), 201
+        logger.info(
+            "Coordinador creado por %s: %s (%s) con cursos %s",
+            current_user.email, nombre, email, cursos
+        )
 
-    @app.route("/api/coordinadores/<int:coord_id>", methods=["PUT"])
+        return jsonify({
+            "status": "ok",
+            "coordinador": {
+                "email": email,
+                "nombre": nombre,
+                "empresa": empresa,
+                "cursos": cursos,
+            },
+            "password_generada": password  # Solo se muestra UNA VEZ
+        }), 201
+
+    @app.route("/api/coordinadores/<email>", methods=["PUT"])
     @login_required
-    def api_coordinadores_update(coord_id):
+    def api_coordinadores_update(email):
         """Actualiza un coordinador existente. Solo admin."""
         if current_user.rol != "admin":
             return jsonify({"error": "No autorizado"}), 403
@@ -618,56 +758,154 @@ def register_routes(app):
         if not body:
             return jsonify({"error": "Body JSON requerido"}), 400
 
-        data = _load_coordinadores()
-        coordinador = None
-        for c in data["coordinadores"]:
-            if c["id"] == coord_id:
-                coordinador = c
-                break
-
-        if not coordinador:
+        # Verificar que el usuario existe y es comprador
+        user_data = user_manager._find_user_data(email)
+        if not user_data:
             return jsonify({"error": "Coordinador no encontrado"}), 404
 
-        # Actualizar campos si se proveen
-        if "nombre" in body:
-            coordinador["nombre"] = body["nombre"].strip()
-        if "email" in body:
-            email = body["email"].strip()
-            if "@" not in email:
-                return jsonify({"error": "Email inválido"}), 400
-            coordinador["email"] = email
-        if "id_curso_moodle" in body:
-            coordinador["id_curso_moodle"] = body["id_curso_moodle"].strip()
-        if "empresa" in body:
-            coordinador["empresa"] = body["empresa"].strip()
-        if "activo" in body:
-            coordinador["activo"] = bool(body["activo"])
+        if user_data.get("rol") != "comprador":
+            return jsonify({"error": "El usuario no es un coordinador"}), 400
 
-        _save_coordinadores(data)
+        # Cargar todos los usuarios
+        data = user_manager._load_users()
 
-        logger.info("Coordinador %d actualizado por %s", coord_id, current_user.email)
-        return jsonify({"status": "ok", "coordinador": coordinador})
+        # Buscar y actualizar el usuario
+        for u in data["usuarios"]:
+            if u["email"].lower() == email.lower():
+                # Actualizar campos si se proveen
+                if "nombre" in body:
+                    u["nombre"] = body["nombre"].strip()
+                if "empresa" in body:
+                    u["empresa"] = body["empresa"].strip()
+                if "cursos" in body:
+                    # Puede ser string "190, 192" o array [190, 192]
+                    if isinstance(body["cursos"], str):
+                        u["cursos"] = _parsear_cursos(body["cursos"])
+                    elif isinstance(body["cursos"], list):
+                        u["cursos"] = [int(c) for c in body["cursos"] if str(c).isdigit()]
 
-    @app.route("/api/coordinadores/<int:coord_id>", methods=["DELETE"])
+                user_manager._save_users(data)
+
+                logger.info("Coordinador %s actualizado por %s", email, current_user.email)
+                return jsonify({
+                    "status": "ok",
+                    "coordinador": {
+                        "email": u["email"],
+                        "nombre": u["nombre"],
+                        "empresa": u.get("empresa", ""),
+                        "cursos": u.get("cursos", []),
+                    }
+                })
+
+        return jsonify({"error": "Error actualizando coordinador"}), 500
+
+    @app.route("/api/coordinadores/<email>", methods=["DELETE"])
     @login_required
-    def api_coordinadores_delete(coord_id):
-        """Elimina (desactiva) un coordinador. Solo admin."""
+    def api_coordinadores_delete(email):
+        """Elimina un coordinador (usuario comprador). Solo admin."""
         if current_user.rol != "admin":
             return jsonify({"error": "No autorizado"}), 403
 
-        data = _load_coordinadores()
-        coordinador = None
-        for c in data["coordinadores"]:
-            if c["id"] == coord_id:
-                coordinador = c
-                break
-
-        if not coordinador:
+        # Verificar que el usuario existe y es comprador
+        user_data = user_manager._find_user_data(email)
+        if not user_data:
             return jsonify({"error": "Coordinador no encontrado"}), 404
 
-        # Desactivar en lugar de eliminar (soft delete)
-        coordinador["activo"] = False
-        _save_coordinadores(data)
+        if user_data.get("rol") != "comprador":
+            return jsonify({"error": "El usuario no es un coordinador"}), 400
 
-        logger.info("Coordinador %d desactivado por %s", coord_id, current_user.email)
-        return jsonify({"status": "ok", "mensaje": "Coordinador eliminado"})
+        # Eliminar usuario
+        try:
+            user_manager.remove_user(email)
+            logger.info("Coordinador %s eliminado por %s", email, current_user.email)
+            return jsonify({"status": "ok", "mensaje": "Coordinador eliminado"})
+        except Exception as e:
+            logger.error("Error eliminando coordinador: %s", e)
+            return jsonify({"error": f"Error eliminando usuario: {str(e)}"}), 500
+
+    @app.route("/api/coordinadores/<email>/cursos", methods=["POST"])
+    @login_required
+    def api_coordinadores_add_curso(email):
+        """Agrega un curso a un coordinador. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        body = request.get_json(silent=True)
+        if not body or "curso_id" not in body:
+            return jsonify({"error": "Campo requerido: curso_id"}), 400
+
+        curso_id = body["curso_id"]
+        if not str(curso_id).isdigit():
+            return jsonify({"error": "curso_id debe ser un número"}), 400
+
+        curso_id = int(curso_id)
+
+        # Verificar que el usuario existe y es comprador
+        user_data = user_manager._find_user_data(email)
+        if not user_data:
+            return jsonify({"error": "Coordinador no encontrado"}), 404
+
+        if user_data.get("rol") != "comprador":
+            return jsonify({"error": "El usuario no es un coordinador"}), 400
+
+        # Agregar curso
+        try:
+            user_manager.add_curso(email, curso_id)
+            logger.info("Curso %d agregado a %s por %s", curso_id, email, current_user.email)
+
+            # Recargar usuario actualizado
+            user_data = user_manager._find_user_data(email)
+            return jsonify({
+                "status": "ok",
+                "coordinador": {
+                    "email": user_data["email"],
+                    "nombre": user_data["nombre"],
+                    "empresa": user_data.get("empresa", ""),
+                    "cursos": user_data.get("cursos", []),
+                }
+            })
+        except Exception as e:
+            logger.error("Error agregando curso: %s", e)
+            return jsonify({"error": f"Error agregando curso: {str(e)}"}), 500
+
+    @app.route("/api/coordinadores/<email>/cursos/<int:curso_id>", methods=["DELETE"])
+    @login_required
+    def api_coordinadores_remove_curso(email, curso_id):
+        """Quita un curso de un coordinador. Solo admin."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+
+        # Verificar que el usuario existe y es comprador
+        user_data = user_manager._find_user_data(email)
+        if not user_data:
+            return jsonify({"error": "Coordinador no encontrado"}), 404
+
+        if user_data.get("rol") != "comprador":
+            return jsonify({"error": "El usuario no es un coordinador"}), 400
+
+        # Cargar todos los usuarios
+        data = user_manager._load_users()
+
+        # Buscar y actualizar el usuario
+        for u in data["usuarios"]:
+            if u["email"].lower() == email.lower():
+                cursos = u.get("cursos", [])
+                if curso_id not in cursos:
+                    return jsonify({"error": f"El curso {curso_id} no está asignado"}), 404
+
+                cursos.remove(curso_id)
+                u["cursos"] = cursos
+                user_manager._save_users(data)
+
+                logger.info("Curso %d quitado de %s por %s", curso_id, email, current_user.email)
+                return jsonify({
+                    "status": "ok",
+                    "coordinador": {
+                        "email": u["email"],
+                        "nombre": u["nombre"],
+                        "empresa": u.get("empresa", ""),
+                        "cursos": u.get("cursos", []),
+                    }
+                })
+
+        return jsonify({"error": "Error quitando curso"}), 500

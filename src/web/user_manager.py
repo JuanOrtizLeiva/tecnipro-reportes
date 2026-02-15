@@ -2,7 +2,7 @@
 
 Uso:
     python -m src.web.user_manager add --email user@test.cl --nombre "Nombre" --rol admin --password "pass"
-    python -m src.web.user_manager add --email user@test.cl --nombre "Nombre" --rol comprador --cursos 140 143 --password "pass"
+    python -m src.web.user_manager add --email user@test.cl --nombre "Nombre" --rol comprador --cursos 140 143 --empresa "ACME Inc" --password "pass"
     python -m src.web.user_manager list
     python -m src.web.user_manager password --email user@test.cl --password "nueva"
     python -m src.web.user_manager remove --email user@test.cl
@@ -38,7 +38,15 @@ def _save_users(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def add_user(email, nombre, rol, password, cursos=None):
+def _find_user_data(email):
+    """Busca un usuario por email. Retorna dict o None."""
+    for u in _load_users().get("usuarios", []):
+        if u["email"].lower() == email.lower():
+            return u
+    return None
+
+
+def add_user(email, nombre, rol, password, cursos=None, empresa=None):
     """Agrega un usuario nuevo."""
     data = _load_users()
 
@@ -58,6 +66,7 @@ def add_user(email, nombre, rol, password, cursos=None):
         "nombre": nombre,
         "rol": rol,
         "cursos": cursos or [],
+        "empresa": empresa or "",
     }
     data["usuarios"].append(user)
     _save_users(data)
@@ -145,6 +154,7 @@ def main():
     add_parser.add_argument("--rol", required=True, choices=["admin", "comprador"])
     add_parser.add_argument("--password", required=True)
     add_parser.add_argument("--cursos", type=int, nargs="*", default=[])
+    add_parser.add_argument("--empresa", default="")
 
     # list
     subparsers.add_parser("list", help="Listar usuarios")
@@ -166,7 +176,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "add":
-        add_user(args.email, args.nombre, args.rol, args.password, args.cursos)
+        add_user(args.email, args.nombre, args.rol, args.password, args.cursos, args.empresa)
     elif args.command == "list":
         list_users()
     elif args.command == "remove":

@@ -23,14 +23,14 @@ _COL_MAP = {
 
 
 def _leer_desde_json():
-    """Lee coordinadores desde coordinadores.json.
+    """Lee coordinadores (usuarios con rol=comprador) desde usuarios.json.
 
     Returns
     -------
     pd.DataFrame | None
-        DataFrame con coordinadores activos, o None si no existe o está vacío
+        DataFrame con coordinadores, o None si no existe o está vacío
     """
-    json_path = settings.PROJECT_ROOT / "data" / "config" / "coordinadores.json"
+    json_path = settings.USUARIOS_PATH
     if not json_path.exists():
         return None
 
@@ -38,38 +38,41 @@ def _leer_desde_json():
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        coordinadores = data.get("coordinadores", [])
-        # Filtrar solo activos
-        coordinadores_activos = [c for c in coordinadores if c.get("activo", True)]
+        usuarios = data.get("usuarios", [])
+        # Filtrar solo compradores (coordinadores)
+        compradores = [u for u in usuarios if u.get("rol") == "comprador"]
 
-        if not coordinadores_activos:
+        if not compradores:
             return None
 
-        # Convertir a DataFrame con columnas esperadas
-        df = pd.DataFrame(coordinadores_activos)
+        # Expandir usuarios con múltiples cursos en filas separadas
+        filas = []
+        for comprador in compradores:
+            cursos = comprador.get("cursos", [])
+            if not cursos:
+                continue  # Ignorar compradores sin cursos asignados
 
-        # Mapear columnas al formato esperado
-        df = df.rename(columns={
-            "nombre": "comprador_nombre",
-            "email": "email_comprador",
-        })
+            for curso_id in cursos:
+                filas.append({
+                    "id_curso_moodle": str(curso_id),
+                    "comprador_nombre": comprador.get("nombre", ""),
+                    "empresa": comprador.get("empresa", ""),
+                    "email_comprador": comprador.get("email", ""),
+                })
 
-        # Asegurar que existan todas las columnas requeridas
-        for col in ["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]:
-            if col not in df.columns:
-                df[col] = ""
+        if not filas:
+            return None
+
+        df = pd.DataFrame(filas)
 
         # Normalizar id_curso_moodle
         df["id_curso_moodle"] = df["id_curso_moodle"].astype(str).str.strip().str.lower()
 
-        # Seleccionar solo columnas necesarias
-        df = df[["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]].copy()
-
-        logger.info("Coordinadores cargados desde JSON: %d registros", len(df))
+        logger.info("Coordinadores cargados desde usuarios.json: %d registros (%d usuarios)", len(df), len(compradores))
         return df
 
     except Exception as e:
-        logger.warning("Error leyendo coordinadores desde JSON: %s", e)
+        logger.warning("Error leyendo coordinadores desde usuarios.json: %s", e)
         return None
 
 

@@ -2617,7 +2617,7 @@ async function cargarCoordinadores() {
         if (!response.ok) throw new Error('Error al cargar coordinadores');
 
         const data = await response.json();
-        coordinadoresData = data.coordinadores.filter(c => c.activo);
+        coordinadoresData = data.coordinadores;
 
         renderizarTablaCoordinadores();
     } catch (error) {
@@ -2646,40 +2646,50 @@ function renderizarTablaCoordinadores() {
         return;
     }
 
-    tbody.innerHTML = coordinadoresData.map(coord => `
-        <tr>
-            <td><strong>${coord.id_curso_moodle}</strong></td>
-            <td>${coord.nombre}</td>
-            <td>${coord.email}</td>
-            <td>${coord.empresa || '—'}</td>
-            <td class="coord-actions">
-                <button class="btn-icon btn-edit" onclick="editarCoordinador(${coord.id})" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon btn-delete" onclick="eliminarCoordinador(${coord.id}, '${coord.nombre.replace(/'/g, "\\'")})" title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = coordinadoresData.map(coord => {
+        const cursosArray = coord.cursos || [];
+        const cursosStr = cursosArray.length > 0
+            ? cursosArray.join(', ')
+            : '—';
+        const emailEscaped = coord.email.replace(/'/g, "\\'");
+
+        return `
+            <tr>
+                <td><strong>${cursosStr}</strong></td>
+                <td>${coord.nombre}</td>
+                <td>${coord.email}</td>
+                <td>${coord.empresa || '—'}</td>
+                <td class="coord-actions">
+                    <button class="btn-icon btn-edit" onclick="editarCoordinador('${emailEscaped}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="eliminarCoordinador('${emailEscaped}', '${coord.nombre.replace(/'/g, "\\'")})" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 async function guardarCoordinador(event) {
     event.preventDefault();
 
-    const coordId = document.getElementById('coordId').value;
+    const coordEmail = document.getElementById('coordEmail').value; // Para edición
+    const esEdicion = coordEmail !== '';
+
     const data = {
         nombre: document.getElementById('coordNombre').value.trim(),
-        email: document.getElementById('coordEmail').value.trim(),
-        id_curso_moodle: document.getElementById('coordCurso').value.trim(),
+        email: document.getElementById('coordEmailInput').value.trim(),
+        cursos: document.getElementById('coordCursos').value.trim(), // "190, 192, 193"
         empresa: document.getElementById('coordEmpresa').value.trim()
     };
 
     try {
         let response;
-        if (coordId) {
+        if (esEdicion) {
             // Actualizar existente
-            response = await fetch(`/api/coordinadores/${coordId}`, {
+            response = await fetch(`/api/coordinadores/${coordEmail}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -2699,13 +2709,34 @@ async function guardarCoordinador(event) {
             return;
         }
 
-        // Éxito: recargar tabla y limpiar formulario
-        await cargarCoordinadores();
-        cancelarEdicion();
+        const result = await response.json();
 
-        // Mostrar mensaje de éxito
-        const msg = coordId ? 'actualizado' : 'agregado';
-        showCoordToast(`Coordinador ${msg} exitosamente`, 'success');
+        // Éxito: recargar tabla
+        await cargarCoordinadores();
+
+        if (esEdicion) {
+            // Edición: solo limpiar y mostrar mensaje
+            cancelarEdicion();
+            showCoordToast('Coordinador actualizado exitosamente', 'success');
+        } else {
+            // Creación: mostrar contraseña generada
+            const password = result.password_generada;
+            if (password) {
+                document.getElementById('generatedPassword').textContent = password;
+                document.getElementById('emailDestino').textContent = data.email;
+                document.getElementById('passwordAlert').style.display = 'block';
+
+                // Limpiar formulario pero mantener alerta visible
+                document.getElementById('formCoordinador').reset();
+                document.getElementById('coordEmail').value = '';
+
+                // Auto-scroll a la alerta
+                document.getElementById('passwordAlert').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                cancelarEdicion();
+                showCoordToast('Coordinador creado exitosamente', 'success');
+            }
+        }
 
     } catch (error) {
         console.error('Error guardando coordinador:', error);
@@ -2713,19 +2744,24 @@ async function guardarCoordinador(event) {
     }
 }
 
-function editarCoordinador(id) {
-    const coord = coordinadoresData.find(c => c.id === id);
+function editarCoordinador(email) {
+    const coord = coordinadoresData.find(c => c.email === email);
     if (!coord) return;
 
+    // Ocultar alerta de contraseña si estaba visible
+    document.getElementById('passwordAlert').style.display = 'none';
+
     // Llenar formulario con datos del coordinador
-    document.getElementById('coordId').value = coord.id;
+    document.getElementById('coordEmail').value = coord.email; // Hidden (para identificar edición)
     document.getElementById('coordNombre').value = coord.nombre;
-    document.getElementById('coordEmail').value = coord.email;
-    document.getElementById('coordCurso').value = coord.id_curso_moodle;
+    document.getElementById('coordEmailInput').value = coord.email;
+    document.getElementById('coordEmailInput').disabled = true; // Email no editable
+    document.getElementById('coordCursos').value = coord.cursos ? coord.cursos.join(', ') : '';
     document.getElementById('coordEmpresa').value = coord.empresa || '';
 
-    // Cambiar título del formulario
+    // Cambiar título y botón
     document.getElementById('formTitle').textContent = 'Editar Coordinador';
+    document.getElementById('btnGuardarText').textContent = 'Actualizar Coordinador';
 
     // Scroll al formulario
     document.querySelector('.coord-form').scrollIntoView({ behavior: 'smooth' });
@@ -2733,17 +2769,30 @@ function editarCoordinador(id) {
 
 function cancelarEdicion() {
     document.getElementById('formCoordinador').reset();
-    document.getElementById('coordId').value = '';
+    document.getElementById('coordEmail').value = '';
+    document.getElementById('coordEmailInput').disabled = false;
     document.getElementById('formTitle').textContent = 'Agregar Nuevo Coordinador';
+    document.getElementById('btnGuardarText').textContent = 'Crear Coordinador';
+    document.getElementById('passwordAlert').style.display = 'none';
 }
 
-async function eliminarCoordinador(id, nombre) {
-    if (!confirm(`¿Está seguro de eliminar al coordinador "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+function copiarPassword() {
+    const password = document.getElementById('generatedPassword').textContent;
+    navigator.clipboard.writeText(password).then(() => {
+        showCoordToast('Contraseña copiada al portapapeles', 'success');
+    }).catch(err => {
+        console.error('Error copiando:', err);
+        alert('Error al copiar contraseña');
+    });
+}
+
+async function eliminarCoordinador(email, nombre) {
+    if (!confirm(`¿Está seguro de eliminar al coordinador "${nombre}"?\n\nSe eliminará su cuenta de usuario y perderá acceso al dashboard.\n\nEsta acción no se puede deshacer.`)) {
         return;
     }
 
     try {
-        const response = await fetch(`/api/coordinadores/${id}`, {
+        const response = await fetch(`/api/coordinadores/${email}`, {
             method: 'DELETE'
         });
 
@@ -2755,6 +2804,7 @@ async function eliminarCoordinador(id, nombre) {
 
         // Éxito: recargar tabla
         await cargarCoordinadores();
+        cancelarEdicion();
         showCoordToast('Coordinador eliminado exitosamente', 'success');
 
     } catch (error) {
@@ -2803,22 +2853,51 @@ function showCoordToast(message, type = 'info') {
             <!-- Formulario para agregar/editar coordinador -->
             <div class="coord-form">
                 <h3 id="formTitle">Agregar Nuevo Coordinador</h3>
+
+                <!-- Alerta de contraseña generada (solo aparece al crear) -->
+                <div id="passwordAlert" style="display: none; background: var(--green-100); border-left: 4px solid var(--green-600); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius-xs);">
+                    <div style="display: flex; align-items: start; gap: .75rem;">
+                        <i class="fas fa-check-circle" style="color: var(--green-600); margin-top: .15rem;"></i>
+                        <div style="flex: 1;">
+                            <strong style="color: var(--green-700);">Coordinador creado exitosamente</strong>
+                            <p style="margin: .5rem 0 0; font-size: .85rem; color: var(--slate-700);">
+                                Se ha enviado un email a <strong id="emailDestino"></strong> con las credenciales de acceso.
+                            </p>
+                            <div style="margin-top: .75rem; background: white; padding: .75rem; border-radius: var(--radius-xs); border: 1px solid var(--slate-300);">
+                                <strong style="font-size: .8rem; color: var(--slate-600);">Contraseña generada:</strong>
+                                <div style="display: flex; align-items: center; gap: .5rem; margin-top: .35rem;">
+                                    <code id="generatedPassword" style="flex: 1; font-size: 1rem; color: var(--slate-800); background: var(--slate-100); padding: .5rem; border-radius: var(--radius-xs); font-family: 'Courier New', monospace;"></code>
+                                    <button type="button" class="btn-icon" onclick="copiarPassword()" title="Copiar contraseña">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p style="margin-top: .5rem; font-size: .75rem; color: var(--slate-500);">
+                                    <i class="fas fa-info-circle"></i> Guarda esta contraseña - solo se muestra una vez
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <form id="formCoordinador" onsubmit="guardarCoordinador(event)">
-                    <input type="hidden" id="coordId" value="">
+                    <input type="hidden" id="coordEmail" value="">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="coordNombre">Nombre Completo *</label>
                             <input type="text" id="coordNombre" required placeholder="Ej: María González">
                         </div>
                         <div class="form-group">
-                            <label for="coordEmail">Email *</label>
-                            <input type="email" id="coordEmail" required placeholder="Ej: mgonzalez@empresa.cl">
+                            <label for="coordEmailInput">Email *</label>
+                            <input type="email" id="coordEmailInput" required placeholder="Ej: mgonzalez@empresa.cl">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="coordCurso">ID Curso Moodle *</label>
-                            <input type="text" id="coordCurso" required placeholder="Ej: 190">
+                            <label for="coordCursos">IDs de Cursos Moodle *</label>
+                            <input type="text" id="coordCursos" required placeholder="Ej: 190, 192, 193, 304">
+                            <small style="font-size: .75rem; color: var(--slate-500); margin-top: .25rem; display: block;">
+                                <i class="fas fa-info-circle"></i> Separar múltiples cursos con comas
+                            </small>
                         </div>
                         <div class="form-group">
                             <label for="coordEmpresa">Empresa</label>
@@ -2827,8 +2906,8 @@ function showCoordToast(message, type = 'info') {
                     </div>
                     <div style="display: flex; gap: .75rem; justify-content: flex-end;">
                         <button type="button" class="btn-secondary" onclick="cancelarEdicion()">Cancelar</button>
-                        <button type="submit" class="btn-primary">
-                            <i class="fas fa-save"></i> Guardar Coordinador
+                        <button type="submit" class="btn-primary" id="btnGuardarCoord">
+                            <i class="fas fa-save"></i> <span id="btnGuardarText">Crear Coordinador</span>
                         </button>
                     </div>
                 </form>
@@ -2842,7 +2921,7 @@ function showCoordToast(message, type = 'info') {
                 <table class="coord-table">
                     <thead>
                         <tr>
-                            <th>ID Curso</th>
+                            <th>Cursos</th>
                             <th>Nombre</th>
                             <th>Email</th>
                             <th>Empresa</th>
