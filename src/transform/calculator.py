@@ -20,8 +20,16 @@ def calcular_campos(df):
     # ── Parsear fechas ─────────────────────────────────────
     df["fecha_inicio_dt"] = df["Fecha de inicio del curso"].apply(parse_fecha_espanol)
     df["fecha_fin_dt"] = df["Fecha de finalización del curso"].apply(parse_fecha_espanol)
+
+    # Normalizar último acceso a medianoche para cálculo correcto de días
+    def parse_y_normalizar(fecha_str):
+        dt = parse_fecha_espanol(fecha_str)
+        if dt:
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        return None
+
     df["ultimo_acceso_dt"] = df.get("Último acceso al curso", pd.Series(dtype=str)).apply(
-        parse_fecha_espanol
+        parse_y_normalizar
     )
 
     # ── Días ───────────────────────────────────────────────
