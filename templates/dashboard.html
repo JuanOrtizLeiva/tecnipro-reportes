@@ -2288,69 +2288,43 @@ function enableAllButtons() {
 
 async function refreshFullData() {
     const btn = document.getElementById('btnRefreshFull');
-    const btnCancel = document.getElementById('btnCancelRefresh');
     const originalHTML = btn.innerHTML;
 
-    // Deshabilitar todos los botones
-    disableAllButtons();
-
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando... <span style="font-size: 0.85em;">(~2 min)</span>';
-
-    // Mostrar botón de cancelar
-    btnCancel.style.display = '';
-
-    // Crear AbortController para poder cancelar
-    fullRefreshController = new AbortController();
-
-    // Mostrar mensaje con opción de cancelar
-    showToast('⏳ Actualización completa en progreso (Moodle + SENCE). Por favor no cierre esta ventana.', 'info', 120000);
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
 
     try {
         const response = await fetch('/api/refresh-full', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: fullRefreshController.signal
+            headers: { 'Content-Type': 'application/json' }
         });
 
         const result = await response.json();
 
-        if (response.ok) {
-            showToast(`✅ Actualización completa exitosa: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
-            setTimeout(() => { window.location.reload(); }, 1500);
+        if (response.ok && result.status === 'started') {
+            // Proceso iniciado exitosamente en segundo plano
+            showToast(
+                '✅ Actualización completa iniciada en segundo plano. ' +
+                'El proceso puede tomar 5-30 minutos. ' +
+                'Recibirá un correo cuando finalice.',
+                'success',
+                10000
+            );
+
+            // Re-habilitar el botón después de 2 segundos
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }, 2000);
         } else {
-            showToast(result.error || 'Error en actualización completa', 'error');
-            enableAllButtons();
+            showToast(result.error || 'Error al iniciar actualización completa', 'error');
+            btn.disabled = false;
             btn.innerHTML = originalHTML;
-            btnCancel.style.display = 'none';
         }
     } catch (error) {
-        if (error.name === 'AbortError') {
-            showToast('⚠️ Actualización cancelada. El proceso en servidor puede seguir ejecutándose.', 'warning');
-        } else {
-            showToast(`Error: ${error.message}`, 'error');
-        }
-        enableAllButtons();
+        showToast(`Error de conexión: ${error.message}`, 'error');
+        btn.disabled = false;
         btn.innerHTML = originalHTML;
-        btnCancel.style.display = 'none';
-    } finally {
-        fullRefreshController = null;
-    }
-}
-
-function cancelFullRefresh() {
-    if (fullRefreshController) {
-        fullRefreshController.abort();
-        enableAllButtons();
-        document.getElementById('btnCancelRefresh').style.display = 'none';
-        showToast('Cancelando actualización completa...', 'warning');
-    }
-}
-
-function cancelFullRefresh() {
-    if (fullRefreshController) {
-        fullRefreshController.abort();
-        enableAllButtons();
-        showToast('Cancelando actualización completa...', 'warning');
     }
 }
 

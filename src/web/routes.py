@@ -211,43 +211,43 @@ def register_routes(app):
     @app.route("/api/refresh-full", methods=["POST"])
     @login_required
     def api_refresh_full():
-        """Ejecuta pipeline completo: Moodle API + Scraping SENCE. Solo superadmins."""
+        """Inicia actualización completa en segundo plano. Solo superadmins."""
         SUPERADMINS = ["ygonzalez@duocapital.cl", "jortizleiva@duocapital.cl"]
 
         if current_user.email not in SUPERADMINS:
             return jsonify({"error": "No autorizado. Solo administradores principales."}), 403
 
         try:
-            import asyncio
-            from src.main import run_scraper, run_pipeline
+            import subprocess
+            import sys
 
-            logger.info("Refresh COMPLETO (Moodle + SENCE) iniciado por %s", current_user.email)
+            logger.info("Refresh COMPLETO (background) iniciado por %s", current_user.email)
 
-            # 1. Ejecutar scraping SENCE primero (async)
-            try:
-                logger.info("Paso 1/2: Iniciando scraping SENCE...")
-                report = asyncio.run(run_scraper(headless=True))
-                descargados = len(report.get("descargados_ok", []))
-                logger.info("Scraping SENCE completado: %d archivos descargados", descargados)
-            except Exception as e:
-                logger.warning("Error en scraping SENCE (continuando con pipeline): %s", e)
+            # Ruta al script de background
+            script_path = Path(__file__).parent.parent.parent / "scripts" / "run_background_refresh.py"
+            venv_python = Path(sys.executable)
 
-            # 2. Ejecutar pipeline completo (Moodle API + procesar datos)
-            logger.info("Paso 2/2: Ejecutando pipeline Moodle + procesamiento...")
-            datos_json = run_pipeline()
+            # Iniciar proceso en background completamente desvinculado
+            process = subprocess.Popen(
+                [str(venv_python), str(script_path), current_user.email],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,  # Desvincular completamente del proceso padre
+                cwd=str(Path(__file__).parent.parent.parent)
+            )
 
-            logger.info("Refresh completo exitoso")
+            logger.info("Proceso en background iniciado (PID: %d)", process.pid)
+
             return jsonify({
-                "status": "ok",
-                "cursos": datos_json["metadata"]["total_cursos"],
-                "estudiantes": datos_json["metadata"]["total_estudiantes"],
-                "mensaje": "Pipeline completo ejecutado (Moodle + SENCE)",
-                "fecha": datos_json["metadata"]["fecha_procesamiento"]
+                "status": "started",
+                "mensaje": "Actualización completa iniciada en segundo plano",
+                "pid": process.pid,
+                "detalle": "El proceso puede tomar 5-30 minutos. Recibirá un correo cuando finalice."
             })
 
         except Exception as e:
-            logger.error("Error en refresh completo: %s", e, exc_info=True)
-            return jsonify({"error": f"Error al actualizar: {str(e)}"}), 500
+            logger.error("Error iniciando refresh en background: %s", e, exc_info=True)
+            return jsonify({"error": f"Error al iniciar actualización: {str(e)}"}), 500
 
     # ── API: enviar correo (solo admin) ───────────────────
 
