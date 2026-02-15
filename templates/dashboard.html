@@ -2517,8 +2517,9 @@ async function refreshMoodleData() {
         const result = await response.json();
 
         if (response.ok) {
-            showToast(`Datos actualizados: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
-            setTimeout(() => { window.location.reload(); }, 1000);
+            showToast('✓ Datos actualizados exitosamente', 'success', 3000);
+            // Reload después de mostrar el mensaje
+            setTimeout(() => { window.location.reload(); }, 1500);
         } else {
             showToast(result.error || 'Error al actualizar datos', 'error');
             btn.disabled = false;
