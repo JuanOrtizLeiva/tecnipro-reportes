@@ -227,8 +227,13 @@
         .header-actions-row {
             display: flex;
             gap: 0.5rem;
-            flex-wrap: wrap;
-            align-items: center;
+            align-items: stretch;
+        }
+        .header-actions-row > * {
+            flex: 1 1 0;
+            min-width: 0;
+            justify-content: center;
+            text-align: center;
         }
 
         /* Fila de navegación (Volver, Logout) */
@@ -458,7 +463,7 @@
             background: white;
             border-radius: var(--radius);
             box-shadow: var(--shadow-xl);
-            max-width: 900px;
+            max-width: 1050px;
             width: 90%;
             max-height: 85vh;
             overflow: hidden;
@@ -585,6 +590,19 @@
         .btn-icon:hover { background: var(--slate-100); }
         .btn-icon.btn-edit:hover { border-color: var(--blue-500); color: var(--blue-600); }
         .btn-icon.btn-delete:hover { border-color: var(--red-500); color: var(--red-600); }
+        .btn-icon.btn-key:hover { border-color: var(--amber-500); color: var(--amber-600); }
+        .course-badge {
+            display: inline-block;
+            background: var(--blue-50);
+            color: var(--blue-700);
+            border: 1px solid var(--blue-200);
+            border-radius: 4px;
+            padding: .15rem .45rem;
+            font-size: .75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            margin: .1rem .15rem;
+        }
         .btn-primary {
             background: var(--blue-600);
             color: white;
@@ -1324,7 +1342,7 @@
 
                 <!-- Action Buttons Row -->
                 <div class="header-actions" id="headerActions" style="display:none;">
-                    <!-- FILA 1: Acciones Principales (3 para admin, 2 para comprador) -->
+                    <!-- FILA 1: Acciones de datos (admin: 3, comprador: 1) -->
                     <div class="header-actions-row header-actions-main">
                         <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor">
                             <i class="fas fa-sync-alt"></i> Actualizar Datos
@@ -1335,15 +1353,12 @@
                         <button class="btn-action btn-coordinadores" id="btnCoordinadores" onclick="abrirModalCoordinadores()" style="display:none;" title="Gestionar coordinadores de clientes por curso">
                             <i class="fas fa-users-cog"></i> Gestionar Coordinadores
                         </button>
-                        <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
-                            <i class="fas fa-file-pdf"></i> Imprimir PDF
-                        </button>
                     </div>
 
-                    <!-- FILA 2: Navegación y Extras (3 para admin, 2 para comprador) -->
+                    <!-- FILA 2: Navegación + Print -->
                     <div class="header-actions-row header-actions-nav">
-                        <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
-                            <i class="fas fa-times-circle"></i> Cancelar
+                        <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
+                            <i class="fas fa-file-pdf"></i> Imprimir PDF
                         </button>
                         <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                             <i class="fas fa-arrow-left"></i> Volver a Tecnipro
@@ -1351,6 +1366,12 @@
                         <a href="/logout" class="btn-action btn-logout">
                             <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                         </a>
+                    </div>
+                    <!-- Cancelar: fuera de las filas, solo aparece durante actualización -->
+                    <div style="text-align:center;">
+                        <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
+                            <i class="fas fa-times-circle"></i> Cancelar Actualización
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1560,23 +1581,32 @@ async function loadUserInfo() {
             }
 
             // ── Distribución de botones según rol ──
-            // ADMIN: 3 botones fila 1 + 3 fila 2 (Actualizar, [Actualización Completa], Coordinadores | [Cancelar], Volver, Cerrar)
-            // COMPRADOR: 2 botones fila 1 + 2 fila 2 (Actualizar, Imprimir | Volver, Cerrar)
+            // SUPERADMIN: Fila 1 (Actualizar, Act.Completa, Coordinadores) + Fila 2 (Imprimir, Volver, Cerrar) = 3+3
+            // ADMIN: Fila 1 (Actualizar, Coordinadores) + Fila 2 (Imprimir, Volver, Cerrar) = 2+3
+            // COMPRADOR: Fila 1 (Actualizar) + Fila 2 (Imprimir, Volver, Cerrar) = 1+3
 
             const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+            const row1 = document.querySelector('.header-actions-main');
+            const row2 = document.querySelector('.header-actions-nav');
+            const btnPrint = document.getElementById('btnPrint');
+            const btnRefresh = document.getElementById('btnRefresh');
 
-            // Botones comunes para todos (fila 1)
-            document.getElementById('btnRefresh').style.display = '';  // Todos pueden actualizar datos
-            document.getElementById('btnPrint').style.display = '';     // Todos pueden imprimir
+            // Mostrar botones comunes
+            btnRefresh.style.display = '';
+            btnPrint.style.display = '';
 
-            // Botones solo para admin (fila 1)
             if (CURRENT_USER.rol === 'admin') {
+                // ADMIN 3+3: Actualizar, Act.Completa, Coordinadores | Imprimir, Volver, Cerrar
                 document.getElementById('btnCoordinadores').style.display = '';
-            }
 
-            // Botón actualización completa solo para superadmins (fila 1)
-            if (SUPERADMINS.includes(CURRENT_USER.email)) {
-                document.getElementById('btnRefreshFull').style.display = '';
+                if (SUPERADMINS.includes(CURRENT_USER.email)) {
+                    document.getElementById('btnRefreshFull').style.display = '';
+                }
+                // Print stays in row 2 (already there in HTML)
+            } else {
+                // COORDINADOR 2+2: Actualizar, Imprimir | Volver, Cerrar
+                // Move Print to row 1
+                row1.appendChild(btnPrint);
             }
         }
     } catch (e) {
@@ -2458,12 +2488,12 @@ function checkDataAge() {
             // Botones solo para admin
             if (CURRENT_USER.rol === 'admin') {
                 document.getElementById('btnCoordinadores').style.display = '';
-            }
 
-            // Actualización completa solo para superadmins
-            const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
-            if (SUPERADMINS.includes(CURRENT_USER.email)) {
-                document.getElementById('btnRefreshFull').style.display = '';
+                // Actualización completa solo para superadmins
+                const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+                if (SUPERADMINS.includes(CURRENT_USER.email)) {
+                    document.getElementById('btnRefreshFull').style.display = '';
+                }
             }
         }
     } else {
@@ -2640,7 +2670,7 @@ async function cargarCoordinadores() {
         console.error('Error cargando coordinadores:', error);
         document.getElementById('coordTableBody').innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; color: var(--red-600); padding: 2rem;">
+                <td colspan="6" style="text-align: center; color: var(--red-600); padding: 2rem;">
                     <i class="fas fa-exclamation-triangle"></i> Error al cargar coordinadores
                 </td>
             </tr>
@@ -2654,7 +2684,7 @@ function renderizarTablaCoordinadores() {
     if (coordinadoresData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                <td colspan="6" style="text-align: center; color: var(--slate-500); padding: 2rem;">
                     <i class="fas fa-inbox"></i> No hay coordinadores registrados
                 </td>
             </tr>
@@ -2664,22 +2694,45 @@ function renderizarTablaCoordinadores() {
 
     tbody.innerHTML = coordinadoresData.map(coord => {
         const cursosArray = coord.cursos || [];
-        const cursosStr = cursosArray.length > 0
-            ? cursosArray.join(', ')
-            : '—';
+        const cursosBadges = cursosArray.length > 0
+            ? cursosArray.map(c => `<span class="course-badge">${c}</span>`).join(' ')
+            : '<span style="color:var(--slate-400);font-size:.8rem;">Sin cursos</span>';
         const emailEscaped = coord.email.replace(/'/g, "\\'");
+        const nombreEscaped = coord.nombre.replace(/'/g, "\\'");
+
+        const activo = coord.activo !== false;
+        const estadoBadge = activo
+            ? '<span style="background:var(--green-100);color:var(--green-700);padding:.2rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600;"><i class="fas fa-check-circle"></i> Activo</span>'
+            : '<span style="background:var(--red-100);color:var(--red-600);padding:.2rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600;"><i class="fas fa-ban"></i> Inactivo</span>';
+
+        const toggleIcon = activo ? 'fa-user-slash' : 'fa-user-check';
+        const toggleTitle = activo ? 'Desactivar acceso' : 'Reactivar acceso';
+
+        const ultimoAcceso = coord.ultimo_acceso
+            ? `<span style="font-size:.72rem;color:var(--slate-400);">${coord.ultimo_acceso}</span>`
+            : '<span style="font-size:.72rem;color:var(--slate-400);">Sin acceso</span>';
 
         return `
-            <tr>
-                <td><strong>${cursosStr}</strong></td>
-                <td>${coord.nombre}</td>
-                <td>${coord.email}</td>
+            <tr style="${!activo ? 'opacity:.6;background:var(--slate-50);' : ''}">
+                <td>
+                    <strong>${coord.nombre}</strong><br>
+                    ${ultimoAcceso}
+                </td>
+                <td style="font-size:.85rem;">${coord.email}</td>
                 <td>${coord.empresa || '—'}</td>
-                <td class="coord-actions">
-                    <button class="btn-icon btn-edit" onclick="editarCoordinador('${emailEscaped}')" title="Editar">
+                <td>${cursosBadges}</td>
+                <td style="text-align:center;">${estadoBadge}</td>
+                <td class="coord-actions" style="justify-content:center;flex-wrap:wrap;gap:.3rem;">
+                    <button class="btn-icon btn-edit" onclick="editarCoordinador('${emailEscaped}')" title="Editar datos y cursos">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-icon btn-delete" onclick="eliminarCoordinador('${emailEscaped}', '${coord.nombre.replace(/'/g, "\\'")})" title="Eliminar">
+                    <button class="btn-icon btn-key" onclick="resetPasswordCoordinador('${emailEscaped}', '${nombreEscaped}')" title="Restablecer contraseña">
+                        <i class="fas fa-key"></i>
+                    </button>
+                    <button class="btn-icon" onclick="toggleCoordinador('${emailEscaped}', '${nombreEscaped}', ${activo})" title="${toggleTitle}" style="border-color:${activo ? 'var(--amber-400)' : 'var(--green-400)'};color:${activo ? 'var(--amber-600)' : 'var(--green-600)'};">
+                        <i class="fas ${toggleIcon}"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="eliminarCoordinador('${emailEscaped}', '${nombreEscaped}')" title="Eliminar permanentemente">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -2691,27 +2744,25 @@ function renderizarTablaCoordinadores() {
 async function guardarCoordinador(event) {
     event.preventDefault();
 
-    const coordEmail = document.getElementById('coordEmail').value; // Para edición
+    const coordEmail = document.getElementById('coordEmail').value;
     const esEdicion = coordEmail !== '';
 
     const data = {
         nombre: document.getElementById('coordNombre').value.trim(),
         email: document.getElementById('coordEmailInput').value.trim(),
-        cursos: document.getElementById('coordCursos').value.trim(), // "190, 192, 193"
+        cursos: document.getElementById('coordCursos').value.trim(),
         empresa: document.getElementById('coordEmpresa').value.trim()
     };
 
     try {
         let response;
         if (esEdicion) {
-            // Actualizar existente
             response = await fetch(`/api/coordinadores/${coordEmail}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
         } else {
-            // Crear nuevo
             response = await fetch('/api/coordinadores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2726,28 +2777,19 @@ async function guardarCoordinador(event) {
         }
 
         const result = await response.json();
-
-        // Éxito: recargar tabla
         await cargarCoordinadores();
 
         if (esEdicion) {
-            // Edición: solo limpiar y mostrar mensaje
             cancelarEdicion();
             showCoordToast('Coordinador actualizado exitosamente', 'success');
         } else {
-            // Creación: mostrar contraseña generada y OCULTAR formulario
+            // Creación: mostrar pantalla de éxito
             const password = result.password_generada;
             if (password) {
                 document.getElementById('generatedPassword').textContent = password;
-                document.getElementById('emailDestino').textContent = data.email;
-                document.getElementById('passwordAlert').style.display = 'block';
-
-                // OCULTAR el formulario completamente
-                document.getElementById('formCoordinador').style.display = 'none';
-                document.getElementById('formTitle').style.display = 'none';
-
-                // Auto-scroll a la alerta
-                document.getElementById('passwordAlert').scrollIntoView({ behavior: 'smooth' });
+                document.getElementById('successEmail').textContent = data.email;
+                document.getElementById('coordFormSection').style.display = 'none';
+                document.getElementById('coordSuccessSection').style.display = 'block';
             } else {
                 cancelarEdicion();
                 showCoordToast('Coordinador creado exitosamente', 'success');
@@ -2764,36 +2806,34 @@ function editarCoordinador(email) {
     const coord = coordinadoresData.find(c => c.email === email);
     if (!coord) return;
 
-    // Ocultar alerta de contraseña si estaba visible
-    document.getElementById('passwordAlert').style.display = 'none';
+    document.getElementById('coordFormSection').style.display = 'block';
+    document.getElementById('coordSuccessSection').style.display = 'none';
 
-    // Llenar formulario con datos del coordinador
-    document.getElementById('coordEmail').value = coord.email; // Hidden (para identificar edición)
+    document.getElementById('coordEmail').value = coord.email;
     document.getElementById('coordNombre').value = coord.nombre;
+    document.getElementById('coordNombre').disabled = false;
     document.getElementById('coordEmailInput').value = coord.email;
-    document.getElementById('coordEmailInput').disabled = true; // Email no editable
+    document.getElementById('coordEmailInput').disabled = true;
     document.getElementById('coordCursos').value = coord.cursos ? coord.cursos.join(', ') : '';
     document.getElementById('coordEmpresa').value = coord.empresa || '';
 
-    // Cambiar título y botón
-    document.getElementById('formTitle').textContent = 'Editar Coordinador';
-    document.getElementById('btnGuardarText').textContent = 'Actualizar Coordinador';
+    document.getElementById('formTitle').textContent = `Editar — ${coord.nombre}`;
+    document.getElementById('btnGuardarText').textContent = 'Guardar Cambios';
 
-    // Scroll al formulario
     document.querySelector('.coord-form').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => document.getElementById('coordNombre').focus(), 300);
 }
 
 function cancelarEdicion() {
     document.getElementById('formCoordinador').reset();
     document.getElementById('coordEmail').value = '';
+    document.getElementById('coordNombre').disabled = false;
     document.getElementById('coordEmailInput').disabled = false;
     document.getElementById('formTitle').textContent = 'Agregar Nuevo Coordinador';
     document.getElementById('btnGuardarText').textContent = 'Crear Coordinador';
-    document.getElementById('passwordAlert').style.display = 'none';
 
-    // Asegurar que el formulario esté visible
-    document.getElementById('formCoordinador').style.display = 'block';
-    document.getElementById('formTitle').style.display = 'block';
+    document.getElementById('coordFormSection').style.display = 'block';
+    document.getElementById('coordSuccessSection').style.display = 'none';
 }
 
 function copiarPassword() {
@@ -2807,22 +2847,60 @@ function copiarPassword() {
 }
 
 function agregarOtroCoordinador() {
-    // Ocultar alerta de éxito
-    document.getElementById('passwordAlert').style.display = 'none';
-
-    // Mostrar formulario nuevamente
-    document.getElementById('formCoordinador').style.display = 'block';
-    document.getElementById('formTitle').style.display = 'block';
-
-    // Limpiar formulario
+    document.getElementById('coordFormSection').style.display = 'block';
+    document.getElementById('coordSuccessSection').style.display = 'none';
     cancelarEdicion();
-
-    // Auto-scroll al formulario
     document.querySelector('.coord-form').scrollIntoView({ behavior: 'smooth' });
 }
 
+async function resetPasswordCoordinador(email, nombre) {
+    if (!confirm(`¿Restablecer la contraseña de "${nombre}"?\n\nSe generará una nueva contraseña y se enviará por email a ${email}.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/coordinadores/${email}/reset-password`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert(error.error || 'Error al restablecer contraseña');
+            return;
+        }
+
+        const result = await response.json();
+        const newPassword = result.password_generada;
+
+        if (newPassword) {
+            // Mostrar nueva contraseña en sección éxito
+            document.getElementById('generatedPassword').textContent = newPassword;
+            document.getElementById('successEmail').textContent = email;
+            document.querySelector('#coordSuccessSection h3').textContent = 'Contraseña Restablecida';
+            document.getElementById('coordFormSection').style.display = 'none';
+            document.getElementById('coordSuccessSection').style.display = 'block';
+        } else {
+            showCoordToast(`Contraseña restablecida para ${nombre}. Se envió por email.`, 'success');
+        }
+
+    } catch (error) {
+        console.error('Error restableciendo contraseña:', error);
+        alert('Error al restablecer contraseña. Intente nuevamente.');
+    }
+}
+
 async function eliminarCoordinador(email, nombre) {
-    if (!confirm(`¿Está seguro de eliminar al coordinador "${nombre}"?\n\nSe eliminará su cuenta de usuario y perderá acceso al dashboard.\n\nEsta acción no se puede deshacer.`)) {
+    // Primera confirmación
+    if (!confirm(`¿Eliminar PERMANENTEMENTE al coordinador "${nombre}"?\n\n⚠️ Se eliminará su cuenta y todos sus datos.\n\n💡 Si solo quiere bloquear el acceso, use el botón de desactivar en su lugar.`)) {
+        return;
+    }
+
+    // Segunda confirmación - escribir email
+    const confirmacion = prompt(`Para confirmar la eliminación permanente, escriba el email del coordinador:\n\n${email}`);
+    if (confirmacion !== email) {
+        if (confirmacion !== null) {
+            alert('El email no coincide. Eliminación cancelada.');
+        }
         return;
     }
 
@@ -2837,14 +2915,41 @@ async function eliminarCoordinador(email, nombre) {
             return;
         }
 
-        // Éxito: recargar tabla
         await cargarCoordinadores();
         cancelarEdicion();
-        showCoordToast('Coordinador eliminado exitosamente', 'success');
+        showCoordToast('Coordinador eliminado permanentemente', 'success');
 
     } catch (error) {
         console.error('Error eliminando coordinador:', error);
         alert('Error al eliminar coordinador. Intente nuevamente.');
+    }
+}
+
+async function toggleCoordinador(email, nombre, estaActivo) {
+    const accion = estaActivo ? 'desactivar' : 'reactivar';
+    const mensaje = estaActivo
+        ? `¿Desactivar a "${nombre}"?\n\nEl usuario no podrá acceder al dashboard pero su cuenta se mantendrá.\nPodrá reactivarlo en cualquier momento.`
+        : `¿Reactivar a "${nombre}"?\n\nEl usuario podrá acceder nuevamente al dashboard con su cuenta existente.`;
+
+    if (!confirm(mensaje)) return;
+
+    try {
+        const response = await fetch(`/api/coordinadores/${email}/toggle-status`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            alert(error.error || `Error al ${accion} coordinador`);
+            return;
+        }
+
+        await cargarCoordinadores();
+        showCoordToast(`Coordinador ${estaActivo ? 'desactivado' : 'reactivado'} exitosamente`, 'success');
+
+    } catch (error) {
+        console.error(`Error al ${accion}:`, error);
+        alert(`Error al ${accion} coordinador. Intente nuevamente.`);
     }
 }
 
@@ -2885,51 +2990,17 @@ function showCoordToast(message, type = 'info') {
             </button>
         </div>
         <div class="modal-body">
-            <!-- Formulario para agregar/editar coordinador -->
-            <div class="coord-form">
+            <!-- ESTADO 1: Formulario crear/editar -->
+            <div class="coord-form" id="coordFormSection">
                 <h3 id="formTitle">Agregar Nuevo Coordinador</h3>
-
-                <!-- Alerta de contraseña generada (solo aparece al crear) -->
-                <div id="passwordAlert" style="display: none; background: var(--green-100); border-left: 4px solid var(--green-600); padding: 1rem; margin-bottom: 1rem; border-radius: var(--radius-xs);">
-                    <div style="display: flex; align-items: start; gap: .75rem;">
-                        <i class="fas fa-check-circle" style="color: var(--green-600); margin-top: .15rem;"></i>
-                        <div style="flex: 1;">
-                            <strong style="color: var(--green-700);">✓ Coordinador creado exitosamente</strong>
-                            <p style="margin: .5rem 0 0; font-size: .85rem; color: var(--slate-700);">
-                                Usuario: <strong id="emailDestino"></strong>
-                            </p>
-                            <div style="margin-top: .75rem; background: white; padding: .75rem; border-radius: var(--radius-xs); border: 1px solid var(--slate-300);">
-                                <strong style="font-size: .8rem; color: var(--slate-600);">Contraseña generada:</strong>
-                                <div style="display: flex; align-items: center; gap: .5rem; margin-top: .35rem;">
-                                    <code id="generatedPassword" style="flex: 1; font-size: 1rem; color: var(--slate-800); background: var(--slate-100); padding: .5rem; border-radius: var(--radius-xs); font-family: 'Courier New', monospace;"></code>
-                                    <button type="button" class="btn-icon" onclick="copiarPassword()" title="Copiar contraseña">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                </div>
-                                <p style="margin-top: .5rem; font-size: .75rem; color: var(--blue-700); background: var(--blue-50); padding: .5rem; border-radius: var(--radius-xs); border: 1px solid var(--blue-200);">
-                                    <i class="fas fa-paper-plane"></i> <strong>Email enviado:</strong> Se ha enviado un correo automático con las credenciales de acceso al usuario. Esta contraseña también se muestra aquí por única vez para tu registro.
-                                </p>
-                            </div>
-                            <div style="margin-top: 1rem; display: flex; gap: .5rem;">
-                                <button type="button" class="btn-primary" onclick="agregarOtroCoordinador()" style="flex: 1;">
-                                    <i class="fas fa-plus"></i> Agregar Otro Coordinador
-                                </button>
-                                <button type="button" class="btn-secondary" onclick="cerrarModalCoordinadores()" style="flex: 1;">
-                                    <i class="fas fa-check"></i> Cerrar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <form id="formCoordinador" onsubmit="guardarCoordinador(event)">
                     <input type="hidden" id="coordEmail" value="">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" id="groupNombre">
                             <label for="coordNombre">Nombre Completo *</label>
                             <input type="text" id="coordNombre" required placeholder="Ej: María González">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="groupEmail">
                             <label for="coordEmailInput">Email *</label>
                             <input type="email" id="coordEmailInput" required placeholder="Ej: mgonzalez@empresa.cl">
                         </div>
@@ -2939,7 +3010,7 @@ function showCoordToast(message, type = 'info') {
                             <label for="coordCursos">IDs de Cursos Moodle *</label>
                             <input type="text" id="coordCursos" required placeholder="Ej: 190, 192, 193, 304">
                             <small style="font-size: .75rem; color: var(--slate-500); margin-top: .25rem; display: block;">
-                                <i class="fas fa-info-circle"></i> Separar múltiples cursos con comas
+                                <i class="fas fa-info-circle"></i> Separar múltiples cursos con comas. Los IDs se muestran en la cabecera de cada curso.
                             </small>
                         </div>
                         <div class="form-group">
@@ -2956,24 +3027,58 @@ function showCoordToast(message, type = 'info') {
                 </form>
             </div>
 
+            <!-- ESTADO 2: Éxito al crear (reemplaza el formulario) -->
+            <div id="coordSuccessSection" style="display:none;">
+                <div style="background: var(--green-100); border: 1px solid var(--green-500); border-radius: var(--radius); padding: 2rem; text-align: center;">
+                    <div style="width: 60px; height: 60px; background: var(--green-600); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                        <i class="fas fa-check" style="color: white; font-size: 1.5rem;"></i>
+                    </div>
+                    <h3 style="color: var(--green-700); font-size: 1.2rem; margin-bottom: .5rem;">Coordinador Creado Exitosamente</h3>
+                    <p style="color: var(--slate-600); font-size: .9rem; margin-bottom: 1rem;">
+                        Se creó la cuenta para <strong id="successEmail"></strong>
+                    </p>
+                    <div style="background: white; padding: 1rem; border-radius: var(--radius-xs); border: 1px solid var(--slate-300); max-width: 400px; margin: 0 auto 1rem;">
+                        <strong style="font-size: .8rem; color: var(--slate-600); display: block; margin-bottom: .35rem;">Contraseña generada:</strong>
+                        <div style="display: flex; align-items: center; gap: .5rem;">
+                            <code id="generatedPassword" style="flex: 1; font-size: 1.1rem; color: var(--slate-800); background: var(--slate-100); padding: .5rem; border-radius: var(--radius-xs); font-family: 'JetBrains Mono', monospace;"></code>
+                            <button type="button" class="btn-icon" onclick="copiarPassword()" title="Copiar contraseña">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: .8rem; color: var(--blue-700); background: var(--blue-50); padding: .65rem; border-radius: var(--radius-xs); border: 1px solid var(--blue-200); max-width: 400px; margin: 0 auto 1.25rem;">
+                        <i class="fas fa-paper-plane"></i> Se envió un correo con las credenciales al usuario.
+                    </p>
+                    <div style="display: flex; gap: .75rem; justify-content: center;">
+                        <button type="button" class="btn-primary" onclick="agregarOtroCoordinador()">
+                            <i class="fas fa-plus"></i> Agregar Otro
+                        </button>
+                        <button type="button" class="btn-secondary" onclick="cerrarModalCoordinadores()">
+                            <i class="fas fa-check"></i> Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tabla de coordinadores existentes -->
-            <div>
+            <div id="coordTableSection">
                 <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--slate-800); margin-bottom: 1rem;">
-                    Coordinadores Registrados
+                    <i class="fas fa-list"></i> Coordinadores Registrados
                 </h3>
                 <table class="coord-table">
                     <thead>
                         <tr>
-                            <th>Cursos</th>
                             <th>Nombre</th>
                             <th>Email</th>
                             <th>Empresa</th>
-                            <th style="width: 120px;">Acciones</th>
+                            <th>Cursos Asignados</th>
+                            <th style="width: 80px; text-align: center;">Estado</th>
+                            <th style="width: 170px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="coordTableBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                            <td colspan="6" style="text-align: center; color: var(--slate-500); padding: 2rem;">
                                 <i class="fas fa-spinner fa-spin"></i> Cargando coordinadores...
                             </td>
                         </tr>
