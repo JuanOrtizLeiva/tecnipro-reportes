@@ -203,7 +203,7 @@ def main():
             destinatario=usuario_email,
             asunto=asunto,
             cuerpo_html=mensaje_html,
-            cc=settings.EMAIL_CC,
+            cc="",  # No usar CC para evitar problemas de formato
         )
 
         if resultado_email["status"] == "OK":
