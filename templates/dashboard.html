@@ -38,6 +38,9 @@
             --amber-600: #d97706;
             --amber-500: #f59e0b;
             --amber-100: #fef3c7;
+            --orange-700: #c2410c;
+            --orange-200: #fed7aa;
+            --orange-50: #fff7ed;
             --amber-50: #fffbeb;
             --teal-600: #0d9488;
             --teal-500: #14b8a6;
@@ -2719,16 +2722,16 @@ async function guardarCoordinador(event) {
             cancelarEdicion();
             showCoordToast('Coordinador actualizado exitosamente', 'success');
         } else {
-            // Creación: mostrar contraseña generada
+            // Creación: mostrar contraseña generada y OCULTAR formulario
             const password = result.password_generada;
             if (password) {
                 document.getElementById('generatedPassword').textContent = password;
                 document.getElementById('emailDestino').textContent = data.email;
                 document.getElementById('passwordAlert').style.display = 'block';
 
-                // Limpiar formulario pero mantener alerta visible
-                document.getElementById('formCoordinador').reset();
-                document.getElementById('coordEmail').value = '';
+                // OCULTAR el formulario completamente
+                document.getElementById('formCoordinador').style.display = 'none';
+                document.getElementById('formTitle').style.display = 'none';
 
                 // Auto-scroll a la alerta
                 document.getElementById('passwordAlert').scrollIntoView({ behavior: 'smooth' });
@@ -2774,6 +2777,10 @@ function cancelarEdicion() {
     document.getElementById('formTitle').textContent = 'Agregar Nuevo Coordinador';
     document.getElementById('btnGuardarText').textContent = 'Crear Coordinador';
     document.getElementById('passwordAlert').style.display = 'none';
+
+    // Asegurar que el formulario esté visible
+    document.getElementById('formCoordinador').style.display = 'block';
+    document.getElementById('formTitle').style.display = 'block';
 }
 
 function copiarPassword() {
@@ -2784,6 +2791,21 @@ function copiarPassword() {
         console.error('Error copiando:', err);
         alert('Error al copiar contraseña');
     });
+}
+
+function agregarOtroCoordinador() {
+    // Ocultar alerta de éxito
+    document.getElementById('passwordAlert').style.display = 'none';
+
+    // Mostrar formulario nuevamente
+    document.getElementById('formCoordinador').style.display = 'block';
+    document.getElementById('formTitle').style.display = 'block';
+
+    // Limpiar formulario
+    cancelarEdicion();
+
+    // Auto-scroll al formulario
+    document.querySelector('.coord-form').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function eliminarCoordinador(email, nombre) {
@@ -2859,9 +2881,9 @@ function showCoordToast(message, type = 'info') {
                     <div style="display: flex; align-items: start; gap: .75rem;">
                         <i class="fas fa-check-circle" style="color: var(--green-600); margin-top: .15rem;"></i>
                         <div style="flex: 1;">
-                            <strong style="color: var(--green-700);">Coordinador creado exitosamente</strong>
+                            <strong style="color: var(--green-700);">✓ Coordinador creado exitosamente</strong>
                             <p style="margin: .5rem 0 0; font-size: .85rem; color: var(--slate-700);">
-                                Se ha enviado un email a <strong id="emailDestino"></strong> con las credenciales de acceso.
+                                Usuario: <strong id="emailDestino"></strong>
                             </p>
                             <div style="margin-top: .75rem; background: white; padding: .75rem; border-radius: var(--radius-xs); border: 1px solid var(--slate-300);">
                                 <strong style="font-size: .8rem; color: var(--slate-600);">Contraseña generada:</strong>
@@ -2871,9 +2893,17 @@ function showCoordToast(message, type = 'info') {
                                         <i class="fas fa-copy"></i>
                                     </button>
                                 </div>
-                                <p style="margin-top: .5rem; font-size: .75rem; color: var(--slate-500);">
-                                    <i class="fas fa-info-circle"></i> Guarda esta contraseña - solo se muestra una vez
+                                <p style="margin-top: .5rem; font-size: .75rem; color: var(--orange-700); background: var(--orange-50); padding: .5rem; border-radius: var(--radius-xs); border: 1px solid var(--orange-200);">
+                                    <i class="fas fa-exclamation-triangle"></i> <strong>Importante:</strong> Guarda esta contraseña y envíala manualmente al usuario - solo se muestra una vez
                                 </p>
+                            </div>
+                            <div style="margin-top: 1rem; display: flex; gap: .5rem;">
+                                <button type="button" class="btn-primary" onclick="agregarOtroCoordinador()" style="flex: 1;">
+                                    <i class="fas fa-plus"></i> Agregar Otro Coordinador
+                                </button>
+                                <button type="button" class="btn-secondary" onclick="cerrarModalCoordinadores()" style="flex: 1;">
+                                    <i class="fas fa-check"></i> Cerrar
+                                </button>
                             </div>
                         </div>
                     </div>
