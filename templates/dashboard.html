@@ -1834,8 +1834,8 @@ function renderCourses() {
                                 <th onclick="sortTable('${course.id_moodle}','riesgo')">Riesgo <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','id_sence')">ID<br>SENCE <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_ingresos')">Conex.<br>SENCE <span class="sort-icon">⇅</span></th>
-                                <th onclick="sortTable('${course.id_moodle}','sence_dj')">DJ <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','dias_sin_acceso')">Últ.<br>Conexión <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','sence_dj')">DJ <span class="sort-icon">⇅</span></th>
                             </tr>
                         </thead>
                         <tbody id="tbody-${course.id_moodle}">
@@ -1954,8 +1954,8 @@ function renderStudentRows(course) {
                     <span class="sence-num">${senceIngresos}</span>
                 </span>
             </td>
-            <td style="color:${djColor};font-weight:600;font-size:.82rem;">${djText}</td>
             <td class="text-center mono" style="font-size:.82rem;${conexionColor}" title="${conexionTitle}">${conexionText}</td>
+            <td style="color:${djColor};font-weight:600;font-size:.82rem;">${djText}</td>
         </tr>`;
     }).join('');
 }
