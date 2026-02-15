@@ -1324,27 +1324,27 @@
 
                 <!-- Action Buttons Row -->
                 <div class="header-actions" id="headerActions" style="display:none;">
-                    <!-- FILA 1: Botones de Acción (Operacionales) -->
+                    <!-- FILA 1: Acciones Principales (3 para admin, 2 para comprador) -->
                     <div class="header-actions-row header-actions-main">
-                        <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor (los datos SENCE se actualizan cada 12/24h)">
+                        <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor">
                             <i class="fas fa-sync-alt"></i> Actualizar Datos
                         </button>
-                        <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (1-2 minutos)">
+                        <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (5-30 minutos)">
                             <i class="fas fa-cloud-download-alt"></i> Actualización Completa
                         </button>
                         <button class="btn-action btn-coordinadores" id="btnCoordinadores" onclick="abrirModalCoordinadores()" style="display:none;" title="Gestionar coordinadores de clientes por curso">
-                            <i class="fas fa-users-cog"></i> Gestionar Coordinadores Cliente
-                        </button>
-                        <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
-                            <i class="fas fa-times-circle"></i> Cancelar
+                            <i class="fas fa-users-cog"></i> Gestionar Coordinadores
                         </button>
                         <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
                             <i class="fas fa-file-pdf"></i> Imprimir PDF
                         </button>
                     </div>
 
-                    <!-- FILA 2: Links de Navegación -->
+                    <!-- FILA 2: Navegación y Extras (3 para admin, 2 para comprador) -->
                     <div class="header-actions-row header-actions-nav">
+                        <button class="btn-action btn-cancel" id="btnCancelRefresh" onclick="cancelFullRefresh()" style="display:none;" title="Cancelar actualización en progreso">
+                            <i class="fas fa-times-circle"></i> Cancelar
+                        </button>
                         <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                             <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                         </a>
@@ -1558,18 +1558,26 @@ async function loadUserInfo() {
                 document.getElementById('fabEmail').style.display = 'none';
                 document.getElementById('emailModalOverlay').style.display = 'none';
             }
-            // Show refresh button for admin
+
+            // ── Distribución de botones según rol ──
+            // ADMIN: 3 botones fila 1 + 3 fila 2 (Actualizar, [Actualización Completa], Coordinadores | [Cancelar], Volver, Cerrar)
+            // COMPRADOR: 2 botones fila 1 + 2 fila 2 (Actualizar, Imprimir | Volver, Cerrar)
+
+            const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+
+            // Botones comunes para todos (fila 1)
+            document.getElementById('btnRefresh').style.display = '';  // Todos pueden actualizar datos
+            document.getElementById('btnPrint').style.display = '';     // Todos pueden imprimir
+
+            // Botones solo para admin (fila 1)
             if (CURRENT_USER.rol === 'admin') {
-                document.getElementById('btnRefresh').style.display = '';
                 document.getElementById('btnCoordinadores').style.display = '';
             }
-            // Botón actualización completa solo para superadmins
-            const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+
+            // Botón actualización completa solo para superadmins (fila 1)
             if (SUPERADMINS.includes(CURRENT_USER.email)) {
                 document.getElementById('btnRefreshFull').style.display = '';
             }
-            // Print available for all users
-            document.getElementById('btnPrint').style.display = '';
         }
     } catch (e) {
         // If /api/me fails, user info section stays hidden
@@ -2443,15 +2451,20 @@ function checkDataAge() {
         warningText.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Datos con ${hoursAgo}h de antigüedad`;
         warningBox.style.display = '';
 
-        // Show refresh button for admin
-        if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
+        // Show refresh buttons (todos los usuarios pueden actualizar cuando hay data vieja)
+        if (CURRENT_USER) {
             document.getElementById('btnRefresh').style.display = '';
-            document.getElementById('btnCoordinadores').style.display = '';
-        }
-        // Show full refresh button for superadmins
-        const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
-        if (CURRENT_USER && SUPERADMINS.includes(CURRENT_USER.email)) {
-            document.getElementById('btnRefreshFull').style.display = '';
+
+            // Botones solo para admin
+            if (CURRENT_USER.rol === 'admin') {
+                document.getElementById('btnCoordinadores').style.display = '';
+            }
+
+            // Actualización completa solo para superadmins
+            const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+            if (SUPERADMINS.includes(CURRENT_USER.email)) {
+                document.getElementById('btnRefreshFull').style.display = '';
+            }
         }
     } else {
         warningBox.style.display = 'none';
