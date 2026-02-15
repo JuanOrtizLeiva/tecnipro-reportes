@@ -1712,6 +1712,22 @@ function renderCourses() {
         const modalidadBadgeClass = course.modalidad === 'Asincrónico' ? 'badge-teal' :
                                      course.modalidad === 'Sincrónico' ? 'badge-pink' : 'badge-blue';
 
+        // Calculate time progress percentage
+        let timeProgressPct = '—';
+        let timeProgressColor = '';
+        if (course.fecha_inicio && course.fecha_fin) {
+            const inicio = new Date(course.fecha_inicio);
+            const fin = new Date(course.fecha_fin);
+            const hoy = new Date();
+            const totalMs = fin - inicio;
+            const elapsedMs = hoy - inicio;
+            if (totalMs > 0) {
+                const pct = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+                timeProgressPct = Math.round(pct) + '%';
+                timeProgressColor = pct >= 100 ? 'red' : pct >= 75 ? 'amber' : 'blue';
+            }
+        }
+
         // Collect all unique SENCE IDs from students
         const senceIds = [...new Set(course.estudiantes.map(e => e.sence?.id_sence).filter(Boolean))];
         const senceDisplay = senceIds.length > 0 ? senceIds.join(', ') : '—';
@@ -1748,6 +1764,7 @@ function renderCourses() {
                 <div class="stats-row">
                     <div class="stat-mini"><div class="stat-mini-val blue">${stats.total_estudiantes}</div><div class="stat-mini-label">Participantes</div></div>
                     <div class="stat-mini"><div class="stat-mini-val">${stats.promedio_progreso}%</div><div class="stat-mini-label">Progreso Prom.</div></div>
+                    <div class="stat-mini"><div class="stat-mini-val ${timeProgressColor}">${timeProgressPct}</div><div class="stat-mini-label">Avance Tiempo</div></div>
                     <div class="stat-mini"><div class="stat-mini-val green">${stats.aprobados}</div><div class="stat-mini-label">Aprobados</div></div>
                     <div class="stat-mini"><div class="stat-mini-val red">${stats.reprobados}</div><div class="stat-mini-label">Reprobados</div></div>
                     <div class="stat-mini"><div class="stat-mini-val amber">${stats.en_proceso}</div><div class="stat-mini-label">En Proceso</div></div>
