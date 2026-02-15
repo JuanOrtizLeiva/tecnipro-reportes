@@ -281,10 +281,9 @@ def register_routes(app):
     @app.route("/api/refresh", methods=["POST"])
     @login_required
     def api_refresh():
-        """Ejecuta el pipeline para refrescar datos desde Moodle API. Solo admin."""
-        # Solo admin puede refrescar datos
-        if current_user.is_authenticated and current_user.rol != "admin":
-            return jsonify({"error": "No autorizado"}), 403
+        """Ejecuta el pipeline para refrescar datos desde Moodle API. Todos los usuarios."""
+        # Cualquier usuario autenticado puede refrescar datos (sin SENCE)
+        # Solo obtiene datos de Moodle, no ejecuta scraper SENCE
 
         # Importar y ejecutar pipeline en el mismo thread
         # (En producción con Gunicorn esto no bloqueará otras requests)
