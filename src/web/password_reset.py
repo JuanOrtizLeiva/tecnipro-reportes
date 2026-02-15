@@ -147,6 +147,113 @@ def _obtener_token_azure():
     return resp.json().get("access_token")
 
 
+def enviar_email_credenciales(email, nombre, password, base_url):
+    """Envía email con credenciales de acceso al crear coordinador.
+
+    Parameters
+    ----------
+    email : str
+        Email del usuario.
+    nombre : str
+        Nombre del usuario.
+    password : str
+        Contraseña generada.
+    base_url : str
+        URL base del servidor.
+
+    Returns
+    -------
+    bool
+        True si se envió correctamente, False si no.
+    """
+    html = f"""
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+<p>Hola {nombre},</p>
+
+<p>Se ha creado tu cuenta de acceso al <strong>Dashboard de Gestión de Capacitación</strong> de Instituto Tecnipro.</p>
+
+<div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
+    <p style="margin: 0; font-size: 0.9rem; color: #64748b;"><strong>Tus credenciales de acceso:</strong></p>
+    <p style="margin: 0.5rem 0 0; font-size: 1rem;">
+        <strong>Usuario:</strong> {email}<br>
+        <strong>Contraseña:</strong> <code style="background: #e2e8f0; padding: 0.25rem 0.5rem; border-radius: 3px; font-family: monospace;">{password}</code>
+    </p>
+</div>
+
+<p>Para acceder al dashboard, ingresa a:</p>
+<p style="margin: 1rem 0;">
+    <a href="{base_url}"
+       style="background-color: #2563eb; color: white; padding: 12px 24px;
+              text-decoration: none; border-radius: 4px; display: inline-block; font-weight: 600;">
+        Acceder al Dashboard
+    </a>
+</p>
+
+<p style="margin-top: 1.5rem; font-size: 0.9rem; color: #64748b;">
+    <strong>Nota:</strong> Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.
+    Puedes hacerlo desde el enlace "¿Olvidaste tu contraseña?" en la página de login.
+</p>
+
+<hr style="border: 0; border-top: 1px solid #eee; margin: 2rem 0;">
+
+<p style="font-size: 0.85rem; color: #999;">
+    Este es un mensaje automático del sistema de Dashboard Tecnipro.<br>
+    Por favor no respondas a este correo. Si tienes dudas, contacta al administrador.
+</p>
+</body>
+</html>
+"""
+
+    # Obtener token de Azure
+    try:
+        access_token = _obtener_token_azure()
+    except Exception as e:
+        logger.error("Error obteniendo token Azure para email credenciales: %s", e)
+        return False
+
+    # Preparar mensaje
+    remitente = "ygonzalez@duocapital.cl"
+    mensaje = {
+        "message": {
+            "subject": "Credenciales de Acceso - Dashboard Tecnipro",
+            "body": {
+                "contentType": "HTML",
+                "content": html,
+            },
+            "toRecipients": [
+                {"emailAddress": {"address": email}}
+            ],
+        },
+        "saveToSentItems": "false",
+    }
+
+    # Enviar correo
+    url = GRAPH_SEND_MAIL_URL.format(user=remitente)
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = requests.post(url, json=mensaje, headers=headers, timeout=30)
+
+        if resp.status_code == 202:
+            logger.info("Email de credenciales enviado a %s", email)
+            return True
+        else:
+            logger.error(
+                "Error enviando email de credenciales (HTTP %d): %s",
+                resp.status_code,
+                resp.text[:200]
+            )
+            return False
+
+    except Exception as e:
+        logger.error("Excepción enviando email de credenciales: %s", e)
+        return False
+
+
 def enviar_email_reset(email, token, base_url):
     """Envía email de recuperación de contraseña.
 

@@ -731,9 +731,15 @@ def register_routes(app):
             logger.error("Error creando coordinador: %s", e)
             return jsonify({"error": f"Error creando usuario: {str(e)}"}), 500
 
+        # Enviar email automático con credenciales
+        base_url = request.url_root.rstrip('/')
+        email_sent = password_reset.enviar_email_credenciales(email, nombre, password, base_url)
+        if not email_sent:
+            logger.warning("No se pudo enviar email de credenciales a %s", email)
+
         logger.info(
-            "Coordinador creado por %s: %s (%s) con cursos %s",
-            current_user.email, nombre, email, cursos
+            "Coordinador creado por %s: %s (%s) con cursos %s (email enviado: %s)",
+            current_user.email, nombre, email, cursos, email_sent
         )
 
         return jsonify({
