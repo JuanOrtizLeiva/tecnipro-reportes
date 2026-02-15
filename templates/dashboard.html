@@ -381,6 +381,22 @@
             cursor: not-allowed;
             box-shadow: none;
         }
+        .btn-refresh-full {
+            background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+            color: white;
+            border: 1px solid #1d4ed8;
+        }
+        .btn-refresh-full:hover {
+            background: linear-gradient(135deg, #2563eb, #8b5cf6);
+            box-shadow: 0 4px 12px rgba(29,78,216,.3);
+        }
+        .btn-refresh-full:disabled {
+            background: var(--slate-300);
+            border-color: var(--slate-400);
+            color: var(--slate-500);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
         .data-age-warning {
             background: var(--amber-100);
             color: var(--amber-600);
@@ -1099,6 +1115,9 @@
                     <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor (los datos SENCE se actualizan cada 12/24h)">
                         <i class="fas fa-sync-alt"></i> Actualizar Datos
                     </button>
+                    <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (1-2 minutos)">
+                        <i class="fas fa-cloud-download-alt"></i> Actualización Completa
+                    </button>
                     <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
                         <i class="fas fa-file-pdf"></i> Imprimir PDF
                     </button>
@@ -1317,6 +1336,11 @@ async function loadUserInfo() {
             // Show refresh button for admin
             if (CURRENT_USER.rol === 'admin') {
                 document.getElementById('btnRefresh').style.display = '';
+            }
+            // Botón actualización completa solo para superadmins
+            const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+            if (SUPERADMINS.includes(CURRENT_USER.email)) {
+                document.getElementById('btnRefreshFull').style.display = '';
             }
             // Print available for all users
             document.getElementById('btnPrint').style.display = '';
@@ -2187,14 +2211,76 @@ function checkDataAge() {
         if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
             document.getElementById('btnRefresh').style.display = '';
         }
+        // Show full refresh button for superadmins
+        const SUPERADMINS = ['ygonzalez@duocapital.cl', 'jortizleiva@duocapital.cl'];
+        if (CURRENT_USER && SUPERADMINS.includes(CURRENT_USER.email)) {
+            document.getElementById('btnRefreshFull').style.display = '';
+        }
     } else {
         warningBox.style.display = 'none';
     }
 }
 
 async function refreshMoodleData() {
-    // Simply reload the page — loadData() already calls /api/refresh for admins
-    window.location.reload();
+    const btn = document.getElementById('btnRefresh');
+    const originalHTML = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+
+    try {
+        const response = await fetch('/api/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(`Datos actualizados: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
+            setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+            showToast(result.error || 'Error al actualizar datos', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    } catch (error) {
+        showToast(`Error de conexión: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
+}
+
+async function refreshFullData() {
+    const btn = document.getElementById('btnRefreshFull');
+    const originalHTML = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
+
+    showToast('Actualización completa iniciada (Moodle + SENCE). Esto toma 1-2 minutos...', 'success');
+
+    try {
+        const response = await fetch('/api/refresh-full', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(`Actualización completa exitosa: ${result.cursos} cursos, ${result.estudiantes} estudiantes`, 'success');
+            setTimeout(() => { window.location.reload(); }, 1200);
+        } else {
+            showToast(result.error || 'Error en actualización completa', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    } catch (error) {
+        showToast(`Error de conexión: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
 }
 
 // ═══════════════════════════════════════════════════════

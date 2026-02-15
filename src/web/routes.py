@@ -206,6 +206,49 @@ def register_routes(app):
                 "error": f"Error al actualizar datos: {str(e)}"
             }), 500
 
+    # ── API: refresh COMPLETO (Moodle + SENCE, solo superadmins) ──
+
+    @app.route("/api/refresh-full", methods=["POST"])
+    @login_required
+    def api_refresh_full():
+        """Ejecuta pipeline completo: Moodle API + Scraping SENCE. Solo superadmins."""
+        SUPERADMINS = ["ygonzalez@duocapital.cl", "jortizleiva@duocapital.cl"]
+
+        if current_user.email not in SUPERADMINS:
+            return jsonify({"error": "No autorizado. Solo administradores principales."}), 403
+
+        try:
+            import asyncio
+            from src.main import run_scraper, run_pipeline
+
+            logger.info("Refresh COMPLETO (Moodle + SENCE) iniciado por %s", current_user.email)
+
+            # 1. Ejecutar scraping SENCE primero (async)
+            try:
+                logger.info("Paso 1/2: Iniciando scraping SENCE...")
+                report = asyncio.run(run_scraper(headless=True))
+                descargados = len(report.get("descargados_ok", []))
+                logger.info("Scraping SENCE completado: %d archivos descargados", descargados)
+            except Exception as e:
+                logger.warning("Error en scraping SENCE (continuando con pipeline): %s", e)
+
+            # 2. Ejecutar pipeline completo (Moodle API + procesar datos)
+            logger.info("Paso 2/2: Ejecutando pipeline Moodle + procesamiento...")
+            datos_json = run_pipeline()
+
+            logger.info("Refresh completo exitoso")
+            return jsonify({
+                "status": "ok",
+                "cursos": datos_json["metadata"]["total_cursos"],
+                "estudiantes": datos_json["metadata"]["total_estudiantes"],
+                "mensaje": "Pipeline completo ejecutado (Moodle + SENCE)",
+                "fecha": datos_json["metadata"]["fecha_procesamiento"]
+            })
+
+        except Exception as e:
+            logger.error("Error en refresh completo: %s", e, exc_info=True)
+            return jsonify({"error": f"Error al actualizar: {str(e)}"}), 500
+
     # ── API: enviar correo (solo admin) ───────────────────
 
     @app.route("/api/enviar-correo", methods=["POST"])
