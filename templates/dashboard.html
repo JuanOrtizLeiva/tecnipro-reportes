@@ -1832,6 +1832,7 @@ function renderCourses() {
                                 <th onclick="sortTable('${course.id_moodle}','promedio_eval')">Prom. Eval. <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','estado')">Estado <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','riesgo')">Riesgo <span class="sort-icon">⇅</span></th>
+                                <th onclick="sortTable('${course.id_moodle}','id_sence')">ID SENCE <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_ingresos')">Conex. SENCE <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','sence_dj')">DJ <span class="sort-icon">⇅</span></th>
                                 <th onclick="sortTable('${course.id_moodle}','dias_sin_acceso')">Últ. Conexión <span class="sort-icon">⇅</span></th>
@@ -1870,9 +1871,16 @@ function renderStudentRows(course) {
         const gradeText = s.calificacion !== null ? s.calificacion.toFixed(1) : '—';
         const statusLabel = s.estado==='A'?'Aprobado':s.estado==='R'?'Reprobado':'En proceso';
         const statusIcon = s.estado==='A'?'✓':s.estado==='R'?'✗':'◉';
-        const senceIngresos = s.sence ? s.sence.n_ingresos : '—';
-        const senceClass = s.sence && s.sence.n_ingresos > 0 ? 'connected' : 'disconnected';
-        const djText = s.sence && s.sence.estado_dj ? s.sence.estado_dj : '—';
+
+        // ID SENCE y conexiones
+        const idSence = s.sence && s.sence.id_sence ? s.sence.id_sence : null;
+        const idSenceText = idSence ? idSence : 'Sin SENCE';
+        const idSenceColor = idSence ? 'var(--slate-700)' : 'var(--slate-400)';
+
+        // Si no tiene ID SENCE → mostrar "N/A" en conexiones
+        const senceIngresos = idSence ? (s.sence.n_ingresos || 0) : 'N/A';
+        const senceClass = idSence && s.sence.n_ingresos > 0 ? 'connected' : 'disconnected';
+        const djText = idSence && s.sence && s.sence.estado_dj ? s.sence.estado_dj : (idSence ? '—' : 'N/A');
         const djColor = djText === 'Emitida' ? 'var(--green-600)' : 'var(--slate-400)';
 
         // Evaluation data
@@ -1939,6 +1947,7 @@ function renderStudentRows(course) {
             <td><span class="grade ${promedioEvalClass}">${promedioEvalText}</span></td>
             <td><span class="status status-${s.estado.toLowerCase()}">${statusIcon} ${statusLabel}</span></td>
             <td>${s.riesgo ? `<span class="risk risk-${s.riesgo}">${s.riesgo.charAt(0).toUpperCase()+s.riesgo.slice(1)}</span>` : '<span style="color:var(--slate-400);">—</span>'}</td>
+            <td class="text-center" style="font-size:.85rem;font-weight:600;color:${idSenceColor};" title="${idSence ? 'ID SENCE del participante' : 'Sin código SENCE asignado'}">${idSenceText}</td>
             <td>
                 <span class="sence-chip ${senceClass}">
                     <i class="fas ${senceClass==='connected'?'fa-plug':'fa-plug-circle-xmark'}"></i>
@@ -2030,6 +2039,7 @@ function sortTable(courseId, field) {
             case 'promedio_eval': va=a.promedio_evaluadas??-1; vb=b.promedio_evaluadas??-1; break;
             case 'estado': va=a.estado; vb=b.estado; break;
             case 'riesgo': va={alto:3,medio:2,bajo:1}[a.riesgo]||0; vb={alto:3,medio:2,bajo:1}[b.riesgo]||0; break;
+            case 'id_sence': va=a.sence?.id_sence||''; vb=b.sence?.id_sence||''; break;
             case 'sence_ingresos': va=a.sence?.n_ingresos??-1; vb=b.sence?.n_ingresos??-1; break;
             case 'sence_dj': va=a.sence?.estado_dj||''; vb=b.sence?.estado_dj||''; break;
             case 'dias_sin_acceso': va=a.dias_sin_acceso||0; vb=b.dias_sin_acceso||0; break;
