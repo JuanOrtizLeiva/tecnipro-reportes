@@ -96,10 +96,24 @@ def leer_datos_moodle() -> pd.DataFrame:
             # Obtener notas de todos los estudiantes del curso
             grades = api.get_grades(curso_id)
 
+            # Deduplicar estudiantes por user ID (Moodle puede devolver
+            # un mismo usuario con múltiples inscripciones)
+            seen_user_ids = set()
+
             # Para cada estudiante: obtener progreso y construir fila
             for est in estudiantes:
                 try:
                     userid = est.get("id")
+
+                    # Saltar si ya procesamos este usuario en este curso
+                    if userid in seen_user_ids:
+                        logger.warning(
+                            "  Estudiante duplicado ignorado en curso %d: user_id=%s (%s)",
+                            curso_id, userid, est.get("fullname", "?")
+                        )
+                        continue
+                    seen_user_ids.add(userid)
+
                     progreso = api.get_completion_status(curso_id, userid)
                     grade_data = grades.get(userid, {
                         "nota_final": None,

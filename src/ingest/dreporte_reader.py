@@ -43,6 +43,18 @@ def leer_dreporte(path=None):
 
     logger.info("Dreporte tras filtros: %d filas", len(df))
 
+    # ── Deduplicar por (usuario, curso) ───────────────────
+    antes = len(df)
+    df = df.drop_duplicates(
+        subset=["ID del Usuario", "Nombre corto del curso con enlace"],
+        keep="first",
+    )
+    if len(df) < antes:
+        logger.warning(
+            "Dreporte: %d filas duplicadas eliminadas (mismo usuario+curso)",
+            antes - len(df),
+        )
+
     # ── Normalización ──────────────────────────────────────
     # Nombre corto del curso: strip + minúscula (viene como int-like)
     df["Nombre corto del curso con enlace"] = (

@@ -46,6 +46,8 @@ def exportar_json(df, output_path=None):
 def _construir_estructura(df):
     """Construye el dict con la estructura esperada por el dashboard."""
     cursos_dict = {}
+    # Safety net: rastrear estudiantes ya agregados por (curso, rut)
+    _seen_students = set()
 
     for _, row in df.iterrows():
         nombre_corto = str(row.get("nombre_corto", "")).strip()
@@ -72,9 +74,13 @@ def _construir_estructura(df):
                 "estudiantes": [],
             }
 
-        # Solo agregar estudiantes con nombre
+        # Solo agregar estudiantes con nombre (y no duplicados)
         nombre_participante = _safe_str(row.get("Nombre completo Participante", ""))
-        if nombre_participante:
+        rut_estudiante = _safe_str(row.get("ID del Usuario", ""))
+        student_key = (nombre_corto, rut_estudiante)
+
+        if nombre_participante and student_key not in _seen_students:
+            _seen_students.add(student_key)
             id_sence_est = _safe_str(row.get("IDSence", ""))
             estudiante = {
                 "id": _safe_str(row.get("ID del Usuario", "")),

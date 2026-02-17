@@ -68,6 +68,16 @@ def _leer_desde_json():
         # Normalizar id_curso_moodle
         df["id_curso_moodle"] = df["id_curso_moodle"].astype(str).str.strip().str.lower()
 
+        # Deduplicar por id_curso_moodle para evitar multiplicar
+        # estudiantes en el merge cuando 2+ coordinadores comparten curso
+        antes = len(df)
+        df = df.drop_duplicates(subset=["id_curso_moodle"], keep="first")
+        if len(df) < antes:
+            logger.warning(
+                "Coordinadores: %d filas duplicadas por curso eliminadas",
+                antes - len(df),
+            )
+
         logger.info("Coordinadores cargados desde usuarios.json: %d registros (%d usuarios)", len(df), len(compradores))
         return df
 
