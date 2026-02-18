@@ -1360,6 +1360,9 @@
                         <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
                             <i class="fas fa-file-pdf"></i> Imprimir PDF
                         </button>
+                        <a href="https://encuestas.tecnipro.cl/dashboard" target="_blank" class="btn-action btn-back" id="btnEncuestas" style="display:none;">
+                            <i class="fas fa-poll"></i> Encuestas
+                        </a>
                         <a href="https://www.tecnipro.cl" class="btn-action btn-back">
                             <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                         </a>
@@ -1596,8 +1599,9 @@ async function loadUserInfo() {
             btnPrint.style.display = '';
 
             if (CURRENT_USER.rol === 'admin') {
-                // ADMIN 3+3: Actualizar, Act.Completa, Coordinadores | Imprimir, Volver, Cerrar
+                // ADMIN 3+3: Actualizar, Act.Completa, Coordinadores | Imprimir, Encuestas, Volver, Cerrar
                 document.getElementById('btnCoordinadores').style.display = '';
+                document.getElementById('btnEncuestas').style.display = '';
 
                 if (SUPERADMINS.includes(CURRENT_USER.email)) {
                     document.getElementById('btnRefreshFull').style.display = '';
