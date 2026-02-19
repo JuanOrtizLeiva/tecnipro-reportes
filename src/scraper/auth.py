@@ -18,13 +18,53 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 SENCE_URL = "https://lce.sence.cl/CertificadoAsistencia/"
-MAX_RETRIES_LOGIN = 1
+MAX_RETRIES_LOGIN = 2
 PAGE_TIMEOUT = settings.SCRAPER_TIMEOUT  # 90s para operaciones normales
 GOTO_TIMEOUT = 120000  # 120s para cargas iniciales de página (muy lentas)
 
 
+async def _cerrar_sesion_existente(page):
+    """Busca y hace clic en 'Cerrar sesión' si la sesión ya está activa.
+
+    Esto ocurre cuando SENCE mantiene la sesión tomada de una ejecución
+    anterior y no muestra el formulario de login.
+
+    Returns
+    -------
+    bool
+        ``True`` si se encontró y cerró una sesión existente.
+    """
+    logger.info("Buscando botón 'Cerrar sesión' en página actual: %s", page.url)
+
+    boton_logout = page.locator(
+        "a:has-text('Cerrar sesión'), a:has-text('Cerrar Sesión'), "
+        "a:has-text('Salir'), button:has-text('Cerrar sesión'), "
+        "a:has-text('CERRAR SESIÓN'), a:has-text('Cerrar Sesion')"
+    )
+
+    if await boton_logout.count() > 0:
+        logger.warning("Sesión SENCE activa detectada — cerrando sesión existente")
+        try:
+            await boton_logout.first.click(timeout=PAGE_TIMEOUT)
+            # Esperar a que la página de cierre de sesión cargue
+            await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
+            # Dar tiempo para que SENCE procese el cierre de sesión
+            await page.wait_for_timeout(5000)
+            logger.info("Sesión cerrada exitosamente — URL: %s", page.url)
+            return True
+        except Exception as e:
+            logger.warning("Error cerrando sesión existente: %s", e)
+            # Intentar navegar directamente al portal como fallback
+            return False
+
+    return False
+
+
 async def abrir_portal(page):
     """Abre el portal SENCE y hace clic en 'Ingresar'.
+
+    Si la sesión ya está activa (no aparece botón Ingresar),
+    busca 'Cerrar sesión', cierra la sesión y reintenta.
 
     Returns
     -------
@@ -45,8 +85,37 @@ async def abrir_portal(page):
         page.locator("a:has-text('Ingresar')")
     )
 
-    # Esperar a que el botón sea visible antes de hacer click
-    await boton.first.wait_for(state="visible", timeout=PAGE_TIMEOUT)
+    # Verificar si el botón Ingresar existe
+    try:
+        await boton.first.wait_for(state="visible", timeout=15000)
+    except Exception:
+        # No hay botón Ingresar — la sesión puede estar activa
+        logger.warning(
+            "Botón 'Ingresar' no encontrado — posible sesión activa (URL: %s)",
+            page.url,
+        )
+
+        # Intentar cerrar sesión existente
+        cerrada = await _cerrar_sesion_existente(page)
+        if cerrada:
+            # Recargar el portal después de cerrar sesión
+            logger.info("Recargando portal SENCE tras cerrar sesión...")
+            await page.goto(SENCE_URL, wait_until="networkidle", timeout=GOTO_TIMEOUT)
+            await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
+
+            # Buscar botón Ingresar de nuevo
+            boton = page.locator("button:has-text('Ingresar')").or_(
+                page.get_by_role("link", name="Ingresar")
+            ).or_(
+                page.locator("a:has-text('Ingresar')")
+            )
+            await boton.first.wait_for(state="visible", timeout=PAGE_TIMEOUT)
+        else:
+            raise RuntimeError(
+                "No se encontró botón 'Ingresar' ni botón 'Cerrar sesión'. "
+                f"URL actual: {page.url}"
+            )
+
     await boton.first.click(timeout=PAGE_TIMEOUT)
     logger.info("Clic en 'Ingresar' — esperando página intermedia")
 
@@ -65,11 +134,19 @@ async def seleccionar_clave_unica(page):
 
     Necesitamos la opción 1.
 
+    Si Clave Única ya tiene sesión activa, puede redirigir directo a SENCE
+    sin pasar por el formulario de login.
+
     Returns
     -------
     bool
-        ``True`` si se llegó a la página de ClaveUnica.gob.cl.
+        ``True`` si se llegó a la página de ClaveUnica.gob.cl o a SENCE directo.
     """
+    # Si ya estamos en SENCE interno (sesión activa tras Clave Única), skip
+    if "sence.cl" in page.url and "ClaveUnica" not in page.url:
+        logger.info("Ya en SENCE interno tras clic en Ingresar — sesión CU activa")
+        return True
+
     logger.info("Buscando botón Clave Única en página intermedia")
 
     # El botón tiene onclick="IniciarClaveUnica();" y una imagen de fondo
@@ -87,12 +164,23 @@ async def seleccionar_clave_unica(page):
             timeout=GOTO_TIMEOUT,
         )
 
-    # Esperar redirección a accounts.claveunica.gob.cl
-    await page.wait_for_url(
-        "**/accounts.claveunica.gob.cl/**", timeout=PAGE_TIMEOUT
-    )
-    await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
-    logger.info("En página Clave Única: %s", page.url)
+    # Esperar: puede ir a Clave Única O redirigir directo a SENCE
+    try:
+        await page.wait_for_url(
+            "**/accounts.claveunica.gob.cl/**", timeout=30000
+        )
+        await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
+        logger.info("En página Clave Única: %s", page.url)
+    except Exception:
+        # Puede que Clave Única ya tenía sesión y redirigió a SENCE
+        if "sence.cl" in page.url and "claveunica" not in page.url.lower():
+            logger.info("Clave Única tenía sesión activa — redirigido a SENCE: %s", page.url)
+        else:
+            logger.warning("No se llegó a Clave Única ni a SENCE — URL: %s", page.url)
+            raise RuntimeError(
+                f"Redirección inesperada tras clic en Clave Única: {page.url}"
+            )
+
     return True
 
 
@@ -126,10 +214,15 @@ async def login_clave_unica(page):
     rut = re.sub(r"[^0-9kK]", "", rut_raw)
     logger.info("Iniciando login Clave Única (RUT: %s...)", rut[:4])
 
-    # Verificar si ya estamos en SENCE (sesión activa)
+    # Verificar si ya estamos en SENCE (sesión activa tras Clave Única)
     if "sence.cl" in page.url and "claveunica" not in page.url.lower():
-        logger.info("Ya estamos en SENCE - sesión activa detectada")
+        logger.info("Ya en SENCE — sesión Clave Única activa, skip login")
         return True
+
+    # Si no estamos en Clave Única, algo salió mal
+    if "claveunica" not in page.url.lower():
+        logger.warning("No estamos en Clave Única ni en SENCE — URL: %s", page.url)
+        raise RuntimeError(f"URL inesperada para login: {page.url}")
 
     # Detectar captcha
     captcha = page.locator("iframe[src*='captcha'], .g-recaptcha, #captcha")
@@ -227,6 +320,7 @@ async def login_completo(page):
     """Ejecuta el flujo completo: portal → intermedia → Clave Única → login.
 
     Reintenta hasta ``MAX_RETRIES_LOGIN`` veces si hay timeout.
+    Si detecta sesión activa, cierra la sesión existente y reintenta.
 
     Returns
     -------
@@ -240,8 +334,26 @@ async def login_completo(page):
             await seleccionar_clave_unica(page)
             await login_clave_unica(page)
             return True
-        except RuntimeError:
+        except RuntimeError as e:
             # Errores de credenciales o captcha: no reintentar
+            if "CAPTCHA" in str(e) or "Credenciales" in str(e):
+                raise
+            # Otros RuntimeError (sesión activa, redirección inesperada): reintentar
+            last_error = e
+            if intento < MAX_RETRIES_LOGIN:
+                logger.warning(
+                    "Login intento %d falló: %s — intentando cerrar sesión y reintentar...",
+                    intento + 1, e,
+                )
+                # Intentar cerrar sesión existente antes de reintentar
+                try:
+                    await _cerrar_sesion_existente(page)
+                except Exception:
+                    pass
+                await page.wait_for_timeout(3000)
+                await page.goto("about:blank")
+                await page.wait_for_timeout(2000)
+                continue
             raise
         except Exception as e:
             last_error = e
@@ -250,7 +362,14 @@ async def login_completo(page):
                     "Login intento %d falló: %s — reintentando...",
                     intento + 1, e,
                 )
+                # Intentar cerrar sesión existente antes de reintentar
+                try:
+                    await _cerrar_sesion_existente(page)
+                except Exception:
+                    pass
+                await page.wait_for_timeout(3000)
                 await page.goto("about:blank")
+                await page.wait_for_timeout(2000)
                 continue
 
     raise RuntimeError(f"Login fallido tras {MAX_RETRIES_LOGIN + 1} intentos: {last_error}")

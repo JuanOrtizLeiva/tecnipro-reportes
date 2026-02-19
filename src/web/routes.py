@@ -321,25 +321,60 @@ def register_routes(app):
             return jsonify({"error": "No autorizado. Solo administradores principales."}), 403
 
         try:
+            import os
             import subprocess
             import sys
+            import threading
 
             logger.info("Refresh COMPLETO (background) iniciado por %s", current_user.email)
 
             # Ruta al script de background
-            script_path = Path(__file__).parent.parent.parent / "scripts" / "run_background_refresh.py"
+            project_root = Path(__file__).parent.parent.parent
+            script_path = project_root / "scripts" / "run_background_refresh.py"
             venv_python = Path(sys.executable)
+
+            # Propagar entorno completo del proceso padre (incluye .env vars)
+            child_env = os.environ.copy()
+            # Asegurar que PYTHONPATH incluya el proyecto
+            child_env["PYTHONPATH"] = str(project_root)
+
+            # Log de descarga a archivo para debugging
+            log_path = project_root / "data" / "output" / "background_refresh.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_file = open(str(log_path), "w", encoding="utf-8")
 
             # Iniciar proceso en background completamente desvinculado
             process = subprocess.Popen(
                 [str(venv_python), str(script_path), current_user.email],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
                 start_new_session=True,  # Desvincular completamente del proceso padre
-                cwd=str(Path(__file__).parent.parent.parent)
+                cwd=str(project_root),
+                env=child_env,
             )
 
             logger.info("Proceso en background iniciado (PID: %d)", process.pid)
+
+            # Thread daemon que espera al proceso hijo para evitar zombies
+            def _reap_child(proc, log_fh):
+                try:
+                    proc.wait()
+                    logger.info(
+                        "Proceso background PID %d finalizó (exit=%d)",
+                        proc.pid, proc.returncode,
+                    )
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        log_fh.close()
+                    except Exception:
+                        pass
+
+            reaper = threading.Thread(
+                target=_reap_child, args=(process, log_file), daemon=True
+            )
+            reaper.start()
 
             return jsonify({
                 "status": "started",

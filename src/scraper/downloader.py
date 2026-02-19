@@ -86,10 +86,12 @@ async def descargar_curso(page, sence_id, output_dir=None):
     # ── 3. Clic en el icono de estado → Detalle de Acción ─
     href = await link_estado.first.get_attribute("href") or ""
     logger.info("SENCE %s: entrando al detalle (%s)", sence_id, href.split("?")[0])
+    await link_estado.first.scroll_into_view_if_needed(timeout=PAGE_TIMEOUT)
+    await page.wait_for_timeout(500)
     await link_estado.first.click(timeout=PAGE_TIMEOUT)
 
     await page.wait_for_load_state("networkidle", timeout=PAGE_TIMEOUT)
-    await page.wait_for_timeout(1000)
+    await page.wait_for_timeout(2000)
     logger.info("SENCE %s: en página de detalle: %s", sence_id, page.url)
 
     # ── 4. Descargar Conectividad ────────────────────────
@@ -97,6 +99,10 @@ async def descargar_curso(page, sence_id, output_dir=None):
 
     if await btn_descargar.count() > 0 and await btn_descargar.is_visible():
         try:
+            # Scroll al botón para asegurar que sea visible y clickeable
+            await btn_descargar.scroll_into_view_if_needed(timeout=PAGE_TIMEOUT)
+            await page.wait_for_timeout(1000)
+
             async with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as download_info:
                 await btn_descargar.click(timeout=PAGE_TIMEOUT)
             download = await download_info.value
@@ -116,11 +122,39 @@ async def descargar_curso(page, sence_id, output_dir=None):
                 logger.warning("SENCE %s: no se pudo obtener datos", sence_id)
                 destino.write_text("No hay datos disponibles!\n", encoding="utf-8")
     else:
-        # Si no hay botón, intentar scrappear la tabla
-        logger.info("SENCE %s: sin botón Descargar Conectividad, scrapeando tabla", sence_id)
-        scrapeado = await _scrappear_tabla_participantes(page, destino, sence_id)
-        if not scrapeado:
-            destino.write_text("No hay datos disponibles!\n", encoding="utf-8")
+        # Scroll hacia abajo por si el botón está fuera de la vista
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        await page.wait_for_timeout(2000)
+
+        # Re-buscar el botón después del scroll
+        btn_descargar = page.locator("input#Btn_DescargarConectividad")
+        if await btn_descargar.count() > 0 and await btn_descargar.is_visible():
+            try:
+                await btn_descargar.scroll_into_view_if_needed(timeout=PAGE_TIMEOUT)
+                await page.wait_for_timeout(1000)
+
+                async with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as download_info:
+                    await btn_descargar.click(timeout=PAGE_TIMEOUT)
+                download = await download_info.value
+                await download.save_as(str(destino))
+                logger.info(
+                    "SENCE %s: conectividad descargada tras scroll (%d bytes)",
+                    sence_id, destino.stat().st_size,
+                )
+            except Exception as e:
+                logger.warning(
+                    "SENCE %s: descarga tras scroll falló (%s), scrapeando tabla",
+                    sence_id, e,
+                )
+                scrapeado = await _scrappear_tabla_participantes(page, destino, sence_id)
+                if not scrapeado:
+                    destino.write_text("No hay datos disponibles!\n", encoding="utf-8")
+        else:
+            # Si definitivamente no hay botón, intentar scrappear la tabla
+            logger.info("SENCE %s: sin botón Descargar Conectividad, scrapeando tabla", sence_id)
+            scrapeado = await _scrappear_tabla_participantes(page, destino, sence_id)
+            if not scrapeado:
+                destino.write_text("No hay datos disponibles!\n", encoding="utf-8")
 
     # ── 5. Volver a la página de búsqueda ────────────────
     await _volver(page)
