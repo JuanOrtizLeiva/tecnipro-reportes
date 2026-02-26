@@ -355,7 +355,7 @@ def _construir_fila_curso_vacio(curso: dict, categories: dict[int, str]) -> dict
     return fila
 
 
-def _unix_to_fecha_espanol(timestamp: int) -> str:
+def _unix_to_fecha_espanol(timestamp) -> str:
     """Convierte timestamp Unix a formato largo español.
 
     Formato de salida: "día_semana, día de mes de año, HH:MM"
@@ -365,7 +365,7 @@ def _unix_to_fecha_espanol(timestamp: int) -> str:
 
     Parameters
     ----------
-    timestamp : int
+    timestamp : int | float | str | None
         Unix timestamp (segundos desde epoch)
 
     Returns
@@ -373,11 +373,29 @@ def _unix_to_fecha_espanol(timestamp: int) -> str:
     str
         Fecha en formato largo español, o cadena vacía si timestamp es 0 o inválido
     """
-    if timestamp == 0 or timestamp is None:
+    if timestamp is None:
+        return ""
+
+    # Convertir string a número si es necesario (Moodle a veces devuelve "0")
+    if isinstance(timestamp, str):
+        try:
+            timestamp = int(float(timestamp))
+        except (ValueError, TypeError):
+            logger.warning("Timestamp no convertible: %s", timestamp)
+            return ""
+
+    try:
+        ts = int(timestamp)
+    except (ValueError, TypeError):
+        logger.warning("Timestamp inválido (no entero): %s", timestamp)
+        return ""
+
+    # Ignorar epoch cero, negativos y fuera de rango razonable (año > 9999)
+    if ts <= 0 or ts > 253402300799:
         return ""
 
     try:
-        dt = datetime.fromtimestamp(timestamp)
+        dt = datetime.fromtimestamp(ts)
 
         dia_semana = _DIAS_SEMANA_ES[dt.weekday()]
         dia = dt.day
@@ -388,7 +406,7 @@ def _unix_to_fecha_espanol(timestamp: int) -> str:
 
         return f"{dia_semana}, {dia} de {mes} de {anio}, {hora:02d}:{minuto:02d}"
 
-    except (OSError, ValueError, OverflowError) as e:
+    except (OSError, ValueError, OverflowError, TypeError) as e:
         logger.warning("Timestamp inválido %s: %s", timestamp, e)
         return ""
 

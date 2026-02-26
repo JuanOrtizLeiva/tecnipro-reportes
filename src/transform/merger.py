@@ -12,10 +12,26 @@ def merge_sence_into_dreporte(df_dreporte, df_sence):
 
     Agrega columnas: N_Ingresos, DJ al Dreporte.
     """
+    # Verificar columna clave en dreporte
+    if "LLave" not in df_dreporte.columns:
+        logger.warning("Dreporte no tiene columna 'LLave' — SENCE no se puede cruzar")
+        df_dreporte["N_Ingresos"] = 0
+        df_dreporte["DJ"] = ""
+        return df_dreporte
+
     if df_sence.empty:
         df_dreporte["N_Ingresos"] = 0
         df_dreporte["DJ"] = ""
         logger.info("SENCE vacío — se agregaron columnas con valores por defecto")
+        return df_dreporte
+
+    # Verificar columnas requeridas en SENCE
+    required_sence = ["LLave", "N_Ingresos", "DJ"]
+    missing = [c for c in required_sence if c not in df_sence.columns]
+    if missing:
+        logger.warning("SENCE falta columnas %s — merge omitido", missing)
+        df_dreporte["N_Ingresos"] = 0
+        df_dreporte["DJ"] = ""
         return df_dreporte
 
     # Preparar SENCE para merge (solo columnas necesarias, sin duplicados)

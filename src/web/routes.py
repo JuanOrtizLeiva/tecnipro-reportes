@@ -325,6 +325,7 @@ def register_routes(app):
             import subprocess
             import sys
             import threading
+            from datetime import datetime as _dt
 
             logger.info("Refresh COMPLETO (background) iniciado por %s", current_user.email)
 
@@ -333,14 +334,18 @@ def register_routes(app):
             script_path = project_root / "scripts" / "run_background_refresh.py"
             venv_python = Path(sys.executable)
 
+            if not script_path.exists():
+                raise FileNotFoundError(f"Script no encontrado: {script_path}")
+
             # Propagar entorno completo del proceso padre (incluye .env vars)
             child_env = os.environ.copy()
-            # Asegurar que PYTHONPATH incluya el proyecto
             child_env["PYTHONPATH"] = str(project_root)
 
-            # Log de descarga a archivo para debugging
-            log_path = project_root / "data" / "output" / "background_refresh.log"
-            log_path.parent.mkdir(parents=True, exist_ok=True)
+            # Log con timestamp para no sobrescribir ejecuciones anteriores
+            ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+            log_dir = project_root / "data" / "output" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir / f"background_refresh_{ts}.log"
             log_file = open(str(log_path), "w", encoding="utf-8")
 
             # Iniciar proceso en background completamente desvinculado
@@ -348,23 +353,31 @@ def register_routes(app):
                 [str(venv_python), str(script_path), current_user.email],
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                start_new_session=True,  # Desvincular completamente del proceso padre
+                start_new_session=True,  # Desvincular del proceso padre
                 cwd=str(project_root),
                 env=child_env,
             )
 
-            logger.info("Proceso en background iniciado (PID: %d)", process.pid)
+            logger.info(
+                "Proceso en background iniciado (PID: %d, log: %s)",
+                process.pid, log_path,
+            )
 
             # Thread daemon que espera al proceso hijo para evitar zombies
             def _reap_child(proc, log_fh):
                 try:
                     proc.wait()
-                    logger.info(
-                        "Proceso background PID %d finalizó (exit=%d)",
-                        proc.pid, proc.returncode,
-                    )
-                except Exception:
-                    pass
+                    if proc.returncode == 0:
+                        logger.info(
+                            "Proceso background PID %d finalizó exitosamente", proc.pid
+                        )
+                    else:
+                        logger.error(
+                            "Proceso background PID %d finalizó con error (exit=%d)",
+                            proc.pid, proc.returncode,
+                        )
+                except Exception as exc:
+                    logger.warning("Error en reaper de proceso background: %s", exc)
                 finally:
                     try:
                         log_fh.close()
@@ -380,6 +393,7 @@ def register_routes(app):
                 "status": "started",
                 "mensaje": "Actualización completa iniciada en segundo plano",
                 "pid": process.pid,
+                "log": str(log_path.relative_to(project_root)),
                 "detalle": "El proceso puede tomar 5-30 minutos. Recibirá un correo cuando finalice."
             })
 

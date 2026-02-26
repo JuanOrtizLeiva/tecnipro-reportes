@@ -16,10 +16,10 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 # Constantes
-RATE_LIMIT_DELAY = 0.2  # segundos entre llamadas
-MAX_RETRIES = 1
-RETRY_DELAY = 10  # segundos
-TIMEOUT = settings.MOODLE_TIMEOUT if hasattr(settings, 'MOODLE_TIMEOUT') else 30
+RATE_LIMIT_DELAY = 0.05  # segundos entre llamadas (20 req/s, Moodle soporta 20+)
+MAX_RETRIES = 2
+RETRY_DELAY = 5  # segundos
+TIMEOUT = settings.MOODLE_TIMEOUT if hasattr(settings, 'MOODLE_TIMEOUT') else 60
 
 # Control de última llamada para rate limiting
 _last_call_time = 0.0

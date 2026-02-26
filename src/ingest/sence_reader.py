@@ -188,10 +188,21 @@ def _leer_excel_sence(archivo, id_sence):
     # Filtrar filas sin RUT válido
     mask = rut_series.str.contains(r"\d", na=False)
 
-    # NUEVO: Filtrar también filas sin fecha válida de conectividad
+    # Filtrar filas sin fecha válida de conectividad
     if col_fecha is not None:
-        mask = mask & df[col_fecha].notna()
-        logger.debug("Filtrando filas con fecha de conectividad válida")
+        fecha_col = df[col_fecha]
+        # notna() detecta celdas vacías reales (NaN float); str check filtra
+        # strings "nan", "nat", "" que pueden quedar con dtype=str en read_excel
+        fecha_valida = (
+            fecha_col.notna()
+            & (fecha_col.astype(str).str.strip() != "")
+            & (~fecha_col.astype(str).str.lower().isin(["nan", "nat", "none"]))
+        )
+        mask = mask & fecha_valida
+        logger.debug(
+            "SENCE %s: %d filas con fecha de conectividad válida de %d totales",
+            id_sence, int(fecha_valida.sum()), len(df),
+        )
 
     rut_series = rut_series[mask]
     nombre_series = nombre_series[mask]
