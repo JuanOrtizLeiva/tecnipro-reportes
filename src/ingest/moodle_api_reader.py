@@ -28,7 +28,7 @@ _DIAS_SEMANA_ES = {
 }
 
 
-def leer_datos_moodle() -> pd.DataFrame:
+def leer_datos_moodle(course_ids=None) -> pd.DataFrame:
     """Lee datos de cursos y estudiantes desde Moodle API REST.
 
     Retorna un DataFrame con las MISMAS columnas que el merge actual
@@ -64,6 +64,10 @@ def leer_datos_moodle() -> pd.DataFrame:
     except Exception as e:
         logger.error("Error obteniendo cursos: %s", e)
         raise RuntimeError("No se pueden obtener cursos de Moodle") from e
+
+    if course_ids:
+        courses = [c for c in courses if c.get("id") in course_ids]
+        logger.info("Filtrado a %d cursos asignados al usuario", len(courses))
 
     if not courses:
         logger.warning("No se encontraron cursos en las categorías especificadas")
@@ -223,10 +227,9 @@ def _construir_fila(
     if groups and len(groups) > 0:
         id_sence = str(groups[0].get("name", "")).strip()
 
-    # Construir LLave para merge con SENCE
-    llave = rut
-    if id_sence:
-        llave = f"{rut}{id_sence}"
+    # Construir LLave para merge con SENCE (vacía si no hay IDSence,
+    # consistente con CSV mode en dreporte_reader.py)
+    llave = f"{rut}{id_sence}" if id_sence else ""
 
     # Extraer datos de calificación
     calificacion = grade_data.get("nota_final")

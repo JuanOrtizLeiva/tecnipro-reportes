@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -12,7 +12,7 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
-def exportar_json(df, output_path=None):
+def exportar_json(df, output_path=None, fecha_sence=None):
     """Genera el JSON consolidado a partir del DataFrame procesado.
 
     Parameters
@@ -34,7 +34,7 @@ def exportar_json(df, output_path=None):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    estructura = _construir_estructura(df)
+    estructura = _construir_estructura(df, fecha_sence=fecha_sence)
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(estructura, f, ensure_ascii=False, indent=2, default=str)
@@ -43,7 +43,7 @@ def exportar_json(df, output_path=None):
     return estructura
 
 
-def _construir_estructura(df):
+def _construir_estructura(df, fecha_sence=None):
     """Construye el dict con la estructura esperada por el dashboard."""
     cursos_dict = {}
     # Safety net: rastrear estudiantes ya agregados por (curso, rut)
@@ -138,9 +138,12 @@ def _construir_estructura(df):
         }
         cursos_lista.append(curso)
 
+    fecha_moodle = datetime.now(timezone.utc).isoformat(timespec="seconds")
     estructura = {
         "metadata": {
-            "fecha_procesamiento": datetime.now().isoformat(timespec="seconds"),
+            "fecha_procesamiento": fecha_moodle,   # alias para compatibilidad
+            "fecha_moodle": fecha_moodle,
+            "fecha_sence": fecha_sence,            # None si no hay datos SENCE
             "total_cursos": len(cursos_lista),
             "total_estudiantes": total_estudiantes,
             "version": "1.0",

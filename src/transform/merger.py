@@ -128,6 +128,16 @@ def merge_greporte_dreporte(df_greporte, df_dreporte):
     else:
         resultado["categoria"] = ""
 
+    # Consolidar Modalidad: preferir Greporte
+    if "Modalidad_g" in resultado.columns:
+        resultado["Modalidad"] = resultado["Modalidad_g"].fillna(
+            resultado.get("Modalidad_d", "")
+        )
+    elif "Modalidad_d" in resultado.columns:
+        resultado["Modalidad"] = resultado["Modalidad_d"]
+    elif "Modalidad" not in resultado.columns:
+        resultado["Modalidad"] = ""
+
     logger.info("Merge Greporte⊕Dreporte: %d filas", len(resultado))
     return resultado
 
