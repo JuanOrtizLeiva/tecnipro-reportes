@@ -6,21 +6,31 @@
 
 set -e
 
-APP_DIR="/home/tecnipro/tecnipro-reportes"
+APP_DIR="/root/tecnipro-reportes"
 cd "$APP_DIR"
 
 echo "[$(date)] Actualizando código desde GitHub..."
-sudo -u tecnipro git pull origin master
+git pull origin master
 
 echo "[$(date)] Actualizando dependencias..."
-sudo -u tecnipro ./venv/bin/pip install -r requirements.txt --quiet
+./venv/bin/pip install -r requirements.txt --quiet
 
 echo "[$(date)] Reiniciando servicio web..."
 systemctl restart tecnipro-web
 
 echo "[$(date)] Verificando estado..."
-sleep 2
+sleep 3
 systemctl status tecnipro-web --no-pager
+
+echo ""
+# Smoke test
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5001/api/health)
+if [ "$HTTP" = "200" ]; then
+    echo "✓ Salud OK — /api/health → 200"
+else
+    echo "✗ ALERTA — /api/health devolvió $HTTP"
+    exit 1
+fi
 
 echo ""
 echo "Deploy completado: $(date)"
