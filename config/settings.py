@@ -80,6 +80,11 @@ if not SECRET_KEY:
         "SECRET_KEY no configurada — usando clave aleatoria temporal"
     )
 SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", "24"))
+SUPERADMIN_EMAILS = [
+    e.strip().lower() for e in
+    os.getenv("SUPERADMIN_EMAILS", "ygonzalez@duocapital.cl,jortizleiva@duocapital.cl").split(",")
+    if e.strip()
+]
 USUARIOS_PATH = Path(os.getenv(
     "USUARIOS_PATH", "./data/config/usuarios.json"
 ))

@@ -213,7 +213,7 @@ def enviar_email_credenciales(email, nombre, password, base_url):
         return False
 
     # Preparar mensaje
-    remitente = "ygonzalez@duocapital.cl"
+    remitente = settings.EMAIL_REMITENTE
     mensaje = {
         "message": {
             "subject": "Credenciales de Acceso - Dashboard Tecnipro",
@@ -320,7 +320,7 @@ def enviar_email_reset(email, token, base_url):
         return False
 
     # Preparar mensaje
-    remitente = "ygonzalez@duocapital.cl"  # Email desde donde se envía el reset
+    remitente = settings.EMAIL_REMITENTE  # Email desde donde se envía el reset
     mensaje = {
         "message": {
             "subject": "Recuperación de Contraseña - Dashboard Tecnipro",

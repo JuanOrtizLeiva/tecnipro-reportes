@@ -445,9 +445,7 @@ def register_routes(app):
     @login_required
     def api_refresh_full():
         """Inicia actualización completa en segundo plano. Solo superadmins."""
-        SUPERADMINS = ["ygonzalez@duocapital.cl", "jortizleiva@duocapital.cl"]
-
-        if current_user.email not in SUPERADMINS:
+        if current_user.email not in settings.SUPERADMIN_EMAILS:
             return jsonify({"error": "No autorizado. Solo administradores principales."}), 403
 
         try:
