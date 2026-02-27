@@ -151,6 +151,16 @@ def merge_compradores(df_merged, df_compradores):
         logger.info("Compradores vacío — columnas con valores por defecto")
         return df_merged
 
+    # Verificar columnas requeridas en compradores
+    required = ["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]
+    missing = [c for c in required if c not in df_compradores.columns]
+    if missing:
+        logger.warning("Compradores falta columnas %s — merge omitido", missing)
+        df_merged["comprador_nombre"] = ""
+        df_merged["empresa"] = ""
+        df_merged["email_comprador"] = ""
+        return df_merged
+
     resultado = df_merged.merge(
         df_compradores,
         left_on="nombre_corto",

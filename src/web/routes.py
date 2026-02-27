@@ -1,6 +1,7 @@
 """Rutas del servidor web del dashboard."""
 
 import json
+from datetime import datetime as _dt
 import logging
 import secrets
 import string
@@ -21,6 +22,24 @@ logger = logging.getLogger(__name__)
 _email_timestamps = defaultdict(list)
 RATE_LIMIT_MAX = 10
 RATE_LIMIT_WINDOW = 60  # segundos
+
+# Caché en memoria para datos_procesados.json (evita leer disco en cada request)
+_datos_cache = {"data": None, "mtime": 0.0}
+
+
+def _get_datos_cached(json_path):
+    """Lee JSON del disco solo si el archivo cambió (check mtime)."""
+    try:
+        mtime = json_path.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    if _datos_cache["data"] is not None and mtime == _datos_cache["mtime"]:
+        return _datos_cache["data"]
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    _datos_cache["data"] = data
+    _datos_cache["mtime"] = mtime
+    return data
 
 
 def _check_rate_limit(ip):
@@ -212,7 +231,23 @@ def register_routes(app):
     @app.route("/")
     @login_required
     def index():
-        """Sirve el dashboard HTML."""
+        """Redirects admins to hub, serves dashboard for others."""
+        if current_user.rol == "admin":
+            return redirect(url_for("hub"))
+        return render_template("dashboard.html")
+
+    @app.route("/hub")
+    @login_required
+    def hub():
+        """Admin hub menu page."""
+        if current_user.rol != "admin":
+            return redirect(url_for("index"))
+        return render_template("hub.html")
+
+    @app.route("/dashboard")
+    @login_required
+    def dashboard():
+        """Dashboard de cursos (accessible directly by URL)."""
         return render_template("dashboard.html")
 
     # ── API: info del usuario ─────────────────────────────
@@ -229,15 +264,12 @@ def register_routes(app):
     @login_required
     def api_datos():
         """Retorna datos_procesados.json, filtrado por rol."""
-        json_path = settings.JSON_DATOS_PATH
-        if not json_path.exists():
+        datos = _get_datos_cached(settings.JSON_DATOS_PATH)
+        if datos is None:
             return jsonify({
                 "error": "No se encontró datos_procesados.json. "
                          "Ejecute el pipeline primero: python -m src.main"
             }), 404
-
-        with open(json_path, "r", encoding="utf-8") as f:
-            datos = json.load(f)
 
         # Admin (or unauthenticated when LOGIN_DISABLED) ve todo
         if not current_user.is_authenticated or current_user.rol == "admin":
@@ -264,50 +296,148 @@ def register_routes(app):
     @app.route("/api/health")
     def api_health():
         """Health check — público, no requiere autenticación."""
-        json_path = settings.JSON_DATOS_PATH
-        fecha_datos = None
-        if json_path.exists():
-            with open(json_path, "r", encoding="utf-8") as f:
-                datos = json.load(f)
-            fecha_datos = datos.get("metadata", {}).get("fecha_procesamiento")
+        datos = _get_datos_cached(settings.JSON_DATOS_PATH)
+        fecha_datos = datos.get("metadata", {}).get("fecha_procesamiento") if datos else None
 
         return jsonify({
             "status": "ok",
             "fecha_datos": fecha_datos,
         })
 
-    # ── API: refresh datos (solo admin) ──────────────────
+    # ── API: refresh datos (todos los usuarios) ──────────────────
 
     @app.route("/api/refresh", methods=["POST"])
     @login_required
     def api_refresh():
-        """Ejecuta el pipeline para refrescar datos desde Moodle API. Todos los usuarios."""
-        # Cualquier usuario autenticado puede refrescar datos (sin SENCE)
-        # Solo obtiene datos de Moodle, no ejecuta scraper SENCE
+        """Inicia refresh de datos Moodle en segundo plano. Todos los usuarios."""
+        import os
+        import re
+        import subprocess
+        import sys
+        import threading
+        import uuid
 
-        # Importar y ejecutar pipeline en el mismo thread
-        # (En producción con Gunicorn esto no bloqueará otras requests)
         try:
-            from src.main import run_pipeline
-            logger.info("Iniciando refresh manual de datos por %s", current_user.email)
+            logger.info("Refresh iniciado por %s", current_user.email)
 
-            # Ejecutar pipeline
-            datos_json = run_pipeline()
+            body = request.get_json(silent=True) or {}
 
-            logger.info("Refresh completado exitosamente")
+            if current_user.rol == "admin":
+                # Admin: puede enviar course_ids específicos en el body, o None para todos
+                course_ids = body.get("course_ids") or None
+                if course_ids:
+                    logger.info("Refresh parcial (admin eligió): %d cursos", len(course_ids))
+                else:
+                    logger.info("Refresh completo de todas las categorías (admin)")
+            else:
+                # No-admin: siempre solo sus cursos asignados
+                course_ids = current_user.cursos
+                if course_ids:
+                    logger.info("Refresh parcial: %d cursos del usuario", len(course_ids))
+
+            # Generar job_id único (8 chars hex)
+            job_id = uuid.uuid4().hex[:8]
+
+            # Rutas
+            project_root = Path(__file__).parent.parent.parent
+            script_path = project_root / "scripts" / "run_pipeline_refresh.py"
+            lock_path = project_root / "data" / "output" / "pipeline_refresh.lock"
+
+            # Lock atómico: open('x') falla si ya existe (O_CREAT|O_EXCL)
+            try:
+                lock_path.parent.mkdir(parents=True, exist_ok=True)
+                fd = open(str(lock_path), "x")
+                fd.close()
+            except FileExistsError:
+                logger.warning("Refresh bloqueado por lock — ya hay un proceso activo")
+                return jsonify({
+                    "error": "Ya hay una actualización en proceso. Espere a que termine e intente nuevamente.",
+                    "status": "busy"
+                }), 409
+            venv_python = Path(sys.executable)
+
+            # Propagar entorno completo (incluye .env vars)
+            child_env = os.environ.copy()
+            child_env["PYTHONPATH"] = str(project_root)
+
+            # Log file del proceso hijo
+            log_path = project_root / "data" / "output" / f"pipeline_refresh_{job_id}.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_file = open(str(log_path), "w", encoding="utf-8")
+
+            # Construir comando; pasar course_ids como JSON si aplica
+            cmd = [str(venv_python), str(script_path), job_id]
+            if course_ids:
+                cmd.append(json.dumps(course_ids))
+
+            # Iniciar proceso completamente desvinculado del padre
+            process = subprocess.Popen(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                cwd=str(project_root),
+                env=child_env,
+            )
+
+            logger.info(
+                "Pipeline refresh background PID=%d job_id=%s iniciado",
+                process.pid, job_id,
+            )
+
+            # Thread daemon para evitar procesos zombie
+            def _reap_child(proc, log_fh):
+                try:
+                    proc.wait()
+                    logger.info(
+                        "Pipeline refresh PID %d finalizó (exit=%d)",
+                        proc.pid, proc.returncode,
+                    )
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        log_fh.close()
+                    except Exception:
+                        pass
+
+            reaper = threading.Thread(
+                target=_reap_child, args=(process, log_file), daemon=True
+            )
+            reaper.start()
+
             return jsonify({
-                "status": "ok",
-                "message": "Datos actualizados exitosamente",
-                "cursos": datos_json["metadata"]["total_cursos"],
-                "estudiantes": datos_json["metadata"]["total_estudiantes"],
-                "fecha": datos_json["metadata"]["fecha_procesamiento"]
+                "status": "started",
+                "job_id": job_id,
+                "mensaje": "Actualización iniciada en segundo plano",
             })
 
         except Exception as e:
-            logger.error("Error ejecutando pipeline desde API: %s", e, exc_info=True)
-            return jsonify({
-                "error": f"Error al actualizar datos: {str(e)}"
-            }), 500
+            logger.error("Error iniciando refresh en background: %s", e, exc_info=True)
+            return jsonify({"error": f"Error al iniciar actualización: {str(e)}"}), 500
+
+    @app.route("/api/refresh-status/<job_id>", methods=["GET"])
+    @login_required
+    def api_refresh_status(job_id):
+        """Consulta el estado de un job de refresh iniciado en background."""
+        import re
+
+        # Validar job_id para evitar path traversal
+        if not re.match(r'^[a-f0-9]{1,32}$', job_id):
+            return jsonify({"error": "job_id inválido"}), 400
+
+        project_root = Path(__file__).parent.parent.parent
+        status_path = project_root / "data" / "output" / f"refresh_status_{job_id}.json"
+
+        if not status_path.exists():
+            # El proceso aún no escribió el archivo → todavía arrancando
+            return jsonify({"status": "running", "message": "Iniciando proceso..."}), 200
+
+        try:
+            data = json.loads(status_path.read_text(encoding="utf-8"))
+            return jsonify(data), 200
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
 
     # ── API: refresh COMPLETO (Moodle + SENCE, solo superadmins) ──
 
@@ -963,3 +1093,157 @@ def register_routes(app):
                 })
 
         return jsonify({"error": "Error quitando curso"}), 500
+
+    @app.route("/licitaciones")
+    @login_required
+    def licitaciones_dashboard():
+        return render_template("licitaciones.html")
+
+    @app.route("/api/licitaciones-data")
+    @login_required
+    def licitaciones_data():
+        json_path = Path("/root/tecnipro-reportes/data/licitaciones/licitaciones_data.json")
+        if not json_path.exists():
+            return jsonify({"error": "Datos no disponibles aún"}), 404
+        try:
+            return jsonify(json.loads(json_path.read_text(encoding="utf-8")))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # ─── Licitacion Estado Endpoints ───
+
+
+
+    # ─── Licitacion Notas Endpoints ───
+    NOTAS_FILE = Path("/root/tecnipro-reportes/data/licitaciones/notas_oportunidades.json")
+
+    @app.route("/api/licitacion-notas")
+    @login_required
+    def api_licitacion_notas():
+        """Returns saved notes for all opportunities."""
+        if not NOTAS_FILE.exists():
+            return jsonify({})
+        try:
+            return jsonify(json.loads(NOTAS_FILE.read_text(encoding="utf-8")))
+        except Exception:
+            return jsonify({})
+
+    @app.route("/api/licitacion-nota", methods=["POST"])
+    @login_required
+    def api_licitacion_nota():
+        """Save or remove a note for an opportunity."""
+        body = request.get_json(silent=True)
+        if not body or "codigo" not in body:
+            return jsonify({"error": "Datos incompletos"}), 400
+
+        codigo = body["codigo"]
+        texto = body.get("texto", "").strip()
+
+        # Load existing notes
+        notas = {}
+        if NOTAS_FILE.exists():
+            try:
+                notas = json.loads(NOTAS_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                notas = {}
+
+        if texto:
+            # Save or update note
+            notas[codigo] = {
+                "texto": texto,
+                "usuario": current_user.email,
+                "fecha": _dt.now().isoformat()
+            }
+        else:
+            # Remove note
+            notas.pop(codigo, None)
+
+        # Write back
+        NOTAS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        NOTAS_FILE.write_text(json.dumps(notas, ensure_ascii=False, indent=2), encoding="utf-8")
+        return jsonify({"ok": True})
+
+    # ── Licitacion Estado Endpoints (v2 - with history) ──
+    ESTADOS_FILE = Path("/root/tecnipro-reportes/data/licitaciones/estados_oportunidades.json")
+
+    @app.route("/api/licitacion-estados")
+    @login_required
+    def api_licitacion_estados():
+        """Returns saved opportunity states with full history."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+        if not ESTADOS_FILE.exists():
+            return jsonify({})
+        try:
+            import fcntl
+            with open(ESTADOS_FILE, "r", encoding="utf-8") as f:
+                fcntl.flock(f, fcntl.LOCK_SH)
+                data = json.loads(f.read() or "{}")
+                fcntl.flock(f, fcntl.LOCK_UN)
+            return jsonify(data)
+        except Exception:
+            return jsonify({})
+
+    @app.route("/api/licitacion-estado", methods=["POST"])
+    @login_required
+    def api_licitacion_estado():
+        """Save a new estado entry with mandatory note. Entries are immutable."""
+        if current_user.rol != "admin":
+            return jsonify({"error": "No autorizado"}), 403
+        body = request.get_json(silent=True)
+        if not body or "codigo" not in body:
+            return jsonify({"error": "Datos incompletos"}), 400
+
+        codigo = body["codigo"]
+        estado = body.get("estado", "").strip()
+        nota = body.get("nota", "").strip()
+
+        # Validation
+        if not isinstance(codigo, str) or not isinstance(estado, str) or not isinstance(nota, str):
+            return jsonify({"error": "Tipos invalidos"}), 400
+        if not estado:
+            return jsonify({"error": "Estado es obligatorio"}), 400
+        if not nota:
+            return jsonify({"error": "La nota es obligatoria para cambiar el estado"}), 400
+        if len(codigo) > 100:
+            return jsonify({"error": "Codigo demasiado largo"}), 400
+        if len(nota) > 5000:
+            return jsonify({"error": "Nota demasiado larga (max 5000 caracteres)"}), 400
+
+        valid_estados = ["sin_estado", "postulando", "ganada", "perdida", "no_postulado"]
+        if estado not in valid_estados:
+            return jsonify({"error": "Estado no valido"}), 400
+
+        import fcntl
+        ESTADOS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if not ESTADOS_FILE.exists():
+            ESTADOS_FILE.write_text("{}", encoding="utf-8")
+
+        with open(ESTADOS_FILE, "r+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                raw = f.read()
+                estados = json.loads(raw) if raw.strip() else {}
+            except Exception:
+                estados = {}
+
+            entry = {
+                "estado": estado,
+                "nota": nota,
+                "usuario": current_user.email,
+                "fecha": _dt.now().isoformat()
+            }
+
+            if codigo not in estados:
+                estados[codigo] = {"estado_actual": estado, "historial": []}
+
+            estados[codigo]["estado_actual"] = estado
+            estados[codigo]["historial"].append(entry)
+
+            f.seek(0)
+            f.truncate()
+            f.write(json.dumps(estados, ensure_ascii=False, indent=2))
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+        return jsonify({"ok": True})
+

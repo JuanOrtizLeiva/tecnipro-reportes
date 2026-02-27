@@ -15,6 +15,26 @@ def calcular_campos(df):
 
     Modifica *df* in-place y lo retorna.
     """
+    if df.empty:
+        logger.warning("DataFrame vacío — calcular_campos retorna sin procesar")
+        return df
+
+    # Validar columnas requeridas — crear con defaults si faltan
+    required = [
+        "Fecha de inicio del curso", "Fecha de finalización del curso",
+        "Calificación", "Progreso del estudiante", "N_Ingresos", "IDSence",
+    ]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        logger.warning("calculator: faltan columnas %s — se crearán con defaults", missing)
+        for col in missing:
+            if col in ("Calificación", "Progreso del estudiante"):
+                df[col] = 0.0
+            elif col == "N_Ingresos":
+                df[col] = 0
+            else:
+                df[col] = ""
+
     hoy = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     # ── Parsear fechas ─────────────────────────────────────
