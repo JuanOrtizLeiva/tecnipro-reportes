@@ -6,7 +6,7 @@
 
 set -e
 
-APP_DIR="/home/tecnipro/tecnipro-reportes"
+APP_DIR="/root/tecnipro-reportes"
 LOG_DIR="/var/log/tecnipro"
 
 cd "$APP_DIR"

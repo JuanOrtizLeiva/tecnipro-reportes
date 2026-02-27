@@ -80,11 +80,18 @@ def moodle_api_call(function: str, params: dict[str, Any] | None = None) -> dict
 
     logger.debug("Llamando Moodle API: %s con params: %s", function, params)
 
+    # Proxy: necesario porque Hetzner está bloqueado por el hosting de Moodle
+    proxies = (
+        {"http": settings.PROXY_URL, "https": settings.PROXY_URL}
+        if getattr(settings, "PROXY_URL", None)
+        else None
+    )
+
     # Intentar la llamada con retry
     last_exception = None
     for intento in range(MAX_RETRIES + 1):
         try:
-            response = requests.get(url, timeout=TIMEOUT)
+            response = requests.get(url, timeout=TIMEOUT, proxies=proxies)
             _last_call_time = time.time()
 
             if response.status_code != 200:
@@ -152,35 +159,49 @@ def get_categories() -> dict[int, str]:
     return categories
 
 
+def get_courses_by_ids(course_ids: list[int]) -> list[dict]:
+    """Obtiene cursos específicos por sus IDs directamente desde la API.
+
+    Mucho más eficiente que get_courses() cuando se conocen los IDs exactos.
+    """
+    logger.info("Obteniendo %d cursos por ID", len(course_ids))
+    params = {f"options[ids][{i}]": cid for i, cid in enumerate(course_ids)}
+    response = moodle_api_call("core_course_get_courses", params)
+    if not isinstance(response, list):
+        return []
+    logger.info("Cursos obtenidos por ID: %d", len(response))
+    return response
+
+
 def get_courses(category_ids: list[int] | None = None) -> list[dict]:
-    """Obtiene todos los cursos, opcionalmente filtrados por categorías.
+    """Obtiene cursos de Moodle, filtrando por categoría en Python.
+
+    Descarga todos los cursos con core_course_get_courses y filtra localmente
+    por category_ids. Compatible con cualquier nivel de permisos del token.
 
     Parameters
     ----------
     category_ids : list[int], optional
-        Lista de IDs de categorías para filtrar. Si es None, retorna todos los cursos.
+        Lista de IDs de categorías para filtrar (incluye subcategorías).
+        Si es None, retorna todos los cursos.
 
     Returns
     -------
     list[dict]
         Lista de cursos con campos: id, fullname, shortname, categoryid, startdate, enddate
     """
-    logger.info("Obteniendo cursos")
+    logger.info("Obteniendo cursos desde Moodle API")
     response = moodle_api_call("core_course_get_courses", {})
 
     if not isinstance(response, list):
         logger.warning("Respuesta inesperada de get_courses: %s", type(response))
         return []
 
-    # Filtrar por categorías si se especificaron
     if category_ids:
-        courses = [
-            c for c in response
-            if c.get("categoryid") in category_ids
-        ]
+        courses = [c for c in response if c.get("categoryid") in category_ids]
         logger.info(
-            "Cursos obtenidos: %d (filtrados de %d por categorías %s)",
-            len(courses), len(response), category_ids
+            "Cursos obtenidos: %d (de %d totales, categorías %s)",
+            len(courses), len(response), category_ids,
         )
     else:
         courses = response

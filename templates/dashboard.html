@@ -1609,7 +1609,7 @@ async function loadUserInfo() {
             CURRENT_USER = await resp.json();
             document.getElementById('userName').textContent = CURRENT_USER.nombre;
             document.getElementById('userRoleBadge').textContent =
-                CURRENT_USER.rol === 'admin' ? 'Admin' : 'Comprador';
+                CURRENT_USER.rol === 'admin' ? 'Admin' : 'Coordinador';
             document.getElementById('userInfoBox').style.display = '';
             document.getElementById('headerActions').style.display = 'flex';
 

@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline():
+def run_pipeline(course_ids=None):
     """Ejecuta el pipeline completo: ingest → transform → output."""
     logger.info("=" * 60)
     logger.info("Iniciando procesamiento Tecnipro Reportes")
@@ -49,11 +49,10 @@ def run_pipeline():
         from src.ingest.moodle_api_reader import leer_datos_moodle
 
         try:
-            df_merged_base = leer_datos_moodle()
+            df_merged_base = leer_datos_moodle(course_ids=course_ids)
         except Exception as e:
             logger.error("Error leyendo Moodle API: %s", e)
-            logger.error("No se puede continuar sin datos Moodle")
-            sys.exit(1)
+            raise RuntimeError(f"No se puede continuar sin datos Moodle: {e}") from e
     else:
         logger.info("Modo CSV: leyendo desde Greporte.csv y Dreporte.csv")
         from src.ingest.dreporte_reader import leer_dreporte
@@ -127,8 +126,22 @@ def run_pipeline():
     from src.output.json_exporter import exportar_json
     from src.output.sqlite_store import guardar_snapshot
 
-    # 3a. Exportar JSON
-    datos_json = exportar_json(df_merged)
+    # 3a. Detectar fecha de última actualización SENCE (mtime del archivo más reciente)
+    fecha_sence = None
+    try:
+        from pathlib import Path as _Path
+        sence_folder = _Path(settings.SENCE_CSV_PATH)
+        archivos_sence = list(sence_folder.glob("*.csv")) if sence_folder.exists() else []
+        if archivos_sence:
+            from datetime import datetime as _dt, timezone as _tz
+            mtime = max(f.stat().st_mtime for f in archivos_sence)
+            fecha_sence = _dt.fromtimestamp(mtime, tz=_tz.utc).isoformat(timespec="seconds")
+            logger.info("Fecha última actualización SENCE: %s", fecha_sence)
+    except Exception as e:
+        logger.warning("No se pudo detectar fecha SENCE: %s", e)
+
+    # 3b. Exportar JSON
+    datos_json = exportar_json(df_merged, fecha_sence=fecha_sence)
     logger.info(
         "JSON: %d cursos, %d estudiantes",
         datos_json["metadata"]["total_cursos"],
