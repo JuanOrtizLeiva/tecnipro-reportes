@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>Mercado Publico — Tecnipro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #f5f6fa;
+  --white:        #ffffff;
+  --surface:      #ffffff;
+  --surface2:     #f0f2f8;
+  --border:       #e2e6f0;
+  --border-soft:  #eef0f8;
+  --text:         #1a1d2e;
+  --muted:        #6b7494;
+  --muted2:       #9ca3c0;
+  --brand:        #1e3a8a;
+  --brand-light:  #3b5fd4;
+  --brand-bg:     #eff3ff;
+  --green:        #059669;
+  --green-bg:     #ecfdf5;
+  --green-border: #a7f3d0;
+  --yellow:       #d97706;
+  --yellow-bg:    #fffbeb;
+  --yellow-border:#fde68a;
+  --red:          #dc2626;
+  --red-bg:       #fef2f2;
+  --red-border:   #fecaca;
+  --r:            10px;
+  --shadow:       0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.04);
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.06);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.hdr {
+  background: var(--brand);
+  height: 56px; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.hdr-brand { font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+.logo-chip { background: rgba(255,255,255,.15); border-radius: 6px; padding: 3px 9px; font-size: 11px; font-weight: 600; letter-spacing: .5px; color: rgba(255,255,255,.85); }
+.hdr-status { display: flex; align-items: center; gap: 20px; }
+.sys-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,.75); }
+.sys-dot { width: 8px; height: 8px; border-radius: 50%; background: #6ee7b7; box-shadow: 0 0 6px rgba(110,231,179,.6); flex-shrink: 0; }
+.sys-dot.warn { background: #fcd34d; box-shadow: 0 0 6px rgba(252,211,77,.6); }
+.sys-dot.fail { background: #fca5a5; box-shadow: 0 0 6px rgba(252,165,165,.6); }
+.hdr-ts { font-size: 11px; color: rgba(255,255,255,.55); white-space: nowrap; }
+.hdr-mp-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 14px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; color: #fff; text-decoration: none;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  transition: background .15s;
+}
+.hdr-mp-link:hover { background: rgba(255,255,255,.22); }
+
+/* ── Modal overlay ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 500;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+body.modal-open { overflow: hidden; }
+.modal-box {
+  background: var(--white); border-radius: 12px;
+  width: 640px; max-width: 92vw; max-height: 85vh;
+  box-shadow: 0 12px 48px rgba(0,0,0,.2); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.modal-header h3 { font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.modal-close {
+  width: 30px; height: 30px; border-radius: 6px; border: none;
+  background: transparent; cursor: pointer; font-size: 18px; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; transition: background .15s;
+}
+.modal-close:hover { background: var(--border); color: var(--text); }
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+
+/* ── Detail modal ── */
+.detail-grid { display: grid; grid-template-columns: 140px 1fr; gap: 0; }
+.detail-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px;
+  color: var(--muted); padding: 10px 12px 10px 0; border-bottom: 1px solid var(--border-soft);
+}
+.detail-value {
+  font-size: 13px; color: var(--text); padding: 10px 0; border-bottom: 1px solid var(--border-soft);
+  line-height: 1.6; word-break: break-word;
+}
+.detail-value:last-child, .detail-label:nth-last-child(2) { border-bottom: none; }
+.detail-actions { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.btn-primary {
+  padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; background: var(--brand); color: #fff; transition: background .15s;
+}
+.btn-primary:hover { background: var(--brand-light); }
+.btn-secondary {
+  padding: 8px 18px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;
+  font-size: 12px; font-weight: 500; background: var(--white); color: var(--text); transition: background .15s;
+}
+.btn-secondary:hover { background: var(--surface2); }
+
+/* ── Notes modal ── */
+.note-modal-textarea {
+  width: 100%; min-height: 180px; border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; font-size: 13px; font-family: inherit;
+  resize: vertical; color: var(--text); background: var(--surface2); line-height: 1.6;
+}
+.note-modal-textarea:focus { outline: none; border-color: var(--brand-light); background: var(--white); }
+.note-modal-info { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.note-saving { font-size: 11px; color: var(--green); font-weight: 600; }
+
+/* ── Table clickable cells ── */
+.opp-tbl-nombre { font-weight: 500; color: var(--text); max-width: 300px; line-height: 1.4; cursor: pointer; }
+.opp-tbl-nombre:hover { color: var(--brand-light); }
+.opp-note-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--white); cursor: pointer; font-size: 13px; transition: all .15s;
+}
+.opp-note-btn:hover { background: var(--brand-bg); border-color: var(--brand-light); }
+.opp-note-btn.has-note { background: var(--brand-bg); border-color: var(--brand-light); color: var(--brand); }
+
+/* ── Layout ── */
+.main { max-width: 1380px; margin: 0 auto; padding: 24px 28px; }
+
+/* ── Nav tabs ── */
+.nav-tabs {
+  display: flex; gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+  background: var(--white);
+  border-radius: var(--r) var(--r) 0 0;
+  padding: 0 4px;
+  box-shadow: var(--shadow-sm);
+}
+.n-tab {
+  padding: 13px 20px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  border: none; background: transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all .15s; white-space: nowrap;
+}
+.n-tab:hover { color: var(--text); }
+.n-tab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+.n-tab.exec-tab { color: var(--brand); font-weight: 600; }
+.n-tab.exec-tab.active { background: var(--brand-bg); border-radius: 8px 8px 0 0; }
+.n-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand-bg); color: var(--brand); font-size: 10px; font-weight: 700; margin-left: 5px; }
+.n-badge.alert { background: var(--green-bg); color: var(--green); }
+
+/* ── Tab content ── */
+.tab-c  { display: none; }
+.tab-c.active { display: block; }
+.sub-tabs { display: flex; gap: 3px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; margin-bottom: 16px; width: fit-content; }
+.s-tab { padding: 5px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--muted); border: none; background: transparent; transition: all .15s; }
+.s-tab:hover { color: var(--text); }
+.s-tab.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+.sub-c { display: none; }
+.sub-c.active { display: block; }
+
+/* ── Narrativa ejecutiva ── */
+.exec-narrative {
+  background: var(--white); border-radius: var(--r);
+  padding: 20px 24px; margin-bottom: 20px;
+  border-left: 4px solid var(--brand);
+  box-shadow: var(--shadow);
+}
+.exec-narrative .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--brand); margin-bottom: 6px; }
+.exec-narrative p { font-size: 14px; color: var(--text); line-height: 1.7; }
+.exec-narrative strong { color: var(--brand); }
+
+/* ── KPI ejecutivos ── */
+.exec-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.exec-kpi {
+  background: var(--white); border-radius: var(--r);
+  padding: 20px 22px; border: 1px solid var(--border);
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.exec-kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.exec-kpi.kpi-blue::before  { background: var(--brand-light); }
+.exec-kpi.kpi-green::before { background: var(--green); }
+.exec-kpi.kpi-yellow::before{ background: var(--yellow); }
+.exec-kpi.kpi-gray::before  { background: var(--muted2); }
+.exec-kpi .kpi-icon  { font-size: 22px; margin-bottom: 10px; display: block; }
+.exec-kpi .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+.exec-kpi .kpi-number { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--text); }
+.exec-kpi.kpi-blue  .kpi-number { color: var(--brand-light); }
+.exec-kpi.kpi-green .kpi-number { color: var(--green); }
+.exec-kpi.kpi-yellow .kpi-number{ color: var(--yellow); }
+.exec-kpi .kpi-context { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.exec-kpi .kpi-context strong { color: var(--text); font-weight: 600; }
+.exec-kpi .kpi-delta { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; margin-top:8px; }
+.exec-kpi .kpi-delta.up     { background:var(--green-bg); color:var(--green); }
+.exec-kpi .kpi-delta.down   { background:var(--red-bg);   color:var(--red);   }
+.exec-kpi .kpi-delta.neutral{ background:var(--surface2); color:var(--muted); }
+.tech-label { font-size:9px; font-weight:600; text-transform:uppercase; background:var(--surface2); color:var(--muted2); padding:1px 5px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:.3px; }
+.scope-note { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:16px 20px; font-size:12px; color:var(--muted); line-height:1.7; }
+
+/* ── Oportunidades ejecutivas ── */
+.exec-opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.exec-opp-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  box-shadow: var(--shadow-sm); transition: box-shadow .15s, border-color .15s;
+}
+.exec-opp-card:hover { box-shadow: var(--shadow); border-color: var(--brand-light); }
+.exec-opp-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.exec-opp-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; flex: 1; }
+.relevance-badge { flex-shrink: 0; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.relevance-badge.alta   { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+.relevance-badge.media  { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.relevance-badge.baja   { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-border); }
+.exec-opp-org  { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.exec-opp-row  { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.exec-opp-monto { font-size: 15px; font-weight: 700; color: var(--green); }
+.exec-opp-tipo { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--brand-bg); color: var(--brand); font-weight: 600; }
+.exec-opp-cierre { font-size: 12px; color: var(--muted); }
+.exec-opp-cierre.urgente { color: var(--red); font-weight: 600; }
+.exec-opp-justificacion { font-size: 12px; color: var(--muted); line-height: 1.55; border-left: 3px solid var(--border-soft); padding-left: 10px; margin-top: 8px; }
+.exec-opp-link { display: inline-block; margin-top: 10px; font-size: 12px; color: var(--brand-light); text-decoration: none; font-weight: 500; }
+.exec-opp-link:hover { text-decoration: underline; }
+.tag-new { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; background: var(--brand-bg); color: var(--brand); margin-right: 4px; }
+
+/* ── Sistema semaforo ── */
+.sys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.sys-check { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--white); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow-sm); }
+.sys-check .check-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sys-check .check-dot.ok   { background: var(--green);  box-shadow: 0 0 5px rgba(5,150,105,.3); }
+.sys-check .check-dot.fail { background: var(--red);    box-shadow: 0 0 5px rgba(220,38,38,.3); }
+.sys-check .check-dot.warn { background: var(--yellow); box-shadow: 0 0 5px rgba(217,119,6,.3); }
+.sys-check-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.sys-check-msg  { font-size: 11px; color: var(--muted); }
+
+.exec-section-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 20px 22px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.exec-section-card .sec-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.exec-section-card .sec-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Period bar ── */
+.period-bar { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 20px; gap: 10px; }
+.period-label { font-size: 12px; color: var(--muted); }
+.period-tabs { display: flex; gap: 3px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 3px; box-shadow: var(--shadow-sm); }
+.p-tab { padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--muted); border: none; background: transparent; transition: all .15s; }
+.p-tab:hover { color: var(--text); }
+.p-tab.active { background: var(--brand); color: #fff; box-shadow: var(--shadow-sm); }
+
+/* ── KPI tecnico ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+.kpi-sep-label { grid-column: 1 / -1; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding-bottom: 6px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.kpi-sep-desc { font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--muted2); }
+.kpi-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow-sm); }
+.kpi-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+.kpi-val { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 5px; color: var(--text); }
+.kpi-d { font-size: 11px; color: var(--muted); }
+.kpi-d.up   { color: var(--green); }
+.kpi-d.down { color: var(--red); }
+
+/* ── Tooltips ── */
+.info { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--surface2); color: var(--muted); font-size: 9px; font-weight: 700; cursor: help; margin-left: 4px; vertical-align: middle; border: 1px solid var(--border); position: relative; }
+.info:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; font-size: 11px; font-weight: 400; line-height: 1.4; padding: 6px 10px; border-radius: 6px; white-space: normal; width: 220px; z-index: 200; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+
+/* ── Cards tecnicas ── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.opp-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s; }
+.opp-card:hover { border-color: var(--brand-light); box-shadow: var(--shadow); }
+.opp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.opp-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; flex: 1; }
+.score { flex-shrink: 0; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.score.hi { background: var(--green-bg); color: var(--green); }
+.score.md { background: var(--yellow-bg); color: var(--yellow); }
+.score.lo { background: var(--red-bg);   color: var(--red);   }
+.opp-org  { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.opp-mnt  { font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 7px; }
+.tags     { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+.tag      { padding: 2px 7px; border-radius: 4px; font-size: 11px; background: var(--surface2); color: var(--muted); }
+.tag.new  { background: var(--brand-bg); color: var(--brand); font-weight: 600; }
+.tag.alrt { background: var(--green-bg); color: var(--green); }
+.opp-meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.opp-meta span { margin-right: 10px; }
+.just { font-size: 11px; color: var(--muted); line-height: 1.5; border-left: 2px solid var(--border); padding-left: 8px; margin-top: 6px; }
+.ext-link { display: inline-block; margin-top: 8px; font-size: 11px; color: var(--brand-light); text-decoration: none; }
+.ext-link:hover { text-decoration: underline; }
+
+/* ── Funnel ── */
+.funnel { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 20px 22px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+.funnel-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.funnel-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.funnel-desc { font-size: 11px; color: var(--muted2); }
+.f-step { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.f-lbl-wrap { width: 200px; flex-shrink: 0; text-align: right; }
+.f-lbl  { font-size: 11px; color: var(--text); }
+.f-sub  { font-size: 10px; color: var(--muted); display: block; margin-top: 1px; }
+.f-wrap { flex: 1; height: 26px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.f-bar  { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.95); min-width: 28px; transition: width .4s ease; }
+.f-pct  { width: 50px; font-size: 11px; color: var(--muted); flex-shrink: 0; text-align: right; }
+
+/* ── Section desc ── */
+.section-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; padding: 10px 14px; background: var(--brand-bg); border-radius: var(--r); border-left: 3px solid var(--brand); }
+
+/* ── Lic toolbar (sort, filter) ── */
+.lic-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.lic-toolbar label { font-size: 12px; font-weight: 500; color: var(--muted); }
+.lic-toolbar select { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px; background: var(--white); color: var(--text); cursor: pointer; }
+.lic-toolbar select:focus { outline: none; border-color: var(--brand-light); }
+.filter-pills { display: flex; gap: 3px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.f-pill { padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--muted); border: none; background: transparent; transition: all .15s; }
+.f-pill:hover { color: var(--text); }
+.f-pill.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+.f-pill .pill-count { font-size: 10px; margin-left: 4px; opacity: .6; }
+
+/* ── Notes / comments ── */
+.note-toggle { background: none; border: none; cursor: pointer; font-size: 11px; color: var(--brand-light); padding: 4px 0; margin-top: 6px; }
+.note-toggle:hover { text-decoration: underline; }
+.note-area { margin-top: 6px; display: none; }
+.note-area.open { display: block; }
+.note-area textarea { width: 100%; min-height: 50px; border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit; resize: vertical; color: var(--text); background: var(--surface2); }
+.note-area textarea:focus { outline: none; border-color: var(--brand-light); background: var(--white); }
+.note-saved { font-size: 10px; color: var(--green); margin-top: 3px; opacity: 0; transition: opacity .3s; }
+.note-saved.show { opacity: 1; }
+.note-preview { font-size: 11px; color: var(--muted); margin-top: 4px; padding: 5px 8px; background: var(--surface2); border-radius: 4px; border-left: 3px solid var(--brand-light); white-space: pre-wrap; word-break: break-word; }
+
+/* ── Opp table toolbar ── */
+.opp-toolbar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  margin-bottom: 16px; padding: 14px 18px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--r); box-shadow: var(--shadow-sm);
+}
+.opp-toolbar label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.opp-toolbar select {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+  font-size: 12px; background: var(--white); color: var(--text); cursor: pointer;
+}
+.opp-toolbar select:focus { outline: none; border-color: var(--brand-light); }
+.opp-search {
+  padding: 6px 12px 6px 30px; border-radius: 6px; border: 1px solid var(--border);
+  font-size: 12px; background: var(--white); color: var(--text); width: 220px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%239ca3c0' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 8px center;
+}
+.opp-search:focus { outline: none; border-color: var(--brand-light); }
+.opp-search::placeholder { color: var(--muted2); }
+.opp-counter { font-size: 11px; color: var(--muted2); margin-left: auto; white-space: nowrap; }
+.opp-tbl-nombre { font-weight: 500; color: var(--text); max-width: 300px; line-height: 1.4; }
+.opp-tbl-nombre a { color: var(--text); text-decoration: none; }
+.opp-tbl-nombre a:hover { color: var(--brand-light); text-decoration: underline; }
+.estado-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.estado-badge.abierta { background: var(--green-bg); color: var(--green); }
+.estado-badge.cerrada { background: var(--red-bg); color: var(--red); }
+.tipo-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.tipo-badge.lic { background: var(--brand-bg); color: var(--brand); }
+.tipo-badge.agil { background: var(--yellow-bg); color: var(--yellow); }
+.note-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-light); cursor: help; }
+
+/* ── Estado dropdown ── */
+.estado-select {
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; background: var(--white); cursor: pointer;
+  color: var(--text); min-width: 110px; appearance: auto;
+}
+.estado-select:focus { outline: none; border-color: var(--brand-light); }
+.estado-select.est-postulando { background: var(--brand-bg); color: var(--brand); border-color: var(--brand-light); }
+.estado-select.est-ganada { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.estado-select.est-perdida { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+.estado-select.est-no_postulado { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow-border); }
+
+/* ── Estado change modal ── */
+.estado-modal-textarea {
+  width: 100%; min-height: 120px; border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; font-size: 13px; font-family: inherit;
+  resize: vertical; color: var(--text); background: var(--surface2); line-height: 1.6;
+}
+.estado-modal-textarea:focus { outline: none; border-color: var(--brand-light); background: var(--white); }
+.estado-modal-textarea.error { border-color: var(--red); }
+.estado-error-msg { font-size: 11px; color: var(--red); margin-top: 6px; display: none; }
+.estado-error-msg.show { display: block; }
+.estado-historial { margin-top: 16px; max-height: 250px; overflow-y: auto; }
+.estado-hist-item {
+  padding: 10px 0; border-bottom: 1px solid var(--border-soft);
+  font-size: 12px; color: var(--text);
+}
+.estado-hist-item:last-child { border-bottom: none; }
+.estado-hist-estado { font-weight: 700; }
+.estado-hist-nota { color: var(--muted); margin-top: 4px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.estado-hist-meta { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+@media (max-width: 900px) {
+  .opp-toolbar { gap: 8px; padding: 10px 12px; }
+  .opp-search { width: 100%; }
+  .opp-counter { margin-left: 0; }
+}
+
+/* ── Tables ── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+table { width: 100%; border-collapse: collapse; background: var(--white); }
+th { background: var(--surface2); padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; transition: color .15s; }
+th:hover { color: var(--text); }
+th.sort-asc::after  { content: ' \25B2'; font-size: 9px; }
+th.sort-desc::after { content: ' \25BC'; font-size: 9px; }
+td { padding: 10px 12px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.badge.ok  { background: var(--green-bg);  color: var(--green);  }
+.badge.err { background: var(--red-bg);    color: var(--red);    }
+.badge.run { background: var(--yellow-bg); color: var(--yellow); }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px; }
+.chart-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow-sm); }
+.chart-card h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 4px; }
+.chart-desc { font-size: 11px; color: var(--muted2); margin-bottom: 14px; }
+.chart-card canvas { max-height: 260px; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 48px 24px; color: var(--muted); background: var(--white); border-radius: var(--r); border: 1px solid var(--border); }
+.empty-t { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.empty-s { font-size: 12px; }
+
+/* ── Loading / Error ── */
+#loading { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 1000; }
+.spin { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: sp .7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+#err-state { display: none; padding: 48px 24px; text-align: center; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) { .exec-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .exec-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .card-grid { grid-template-columns: 1fr; }
+  .exec-opp-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .main { padding: 14px 16px; }
+  .f-lbl-wrap { width: 130px; }
+  .hdr-ts { display: none; }
+  .n-tab { padding: 10px 12px; font-size: 12px; }
+  .detail-grid { grid-template-columns: 110px 1fr; }
+  .opp-toolbar { gap: 8px; padding: 10px 12px; }
+  .opp-search { width: 100%; }
+  .opp-counter { margin-left: 0; }
+}
+@media (max-width: 500px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-label { padding-bottom: 2px; border-bottom: none; }
+  .modal-box { max-width: 98vw; max-height: 92vh; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spin"></div>
+  <div style="font-size:13px;color:var(--muted)">Cargando informacion…</div>
+</div>
+
+<div id="err-state" class="main">
+  <p style="color:var(--red);font-size:16px;font-weight:700">No se pudieron cargar los datos</p>
+  <p id="err-msg" style="color:var(--muted);margin-top:8px;font-size:13px"></p>
+</div>
+
+<div id="app" style="display:none">
+
+<header class="hdr">
+  <div class="hdr-brand">
+    Monitor <span class="logo-chip">MERCADO PÚBLICO</span>
+    <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.4);margin-left:6px">por Tecnipro</span>
+  </div>
+  <div class="hdr-status">
+    <a href="https://www.mercadopublico.cl/Home" target="_blank" class="hdr-mp-link">Mercado Publico</a>
+    <div class="sys-status">
+      <div class="sys-dot" id="sysDot"></div>
+      <span id="sysStatusMsg">Verificando sistema…</span>
+    </div>
+    <div class="hdr-ts" id="hdrTs"></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <div class="nav-tabs">
+    <button class="n-tab exec-tab active" data-tab="ejecutivo">Resumen Ejecutivo</button>
+    <button class="n-tab" data-tab="oportunidades">Todas las Oportunidades <span class="n-badge alert" id="bOpp">0</span></button>
+    <button class="n-tab" data-tab="analisis">Graficos</button>
+    <button class="n-tab" data-tab="ejecuciones">Historial <span class="tech-label">técnico</span></button>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <div class="tab-c active" id="tab-ejecutivo">
+    <div class="exec-narrative">
+      <div class="label">Informe ejecutivo &middot; <span id="execPeriodLabel">esta semana</span></div>
+      <p id="execNarrativa">Cargando resumen…</p>
+    </div>
+    <div class="period-bar">
+      <span class="period-label">Ver datos de:</span>
+      <div class="period-tabs">
+        <button class="p-tab" data-p="hoy">Hoy</button>
+        <button class="p-tab active" data-p="semana">Esta semana</button>
+        <button class="p-tab" data-p="mes">Este mes</button>
+        <button class="p-tab" data-p="todo">Historico</button>
+      </div>
+    </div>
+    <div class="exec-kpi-grid" id="execKpiGrid"></div>
+    <div class="exec-section-card">
+      <div class="sec-title">Principales oportunidades para cotizar</div>
+      <div class="exec-opp-grid" id="execOppGrid"></div>
+    </div>
+    <div class="exec-section-card">
+      <div class="sec-title">Estado del sistema de monitoreo</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="sysLastRun"></div>
+      <div class="sys-grid" id="execSysGrid"></div>
+    </div>
+    <div class="scope-note">
+      <strong style="color:var(--text)">Alcance de este monitoreo:</strong>
+      Este sistema detecta, clasifica y alerta sobre publicaciones de Mercado Público que coinciden con el perfil de negocio configurado.
+      <strong>No registra</strong> cotizaciones enviadas, adjudicaciones ganadas ni facturación resultante — esas métricas se gestionan en el sistema comercial de cada empresa.
+      Los montos indicados son estimaciones basadas en los valores publicados por los organismos del Estado y no representan ingresos proyectados.
+    </div>
+  </div>
+
+  <!-- TODAS LAS OPORTUNIDADES -->
+  <div class="tab-c" id="tab-oportunidades">
+    <div class="section-desc">Listado completo de oportunidades detectadas — licitaciones y compras agiles. Use la columna Estado para seguimiento comercial.</div>
+    <div class="opp-toolbar">
+      <label>Ordenar:</label>
+      <select id="oppSort">
+        <option value="puntaje">Relevancia</option>
+        <option value="codigo">ID / Codigo</option>
+        <option value="fecha_descarga">Fecha publicacion</option>
+        <option value="fecha_cierre">Fecha cierre</option>
+        <option value="monto">Monto</option>
+      </select>
+      <div class="filter-pills" id="oppFilterPills">
+        <button class="f-pill active" data-opp-filter="todas">Todas <span class="pill-count" id="oppCntTodas"></span></button>
+        <button class="f-pill" data-opp-filter="abiertas">Abiertas <span class="pill-count" id="oppCntAbiertas"></span></button>
+        <button class="f-pill" data-opp-filter="cerradas">Cerradas <span class="pill-count" id="oppCntCerradas"></span></button>
+      </div>
+      <input type="text" class="opp-search" id="oppSearch" placeholder="Buscar nombre, organismo o codigo...">
+      <label>Seguimiento:</label>
+      <select id="oppEstadoFilter" style="min-width:110px">
+        <option value="todos">Todos</option>
+        <option value="sin_estado">Sin estado</option>
+        <option value="postulando">Postulando</option>
+        <option value="ganada">Ganada</option>
+        <option value="perdida">Perdida</option>
+        <option value="no_postulado">No postulado</option>
+      </select>
+      <span class="opp-counter" id="oppCounter"></span>
+    </div>
+    <div id="gridOpp"></div>
+  </div>
+
+
+  <!-- HISTORIAL -->
+  <div class="tab-c" id="tab-ejecuciones">
+    <div class="section-desc">Registro de las ultimas revisiones automaticas del sistema. Cada revision descarga, analiza y alerta sobre nuevas licitaciones y compras agiles.</div>
+    <div id="tblEjec"></div>
+  </div>
+
+  <!-- GRAFICOS -->
+  <div class="tab-c" id="tab-analisis">
+    <div class="charts-grid">
+      <div class="chart-card" style="grid-column:1/-1">
+        <h3>Evolucion — Licitaciones y Compras Agiles (ultimos 30 dias)</h3>
+        <div class="chart-desc">Publicaciones revisadas vs. oportunidades identificadas cada dia.</div>
+        <canvas id="cEvolucion" style="max-height:300px"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Proceso de revision de Compras Agiles — Acumulado</h3>
+        <div class="chart-desc">De cada 100 detectadas, cuantas terminan siendo recomendadas.</div>
+        <canvas id="cFunnel"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Oportunidades detectadas por dia</h3>
+        <div class="chart-desc">Suma diaria de licitaciones y compras agiles recomendadas para cotizar.</div>
+        <canvas id="cAlertas"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Distribucion por estado de seguimiento</h3>
+        <div class="chart-desc">Estado actual asignado a cada oportunidad por el equipo comercial.</div>
+        <canvas id="cEstadoDist"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Actividad de seguimiento por semana</h3>
+        <div class="chart-desc">Cambios de estado registrados por el equipo comercial.</div>
+        <canvas id="cEstadoTiempo"></canvas>
+      </div>
+      <div class="chart-card" style="grid-column:1/-1">
+        <h3>Tiempo de cada revision automatica (minutos)</h3>
+        <div class="chart-desc">Duracion de cada revision. Valores altos pueden indicar mayor volumen de publicaciones.</div>
+        <canvas id="cDuracion" style="max-height:180px"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- MODAL: Detalle de oportunidad -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="detailTitle">Detalle de oportunidad</h3>
+      <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="detail-actions">
+      <a id="detailMpLink" href="#" target="_blank" class="btn-primary">Ver en Mercado Publico</a>
+      <button class="btn-secondary" onclick="closeModal('detailModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Notas -->
+<div class="modal-overlay" id="noteModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="noteTitle">Notas</h3>
+      <button class="modal-close" onclick="closeModal('noteModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="note-modal-textarea" id="noteTextarea" placeholder="Escribe tus notas, comentarios o seguimiento sobre esta oportunidad..."></textarea>
+      <div class="note-modal-info" id="noteInfo"></div>
+    </div>
+    <div class="detail-actions">
+      <span id="noteSaveStatus"></span>
+      <button class="btn-primary" id="noteSaveBtn" onclick="saveCurrentNote()">Guardar nota</button>
+      <button class="btn-secondary" onclick="closeModal('noteModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Cambio de Estado -->
+<div class="modal-overlay" id="estadoModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="estadoTitle">Cambiar estado</h3>
+      <button class="modal-close" onclick="closeModal('estadoModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">Cambio de estado:</div>
+        <div id="estadoNewLabel" style="font-size:14px;font-weight:700;color:var(--brand)"></div>
+      </div>
+      <div style="margin-bottom:4px;font-size:12px;font-weight:600;color:var(--muted)">Nota explicativa (obligatoria):</div>
+      <textarea class="estado-modal-textarea" id="estadoNota" placeholder="Explica el motivo del cambio de estado..."></textarea>
+      <div class="estado-error-msg" id="estadoError">Debes escribir una nota explicando el cambio de estado.</div>
+      <div class="estado-historial" id="estadoHistorial"></div>
+    </div>
+    <div class="detail-actions">
+      <span id="estadoSaveStatus"></span>
+      <button class="btn-primary" id="estadoSaveBtn" onclick="saveEstadoChange()">Guardar cambio</button>
+      <button class="btn-secondary" onclick="cancelEstadoChange()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── CSRF — include token in all POST/PUT/DELETE requests ── */
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const _originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    if (options.method && options.method !== 'GET') {
+        options.headers = Object.assign({}, options.headers, {'X-CSRFToken': CSRF_TOKEN});
+    }
+    return _originalFetch(url, options);
+};
+
+/* ── HTML escaping to prevent XSS ── */
+var _escEl = document.createElement('div');
+function escHtml(s) {
+  if (!s && s !== 0) return '';
+  _escEl.textContent = String(s);
+  return _escEl.innerHTML;
+}
+
+var G = {
+  descargadas:  'Total de publicaciones obtenidas de Mercado Publico que coinciden con las palabras clave de Tecnipro.',
+  filtradas_lic:'Licitaciones a las que se descargo el detalle completo para revision.',
+  evaluadas:    'Publicaciones analizadas en profundidad para determinar su relevancia.',
+  alertadas:    'Notificaciones enviadas al equipo comercial por correo electronico.',
+  oportunidades:'Publicaciones recomendadas para cotizar, con alta relevancia para Tecnipro.',
+  filtradas_f1: 'Compras agiles que coinciden con palabras clave y entran al proceso de revision.',
+  f1_evaluadas: 'Compras agiles analizadas en la primera revision rapida.',
+  f1_positivas: 'Compras agiles que pasaron la primera revision y requieren analisis profundo.',
+  f2_evaluadas: 'Compras agiles analizadas en la segunda revision detallada.',
+  f2_confirmadas:'Compras agiles confirmadas como oportunidades reales tras la segunda revision.',
+  puntaje:      'Relevancia estimada: 8 o mas = alta (verde), 6 o mas = media (amarillo), menor = baja (rojo).',
+  fase1:        'Primera revision: filtro rapido para identificar si la compra es relevante para Tecnipro.',
+  fase2:        'Segunda revision: analisis detallado con justificacion de por que se recomienda o descarta.'
+};
+
+function infoIcon(tip) {
+  return '<span class="info" data-tip="' + tip + '">?</span>';
+}
+
+var D = null;
+var period = 'semana';
+var charts = {};
+
+var $ = function(id) { return document.getElementById(id); };
+var fmt = function(n) { return n == null ? '\u2014' : Number(n).toLocaleString('es-CL'); };
+
+function fmtM(m, u) {
+  if (!m || m === 0) return '\u2014';
+  var v = Number(m), sfx = (u && u !== 'CLP') ? ' ' + u : '';
+  if (v >= 1e9) return '$' + (v/1e9).toFixed(1) + ' B' + sfx;
+  if (v >= 1e6) return '$' + (v/1e6).toFixed(1) + ' MM' + sfx;
+  if (v >= 1e3) return '$' + (v/1e3).toFixed(0) + 'K' + sfx;
+  return '$' + v.toLocaleString('es-CL') + sfx;
+}
+
+function fmtMFull(m) {
+  if (!m || m === 0) return '\u2014';
+  var v = Number(m);
+  if (v >= 1e9) return '$' + (v/1e9).toFixed(1) + ' billones';
+  if (v >= 1e6) return '$' + Math.round(v/1e6).toLocaleString('es-CL') + ' millones';
+  if (v >= 1e3) return '$' + Math.round(v/1e3).toLocaleString('es-CL') + ' mil';
+  return '$' + v.toLocaleString('es-CL');
+}
+
+/* Parse date from ISO (YYYY-MM-DD) or DD/MM/YYYY */
+function parseFecha(s) {
+  if (!s) return null;
+  var t = s.replace(/T.*/, '').trim();
+  if (t.indexOf('/') >= 0) {
+    var p = t.split('/');
+    if (p.length === 3) {
+      var dd = parseInt(p[0],10), mm = parseInt(p[1],10)-1, yy = parseInt(p[2],10);
+      if (yy < 100) yy += 2000;
+      return new Date(yy, mm, dd);
+    }
+    return null;
+  }
+  var p2 = t.split('-');
+  if (p2.length === 3) return new Date(parseInt(p2[0],10), parseInt(p2[1],10)-1, parseInt(p2[2],10));
+  return null;
+}
+
+function fmtD(s) {
+  if (!s) return '\u2014';
+  var d = parseFecha(s);
+  if (!d || isNaN(d.getTime())) return '\u2014';
+  var dd = ('0'+d.getDate()).slice(-2);
+  var mm = ('0'+(d.getMonth()+1)).slice(-2);
+  var yy = String(d.getFullYear()).slice(-2);
+  return dd + '/' + mm + '/' + yy;
+}
+
+function diasHastaHoy(ds) {
+  if (!ds) return null;
+  var c = parseFecha(ds);
+  if (!c || isNaN(c.getTime())) return null;
+  var h = new Date(); h.setHours(0,0,0,0); c.setHours(0,0,0,0);
+  return Math.round((c - h) / 86400000);
+}
+
+var today = new Date(); today.setHours(0,0,0,0);
+var isNew  = function(f) { var d = parseFecha(f); return d && d.getTime() === today.getTime(); };
+var sClass = function(p) { return p >= 8 ? 'hi' : p >= 6 ? 'md' : 'lo'; };
+var trunc  = function(s, n) { n = n || 200; return s && s.length > n ? s.slice(0,n) + '\u2026' : (s || ''); };
+
+function mkDelta(now, prev, label) {
+  if (prev == null || now == null) return '<span class="kpi-d">\u2014</span>';
+  var d = now - prev, cls = d > 0 ? 'up' : d < 0 ? 'down' : '', sign = d > 0 ? '+' : '';
+  return '<span class="kpi-d ' + cls + '">' + sign + fmt(d) + ' ' + label + '</span>';
+}
+
+function emptyState(msg) {
+  return '<div class="empty"><div class="empty-t">' + (msg||'Sin registros') + '</div><div class="empty-s">No hay datos disponibles aun</div></div>';
+}
+
+function mpUrlLic(c)  { return 'https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=' + encodeURIComponent(c); }
+function mpUrlAgil(c) { return 'https://www.mercadopublico.cl/Compras/index.aspx?ID=' + encodeURIComponent(c); }
+
+/* Health */
+var HEALTH_LABELS = { configuracion:'Configuracion', base_datos:'Base de Datos', api_mercadopublico:'API Mercado Publico', playwright:'Navegador web', imap:'Correo electronico' };
+
+function renderHealth(h) {
+  if (!h || !h.checks || !h.checks.length) { $('sysStatusMsg').textContent = 'Sin datos de estado'; return; }
+  if (h.timestamp) {
+    var ts = new Date(h.timestamp), ahora = new Date();
+    var diffMin = Math.round((ahora - ts) / 60000);
+    var diffHrs = Math.round(diffMin / 60);
+    var tsStr = diffMin < 2 ? 'hace un momento' : diffMin < 60 ? 'hace ' + diffMin + ' min' : diffHrs < 24 ? 'hace ' + diffHrs + ' hora' + (diffHrs > 1 ? 's' : '') : ts.toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'});
+    $('hdrTs').textContent = 'Ultima revision: ' + tsStr;
+    $('sysLastRun').textContent = 'Ultimo chequeo: ' + ts.toLocaleString('es-CL',{dateStyle:'long',timeStyle:'short'});
+  }
+  var allOk = h.checks.every(function(c){ return c.ok; });
+  var anyFail = h.checks.some(function(c){ return !c.ok; });
+  var dot = $('sysDot'), msg = $('sysStatusMsg');
+  if (allOk) { dot.className = 'sys-dot'; msg.textContent = 'Sistema operativo'; }
+  else if (anyFail) { dot.className = 'sys-dot fail'; msg.textContent = 'Atencion: hay componentes con problemas'; }
+  else { dot.className = 'sys-dot warn'; msg.textContent = 'Sistema con advertencias'; }
+  $('execSysGrid').innerHTML = h.checks.map(function(c) {
+    var lbl = HEALTH_LABELS[c.nombre] || c.nombre;
+    var cls = c.ok ? 'ok' : 'fail';
+    var mmsg = c.mensaje || (c.ok ? 'Operando correctamente' : 'Con problemas');
+    return '<div class="sys-check"><div class="check-dot ' + cls + '"></div><div><div class="sys-check-name">' + lbl + '</div><div class="sys-check-msg">' + mmsg + '</div></div></div>';
+  }).join('');
+}
+
+/* Resumen Ejecutivo */
+function renderEjecutivo() {
+  var lic = D.kpis.licitaciones[period];
+  var ag  = D.kpis.compras_agiles[period];
+  var periodoTexto = { hoy:'hoy', semana:'esta semana', mes:'este mes', todo:'en el historico total' }[period] || period;
+  var periodNarr   = { hoy:'Hoy', semana:'Esta semana', mes:'Este mes', todo:'En total' }[period] || 'En el periodo';
+  $('execPeriodLabel').textContent = periodoTexto;
+
+  var allOpp = []
+    .concat(dedup(D.licitaciones.oportunidades))
+    .concat(D.compras_agiles.oportunidades_confirmadas);
+  var totalMonto = allOpp.reduce(function(s,r){ return s + (Number(r.monto_estimado)||0); }, 0);
+  var totalLic   = lic.descargadas || 0;
+  var totalAg    = ag.filtradas    || 0;
+  var totalOpp   = (lic.oportunidades||0) + (ag.fase2_positivas||0);
+  var totalAlert = (lic.alertadas||0) + (ag.alertadas||0);
+  var totalRecom = ag.fase2_positivas || 0;
+
+  /* === Comparación temporal === */
+  var prevPeriod = { hoy:'ayer', semana:null, mes:null, todo:null }[period];
+  var licPrev = prevPeriod ? D.kpis.licitaciones[prevPeriod] : null;
+  var agPrev  = prevPeriod ? D.kpis.compras_agiles[prevPeriod] : null;
+
+  /* Tendencia desde tendencia_diaria (semana y mes) */
+  var periodDeltaPct = null;
+  var periodDeltaLabel = '';
+  if (period === 'semana' && D.tendencia_diaria && D.tendencia_diaria.length >= 14) {
+    var tend14 = D.tendencia_diaria.slice(-14);
+    var cur7 = tend14.slice(7).reduce(function(s,d){ return s+(d.lic_oportunidades||0)+(d.agil_confirmadas||0); }, 0);
+    var prv7 = tend14.slice(0,7).reduce(function(s,d){ return s+(d.lic_oportunidades||0)+(d.agil_confirmadas||0); }, 0);
+    if (prv7 > 0) { periodDeltaPct = Math.round(((cur7-prv7)/prv7)*100); periodDeltaLabel = 'vs semana anterior'; }
+  }
+  if (period === 'mes' && D.tendencia_diaria && D.tendencia_diaria.length >= 28) {
+    var tend28 = D.tendencia_diaria.slice(-28);
+    var curH = tend28.slice(14).reduce(function(s,d){ return s+(d.lic_oportunidades||0)+(d.agil_confirmadas||0); }, 0);
+    var prvH = tend28.slice(0,14).reduce(function(s,d){ return s+(d.lic_oportunidades||0)+(d.agil_confirmadas||0); }, 0);
+    if (prvH > 0) { periodDeltaPct = Math.round(((curH-prvH)/prvH)*100); periodDeltaLabel = 'vs quincena anterior'; }
+  }
+
+  function mkDeltaTag(now, prev, label, usePeriodPct) {
+    if (usePeriodPct && periodDeltaPct !== null) {
+      var cls2 = periodDeltaPct > 0 ? 'up' : periodDeltaPct < 0 ? 'down' : 'neutral';
+      var sign2 = periodDeltaPct > 0 ? '+' : '';
+      return '<span class="kpi-delta ' + cls2 + '">' + sign2 + periodDeltaPct + '% ' + periodDeltaLabel + '</span>';
+    }
+    if (prev == null) return '';
+    var d = now - prev;
+    if (d === 0) return '<span class="kpi-delta neutral">igual que ' + label + '</span>';
+    var cls = d > 0 ? 'up' : 'down';
+    var sign = d > 0 ? '+' : '';
+    return '<span class="kpi-delta ' + cls + '">' + sign + d + ' vs ' + label + '</span>';
+  }
+
+  var prevLabel = { hoy:'ayer' }[period] || null;
+  var prevOppTotal  = licPrev ? (licPrev.oportunidades||0)+(agPrev.fase2_positivas||0) : null;
+  var prevRecom     = agPrev  ? (agPrev.fase2_positivas||0) : null;
+  var prevAlertTotal= licPrev ? (licPrev.alertadas||0)+(agPrev.alertadas||0) : null;
+  var usePeriodPct  = (period === 'semana' || period === 'mes');
+
+  /* Narrativa */
+  var trendNarr = '';
+  if (period === 'hoy' && licPrev) {
+    var prevOppHoy = (licPrev.oportunidades||0)+(agPrev.fase2_positivas||0);
+    var d = totalOpp - prevOppHoy;
+    if (d > 0) trendNarr = ' Esto es <strong>' + d + ' más que ayer</strong>.';
+    else if (d < 0) trendNarr = ' Esto es <strong>' + Math.abs(d) + ' menos que ayer</strong>.';
+    else trendNarr = ' Sin cambio respecto a ayer.';
+  } else if ((period === 'semana' || period === 'mes') && periodDeltaPct !== null) {
+    var sp = periodDeltaPct >= 0 ? '+' : '';
+    trendNarr = ' La tendencia es <strong>' + sp + periodDeltaPct + '% ' + periodDeltaLabel + '</strong>.';
+  }
+
+  var narr;
+  if (totalOpp === 0) {
+    narr = periodNarr + ' el sistema reviso <strong>' + fmt(totalLic) + ' licitaciones</strong> y <strong>' + fmt(totalAg) + ' compras agiles</strong> publicadas en Mercado Publico. Por el momento no se identificaron oportunidades con relevancia suficiente. El sistema continua monitoreando de forma automatica.' + trendNarr;
+  } else {
+    var montoStr = totalMonto > 0 ? ' con un valor potencial estimado de <strong>' + fmtMFull(totalMonto) + '</strong>' : '';
+    narr = periodNarr + ' el sistema reviso <strong>' + fmt(totalLic) + ' licitaciones</strong> y <strong>' + fmt(totalAg) + ' compras agiles</strong> publicadas en Mercado Publico. Se identificaron <strong>' + totalOpp + ' oportunidades</strong>' + montoStr + '. ' +
+      (totalAlert > 0 ? 'El equipo comercial recibio <strong>' + totalAlert + ' notificacion' + (totalAlert>1?'es':'') + '</strong> por correo electronico.' : 'Aun no se han enviado notificaciones al equipo comercial.') + trendNarr;
+  }
+  $('execNarrativa').innerHTML = narr;
+
+  /* KPIs ejecutivos */
+  var montoDisp = totalMonto > 0 ? fmtMFull(totalMonto) : '—';
+  var kpis = [
+    { cls:'kpi-blue',   icon:'📊', label:'Oportunidades detectadas',    number:fmt(totalOpp),
+      context:'De <strong>' + fmt(totalLic) + '</strong> licitaciones y <strong>' + fmt(totalAg) + '</strong> compras agiles revisadas ' + periodoTexto,
+      delta:mkDeltaTag(totalOpp, prevOppTotal, prevLabel, usePeriodPct) },
+    { cls:'kpi-green',  icon:'💰',
+      label:'Valor potencial estimado <span class="info" data-tip="Estimación basada en montos publicados por los organismos compradores. No representa ingresos proyectados ni compromisos de compra del Estado.">?</span>',
+      number:montoDisp,
+      context: totalMonto > 0 ? 'Suma de montos publicados por organismos del Estado' : 'Sin monto estimado disponible',
+      delta:'' },
+    { cls:'kpi-yellow', icon:'✅', label:'Recomendadas para cotizar',   number:fmt(totalRecom),
+      context:'Compras agiles que completaron las dos revisiones del sistema',
+      delta:mkDeltaTag(totalRecom, prevRecom, prevLabel, usePeriodPct) },
+    { cls:'kpi-gray',   icon:'📧', label:'Alertas enviadas al equipo',  number:fmt(totalAlert),
+      context:'Notificaciones enviadas por correo al equipo comercial ' + periodoTexto,
+      delta:mkDeltaTag(totalAlert, prevAlertTotal, prevLabel, usePeriodPct) },
+  ];
+  $('execKpiGrid').innerHTML = kpis.map(function(k) {
+    return '<div class="exec-kpi ' + k.cls + '"><span class="kpi-icon">' + k.icon + '</span><div class="kpi-label">' + k.label + '</div><div class="kpi-number">' + k.number + '</div><div class="kpi-context">' + k.context + '</div>' + (k.delta ? k.delta : '') + '</div>';
+  }).join('');
+
+  /* Top 5 oportunidades */
+  var top = []
+    .concat(dedup(D.licitaciones.oportunidades).map(function(r){ return Object.assign({},r,{_t:'lic'}); }))
+    .concat(D.compras_agiles.oportunidades_confirmadas.map(function(r){ return Object.assign({},r,{_t:'agil'}); }));
+  top.sort(function(a,b){ return (b.puntaje||0) - (a.puntaje||0); });
+  top = top.slice(0,5);
+  if (!top.length) {
+    $('execOppGrid').innerHTML = '<div style="grid-column:1/-1">' + emptyState('Sin oportunidades por el momento') + '</div>';
+    return;
+  }
+  $('execOppGrid').innerHTML = top.map(function(r) {
+    var nw = isNew(r.fecha_descarga);
+    var dias = diasHastaHoy(r.fecha_cierre);
+    var urg = dias !== null && dias >= 0 && dias <= 5;
+    var cierreStr = dias === null ? '\u2014' : dias < 0 ? 'Licitacion cerrada' : dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra manana' : 'Cierra en ' + dias + ' dias (' + fmtD(r.fecha_cierre) + ')';
+    var relLbl = r.puntaje >= 8 ? 'Alta relevancia' : r.puntaje >= 6 ? 'Relevancia media' : 'Baja relevancia';
+    var relCls = r.puntaje >= 8 ? 'alta' : r.puntaje >= 6 ? 'media' : 'baja';
+    var tipo   = r._t === 'lic' ? 'Licitacion' : 'Compra Agil';
+    var url    = r._t === 'lic' ? mpUrlLic(r.codigo) : mpUrlAgil(r.codigo);
+    var just   = r._t === 'lic' ? (r.justificacion||'') : (r.fase2_justificacion||r.justificacion||'');
+    return '<div class="exec-opp-card">' +
+      '<div class="exec-opp-top">' +
+        '<div class="exec-opp-title">' + (nw ? '<span class="tag-new">NUEVA</span>' : '') + escHtml(r.nombre||r.codigo) + '</div>' +
+        '<span class="relevance-badge ' + relCls + '">' + relLbl + '</span>' +
+      '</div>' +
+      '<div class="exec-opp-org">' + escHtml(r.organismo||'\u2014') + (r.region ? ' &nbsp;&middot;&nbsp; ' + escHtml(r.region) : '') + '</div>' +
+      '<div class="exec-opp-row">' +
+        (r.monto_estimado ? '<span class="exec-opp-monto">' + fmtM(r.monto_estimado, r.unidad_monetaria) + '</span>' : '') +
+        '<span class="exec-opp-tipo">' + tipo + '</span>' +
+        '<span class="exec-opp-cierre' + (urg ? ' urgente' : '') + '">' + cierreStr + '</span>' +
+      '</div>' +
+      (just ? '<div class="exec-opp-justificacion">' + escHtml(trunc(just, 200)) + '</div>' : '') +
+      '<a class="exec-opp-link" href="' + url + '" target="_blank">Ver publicacion en Mercado Publico &#8594;</a>' +
+    '</div>';
+  }).join('');
+}
+
+/* Tabs */
+document.querySelectorAll('.p-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.p-tab').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    period = btn.dataset.p;
+    if (D) renderEjecutivo();
+  });
+});
+
+document.querySelectorAll('.n-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.n-tab').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-c').forEach(function(t) { t.classList.remove('active'); });
+    btn.classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.s-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var tabEl = btn.closest('.tab-c');
+    tabEl.querySelectorAll('.s-tab').forEach(function(b) { b.classList.remove('active'); });
+    tabEl.querySelectorAll('.sub-c').forEach(function(c) { c.classList.remove('active'); });
+    btn.classList.add('active');
+    $('sub-' + btn.dataset.sub).classList.add('active');
+  });
+});
+
+/* ── Notes system (server + localStorage fallback) ── */
+var _notesCache = {};
+var _notesLoaded = false;
+
+function loadNotesFromServer() {
+  return fetch('/api/licitacion-notas').then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    _notesCache = data || {};
+    _notesLoaded = true;
+    /* Sync to localStorage as backup */
+    try { localStorage.setItem('lic_notes', JSON.stringify(_notesCache)); } catch(e){}
+  }).catch(function() {
+    /* Fallback: load from localStorage */
+    try { _notesCache = JSON.parse(localStorage.getItem('lic_notes')||'{}'); } catch(e){ _notesCache = {}; }
+    _notesLoaded = true;
+  });
+}
+
+function getNote(codigo) { return (_notesCache[codigo] && _notesCache[codigo].texto) || ''; }
+
+function saveNoteToServer(codigo, texto) {
+  /* Update cache immediately */
+  _notesCache[codigo] = { texto: texto, fecha: new Date().toISOString() };
+  try { localStorage.setItem('lic_notes', JSON.stringify(_notesCache)); } catch(e){}
+
+  return fetch('/api/licitacion-nota', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo: codigo, texto: texto })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+/* ── Estado tracking system (server-side with history) ── */
+var _estadosCache = {};
+var _estadosLoaded = false;
+var _pendingEstado = { codigo: '', estadoNuevo: '', estadoAnterior: '' };
+
+function loadEstadosFromServer() {
+  return fetch('/api/licitacion-estados').then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    _estadosCache = data || {};
+    _estadosLoaded = true;
+  }).catch(function() {
+    _estadosLoaded = true;
+  });
+}
+
+function getEstadoActual(codigo) {
+  var entry = _estadosCache[codigo];
+  return entry ? (entry.estado_actual || 'sin_estado') : 'sin_estado';
+}
+
+function getEstadoHistorial(codigo) {
+  var entry = _estadosCache[codigo];
+  return entry && entry.historial ? entry.historial : [];
+}
+
+var ESTADO_OPTIONS = [
+  { value: 'sin_estado', label: 'Sin estado' },
+  { value: 'postulando', label: 'Postulando' },
+  { value: 'ganada', label: 'Ganada' },
+  { value: 'perdida', label: 'Perdida' },
+  { value: 'no_postulado', label: 'No postulado' }
+];
+
+function estadoLabel(val) {
+  for (var i = 0; i < ESTADO_OPTIONS.length; i++) {
+    if (ESTADO_OPTIONS[i].value === val) return ESTADO_OPTIONS[i].label;
+  }
+  return 'Sin estado';
+}
+
+function estadoCls(val) {
+  if (val === 'postulando') return 'est-postulando';
+  if (val === 'ganada') return 'est-ganada';
+  if (val === 'perdida') return 'est-perdida';
+  if (val === 'no_postulado') return 'est-no_postulado';
+  return '';
+}
+
+function renderEstadoSelect(codigo) {
+  var current = getEstadoActual(codigo);
+  var cls = estadoCls(current);
+  var opts = ESTADO_OPTIONS.map(function(o) {
+    var sel = o.value === current ? ' selected' : '';
+    return '<option value="' + o.value + '"' + sel + '>' + escHtml(o.label) + '</option>';
+  }).join('');
+  return '<select class="estado-select ' + cls + '" data-codigo="' + escHtml(codigo) + '" data-action="estado">' + opts + '</select>';
+}
+
+function onEstadoChange(sel) {
+  var codigo = sel.dataset.codigo;
+  var nuevoEstado = sel.value;
+  var anteriorEstado = getEstadoActual(codigo);
+  if (nuevoEstado === anteriorEstado) return;
+
+  _pendingEstado = { codigo: codigo, estadoNuevo: nuevoEstado, estadoAnterior: anteriorEstado };
+
+  var r = findOppByCodigo(codigo);
+  $('estadoTitle').textContent = 'Cambiar estado: ' + (r ? (r.nombre || r.codigo) : codigo);
+  $('estadoNewLabel').textContent = estadoLabel(anteriorEstado) + ' \u2192 ' + estadoLabel(nuevoEstado);
+  $('estadoNota').value = '';
+  $('estadoNota').classList.remove('error');
+  $('estadoError').classList.remove('show');
+  $('estadoSaveStatus').textContent = '';
+  $('estadoSaveBtn').disabled = false;
+  renderEstadoHistorial(codigo);
+  openModal('estadoModal');
+  setTimeout(function() { $('estadoNota').focus(); }, 100);
+}
+
+function renderEstadoHistorial(codigo) {
+  var hist = getEstadoHistorial(codigo);
+  if (!hist.length) {
+    $('estadoHistorial').innerHTML = '<div style="font-size:11px;color:var(--muted2);padding-top:12px;border-top:1px solid var(--border)">Sin historial de cambios.</div>';
+    return;
+  }
+  var html = '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px"><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">Historial de cambios</div>';
+  html += hist.slice().reverse().map(function(h) {
+    return '<div class="estado-hist-item">' +
+      '<span class="estado-hist-estado">' + escHtml(estadoLabel(h.estado)) + '</span>' +
+      '<div class="estado-hist-nota">' + escHtml(h.nota) + '</div>' +
+      '<div class="estado-hist-meta">' + escHtml(h.usuario || '') + ' &middot; ' + fmtD(h.fecha) + ' ' + (h.fecha || '').slice(11, 16) + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+  $('estadoHistorial').innerHTML = html;
+}
+
+function saveEstadoChange() {
+  var nota = $('estadoNota').value.trim();
+  if (!nota) {
+    $('estadoError').classList.add('show');
+    $('estadoNota').classList.add('error');
+    $('estadoNota').focus();
+    return;
+  }
+  $('estadoError').classList.remove('show');
+  $('estadoNota').classList.remove('error');
+
+  var codigo = _pendingEstado.codigo;
+  var estado = _pendingEstado.estadoNuevo;
+
+  $('estadoSaveStatus').innerHTML = '<span class="note-saving">Guardando...</span>';
+  $('estadoSaveBtn').disabled = true;
+
+  fetch('/api/licitacion-estado', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo: codigo, estado: estado, nota: nota })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function() {
+    if (!_estadosCache[codigo]) {
+      _estadosCache[codigo] = { estado_actual: estado, historial: [] };
+    }
+    _estadosCache[codigo].estado_actual = estado;
+    _estadosCache[codigo].historial.push({
+      estado: estado, nota: nota, usuario: '', fecha: new Date().toISOString()
+    });
+    $('estadoSaveStatus').innerHTML = '<span class="note-saving">Guardado</span>';
+    $('estadoSaveBtn').disabled = false;
+    closeModal('estadoModal');
+    renderOppTable();
+  }).catch(function(err) {
+    $('estadoSaveStatus').innerHTML = '<span style="color:var(--red);font-size:11px;font-weight:600">Error: ' + escHtml(err.message) + '</span>';
+    $('estadoSaveBtn').disabled = false;
+  });
+}
+
+function cancelEstadoChange() {
+  _pendingEstado = { codigo: '', estadoNuevo: '', estadoAnterior: '' };
+  closeModal('estadoModal');
+  renderOppTable();
+}
+
+/* ── Modal helpers ── */
+function openModal(id) {
+  var el = $(id); if (!el) return;
+  el.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+function closeModal(id) {
+  var el = $(id); if (!el) return;
+  el.classList.remove('open');
+  if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-open');
+}
+
+/* Close modals on overlay click or Escape */
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+    if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-open');
+  }
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(function(m) { m.classList.remove('open'); });
+    document.body.classList.remove('modal-open');
+  }
+});
+
+/* ── Detail modal ── */
+function findOppByCodigo(codigo) {
+  for (var i = 0; i < oppAllData.length; i++) {
+    if (oppAllData[i].codigo === codigo) return oppAllData[i];
+  }
+  return null;
+}
+
+function showDetailModal(codigo) {
+  var r = findOppByCodigo(codigo);
+  if (!r) return;
+
+  var tipo = r._t === 'lic' ? 'Licitacion' : 'Compra Agil';
+  var d = diasHastaHoy(r.fecha_cierre);
+  var vigencia = (d === null || d >= 0) ? 'Abierta' : 'Cerrada';
+  var just = r._t === 'lic' ? (r.justificacion||'') : (r.fase2_justificacion||r.justificacion||'');
+  var kws = Array.isArray(r.palabras_coincidentes) ? r.palabras_coincidentes.join(', ') : '';
+  var cierreStr = d === null ? '\u2014' : d < 0 ? 'Cerrada (hace ' + Math.abs(d) + ' dias)' : d === 0 ? 'Cierra HOY' : 'En ' + d + ' dias (' + fmtD(r.fecha_cierre) + ')';
+  var estActual = getEstadoActual(r.codigo);
+
+  var rows = [
+    ['Codigo', escHtml(r.codigo)],
+    ['Nombre', escHtml(r.nombre || '\u2014')],
+    ['Tipo', escHtml(tipo)],
+    ['Organismo', escHtml(r.organismo || '\u2014')],
+    ['Region', escHtml(r.region || '\u2014')],
+    ['Monto estimado', fmtM(r.monto_estimado, r.unidad_monetaria)],
+    ['Unidad monetaria', escHtml(r.unidad_monetaria || 'CLP')],
+    ['Relevancia', r.puntaje + '/10'],
+    ['Vigencia', escHtml(vigencia)],
+    ['Seguimiento', '<span style="font-weight:700">' + escHtml(estadoLabel(estActual)) + '</span>'],
+    ['Fecha publicacion', fmtD(r.fecha_descarga)],
+    ['Fecha cierre', escHtml(cierreStr)],
+    ['Alertada', r.alertada ? 'Si, notificada al equipo' : 'No'],
+    ['Palabras clave', escHtml(kws || '\u2014')],
+    ['Justificacion', escHtml(just || '\u2014')],
+  ];
+
+  /* Estado history for detail modal */
+  var hist = getEstadoHistorial(r.codigo);
+  var histHtml = '';
+  if (hist.length) {
+    histHtml = '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px">Historial de seguimiento</div>' +
+      hist.slice().reverse().map(function(h) {
+        return '<div class="estado-hist-item">' +
+          '<span class="estado-hist-estado">' + escHtml(estadoLabel(h.estado)) + '</span>' +
+          '<div class="estado-hist-nota">' + escHtml(h.nota) + '</div>' +
+          '<div class="estado-hist-meta">' + escHtml(h.usuario || '') + ' &middot; ' + fmtD(h.fecha) + ' ' + (h.fecha || '').slice(11, 16) + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+  }
+
+  $('detailTitle').textContent = tipo + ': ' + (r.nombre || r.codigo);
+  $('detailBody').innerHTML = '<div class="detail-grid">' +
+    rows.map(function(row) {
+      return '<div class="detail-label">' + row[0] + '</div><div class="detail-value">' + row[1] + '</div>';
+    }).join('') + '</div>' + histHtml;
+  $('detailMpLink').href = 'https://www.mercadopublico.cl/Home';
+  openModal('detailModal');
+}
+
+/* ── Notes modal ── */
+var _currentNoteCodigo = '';
+
+function showNoteModal(codigo) {
+  var r = findOppByCodigo(codigo);
+  _currentNoteCodigo = codigo;
+  var nota = getNote(codigo);
+
+  $('noteTitle').textContent = 'Notas: ' + (r ? (r.nombre || r.codigo) : codigo);
+  $('noteTextarea').value = nota;
+  var info = _notesCache[codigo] && _notesCache[codigo].fecha
+    ? 'Ultima edicion: ' + fmtD(_notesCache[codigo].fecha) + ' ' + (_notesCache[codigo].fecha||'').slice(11,16)
+    : '';
+  $('noteInfo').textContent = info;
+  $('noteSaveStatus').textContent = '';
+  openModal('noteModal');
+  setTimeout(function() { $('noteTextarea').focus(); }, 100);
+}
+
+function saveCurrentNote() {
+  var texto = $('noteTextarea').value.trim();
+  var codigo = _currentNoteCodigo;
+  if (!codigo) return;
+  if (!texto) {
+    $('noteSaveStatus').innerHTML = '<span style="color:var(--red);font-size:11px;font-weight:600">La nota no puede estar vacia</span>';
+    return;
+  }
+
+  $('noteSaveStatus').innerHTML = '<span class="note-saving">Guardando...</span>';
+  saveNoteToServer(codigo, texto).then(function() {
+    $('noteSaveStatus').innerHTML = '<span class="note-saving">Guardado correctamente</span>';
+    renderOppTable();
+    setTimeout(function() { $('noteSaveStatus').textContent = ''; }, 2000);
+  }).catch(function() {
+    $('noteSaveStatus').innerHTML = '<span style="color:var(--yellow);font-size:11px;font-weight:600">Guardado localmente (sin conexion al servidor)</span>';
+    renderOppTable();
+  });
+}
+
+/* Deduplication: keep last by fecha_descarga per codigo */
+function dedup(items) {
+  var map = {};
+  items.forEach(function(r) {
+    var key = r.codigo;
+    if (!map[key]) { map[key] = r; return; }
+    var dNew = parseFecha(r.fecha_descarga), dOld = parseFecha(map[key].fecha_descarga);
+    if (dNew && dOld && dNew > dOld) map[key] = r;
+    else if (dNew && !dOld) map[key] = r;
+  });
+  var out = [];
+  Object.keys(map).forEach(function(k){ out.push(map[k]); });
+  return out;
+}
+
+/* Estado abierta/cerrada */
+function licEstado(r) {
+  var d = diasHastaHoy(r.fecha_cierre);
+  return (d === null || d >= 0) ? 'abierta' : 'cerrada';
+}
+
+
+/* ── Opp table (Todas las Oportunidades) ── */
+var oppSortKey = 'puntaje';
+var oppFilterKey = 'todas';
+var oppSearchTerm = '';
+var oppEstadoFilterKey = 'todos';
+var oppAllData = [];
+
+function sortOppData(items, key) {
+  return items.slice().sort(function(a,b) {
+    if (key === 'puntaje') return (b.puntaje||0) - (a.puntaje||0);
+    if (key === 'codigo') return (a.codigo||'').localeCompare(b.codigo||'');
+    if (key === 'fecha_descarga') { var da=parseFecha(a.fecha_descarga), db=parseFecha(b.fecha_descarga); return (db||0)-(da||0); }
+    if (key === 'fecha_cierre') { var da2=parseFecha(a.fecha_cierre), db2=parseFecha(b.fecha_cierre); return (da2||Infinity)-(db2||Infinity); }
+    if (key === 'monto') return (Number(b.monto_estimado)||0) - (Number(a.monto_estimado)||0);
+    return 0;
+  });
+}
+
+function filterOppData(items, filter) {
+  if (filter === 'todas') return items;
+  return items.filter(function(r) {
+    var d = diasHastaHoy(r.fecha_cierre);
+    var est = (d === null || d >= 0) ? 'abierta' : 'cerrada';
+    return est === (filter === 'abiertas' ? 'abierta' : 'cerrada');
+  });
+}
+
+function searchOppData(items, term) {
+  if (!term) return items;
+  var t = term.toLowerCase();
+  return items.filter(function(r) {
+    return (r.nombre||'').toLowerCase().indexOf(t) >= 0 ||
+           (r.organismo||'').toLowerCase().indexOf(t) >= 0 ||
+           (r.codigo||'').toLowerCase().indexOf(t) >= 0;
+  });
+}
+
+function renderOppTable() {
+  var filtered = filterOppData(oppAllData, oppFilterKey);
+  var searched = searchOppData(filtered, oppSearchTerm);
+  if (oppEstadoFilterKey !== 'todos') {
+    searched = searched.filter(function(r) {
+      return getEstadoActual(r.codigo) === oppEstadoFilterKey;
+    });
+  }
+  var sorted = sortOppData(searched, oppSortKey);
+
+  var abiertas = oppAllData.filter(function(r){ var d=diasHastaHoy(r.fecha_cierre); return d===null||d>=0; }).length;
+  var cerradas = oppAllData.length - abiertas;
+  $('oppCntTodas').textContent = '(' + oppAllData.length + ')';
+  $('oppCntAbiertas').textContent = '(' + abiertas + ')';
+  $('oppCntCerradas').textContent = '(' + cerradas + ')';
+  $('oppCounter').textContent = 'Mostrando ' + sorted.length + ' de ' + oppAllData.length;
+
+  if (!sorted.length) {
+    $('gridOpp').innerHTML = emptyState('Sin oportunidades' + (oppFilterKey !== 'todas' || oppSearchTerm ? ' con estos filtros' : ''));
+    return;
+  }
+
+  var html = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Codigo</th>' +
+    '<th>Nombre</th>' +
+    '<th>Tipo</th>' +
+    '<th>Organismo</th>' +
+    '<th>Monto</th>' +
+    '<th>Relevancia</th>' +
+    '<th>Vigencia</th>' +
+    '<th>Estado</th>' +
+    '<th>Publicacion</th>' +
+    '<th>Cierre</th>' +
+    '<th>Nota</th>' +
+    '</tr></thead><tbody>' +
+    sorted.map(function(r) {
+      var tipo = r._t === 'lic' ? 'Licitacion' : 'Compra Agil';
+      var tipoCls = r._t === 'lic' ? 'lic' : 'agil';
+      var d = diasHastaHoy(r.fecha_cierre);
+      var estado = (d === null || d >= 0) ? 'abierta' : 'cerrada';
+      var vigenciaLabel = estado === 'abierta' ? 'Abierta' : 'Cerrada';
+      var nota = getNote(r.codigo);
+      var cierreUrgente = d !== null && d >= 0 && d <= 5;
+      var cierreStyle = cierreUrgente ? 'color:var(--red);font-weight:600' : '';
+      var nw = isNew(r.fecha_descarga);
+
+      return '<tr>' +
+        '<td style="white-space:nowrap;font-weight:500;color:var(--brand-light)">' + escHtml(r.codigo) + '</td>' +
+        '<td><div class="opp-tbl-nombre" data-codigo="' + escHtml(r.codigo) + '" data-action="detail">' + (nw ? '<span class="tag new" style="font-size:9px;margin-right:4px">NUEVA</span>' : '') + escHtml(r.nombre||'\u2014') + '</div></td>' +
+        '<td><span class="tipo-badge ' + tipoCls + '">' + tipo + '</span></td>' +
+        '<td>' + escHtml(r.organismo||'\u2014') + '</td>' +
+        '<td style="white-space:nowrap;font-weight:600;color:var(--green)">' + fmtM(r.monto_estimado, r.unidad_monetaria) + '</td>' +
+        '<td><span class="score ' + sClass(r.puntaje) + '">' + r.puntaje + '/10</span></td>' +
+        '<td><span class="estado-badge ' + estado + '">' + vigenciaLabel + '</span></td>' +
+        '<td>' + renderEstadoSelect(r.codigo) + '</td>' +
+        '<td style="white-space:nowrap">' + fmtD(r.fecha_descarga) + '</td>' +
+        '<td style="white-space:nowrap;' + cierreStyle + '">' + fmtD(r.fecha_cierre) + '</td>' +
+        '<td style="text-align:center"><button class="opp-note-btn' + (nota ? ' has-note' : '') + '" data-codigo="' + escHtml(r.codigo) + '" data-action="note" title="' + (nota ? 'Ver/editar nota' : 'Agregar nota') + '">' + (nota ? '&#9998;' : '+') + '</button></td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+
+  $('gridOpp').innerHTML = html;
+  var tbl = $('gridOpp').querySelector('table');
+  if (tbl) makeSortable(tbl);
+}
+
+/* Event delegation for table clicks (avoids inline onclick XSS risk) */
+$('gridOpp').addEventListener('click', function(e) {
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var codigo = el.dataset.codigo;
+  if (el.dataset.action === 'detail') showDetailModal(codigo);
+  else if (el.dataset.action === 'note') showNoteModal(codigo);
+});
+
+/* Estado dropdown change delegation */
+$('gridOpp').addEventListener('change', function(e) {
+  var el = e.target.closest('[data-action="estado"]');
+  if (!el) return;
+  onEstadoChange(el);
+});
+
+/* Estado filter */
+$('oppEstadoFilter').addEventListener('change', function() {
+  oppEstadoFilterKey = this.value;
+  renderOppTable();
+});
+
+/* Opp table event listeners */
+$('oppSort').addEventListener('change', function() {
+  oppSortKey = this.value;
+  renderOppTable();
+});
+
+document.querySelectorAll('[data-opp-filter]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('[data-opp-filter]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    oppFilterKey = btn.dataset.oppFilter;
+    renderOppTable();
+  });
+});
+
+var oppSearchTimer = null;
+$('oppSearch').addEventListener('input', function() {
+  var val = this.value.trim();
+  clearTimeout(oppSearchTimer);
+  oppSearchTimer = setTimeout(function() {
+    oppSearchTerm = val;
+    renderOppTable();
+  }, 200);
+});
+
+
+/* Sortable tables */
+function makeSortable(table) {
+  if (!table) return;
+  table.querySelectorAll('th').forEach(function(th, col) {
+    var dir = 1;
+    th.addEventListener('click', function() {
+      var tbody = table.querySelector('tbody');
+      if (!tbody) return;
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function(a,b) {
+        var aT = (a.cells[col]?a.cells[col].textContent:'').trim();
+        var bT = (b.cells[col]?b.cells[col].textContent:'').trim();
+        var aN = parseFloat(aT.replace(/[^0-9.-]/g,'')), bN = parseFloat(bT.replace(/[^0-9.-]/g,''));
+        if (!isNaN(aN) && !isNaN(bN)) return dir * (aN - bN);
+        return dir * aT.localeCompare(bT,'es');
+      });
+      rows.forEach(function(r){ tbody.appendChild(r); });
+      table.querySelectorAll('th').forEach(function(t){ t.classList.remove('sort-asc','sort-desc'); });
+      th.classList.add(dir===1?'sort-asc':'sort-desc');
+      dir = -dir;
+    });
+  });
+}
+
+function renderSortableTable(id, html) {
+  var el = $(id); if (!el) return;
+  el.innerHTML = html;
+  var tbl = el.querySelector('table');
+  if (tbl) makeSortable(tbl);
+}
+
+
+function tblEjec(items) {
+  if (!items.length) return emptyState('Sin revisiones registradas');
+  return '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Inicio</th><th>Duracion</th><th>Detectadas ' + infoIcon(G.descargadas) + '</th><th>Revisadas ' + infoIcon(G.filtradas_lic) + '</th><th>Analizadas ' + infoIcon(G.evaluadas) + '</th><th>Notificadas ' + infoIcon(G.alertadas) + '</th><th>Estado</th></tr></thead><tbody>' +
+    items.map(function(r){ var cls = r.estado==='completada'?'ok':r.estado==='fallida'?'err':'run'; var lbl = r.estado==='completada'?'Completada':r.estado==='fallida'?'Fallo':'En curso'; return '<tr><td>' + r.id + '</td><td style="white-space:nowrap">' + fmtD(r.fecha_inicio) + ' ' + (r.fecha_inicio?r.fecha_inicio.slice(11,16):'') + '</td><td>' + (r.duracion_min!=null?r.duracion_min+' min':'\u2014') + '</td><td>' + fmt(r.total_descargadas) + '</td><td>' + fmt(r.total_filtradas) + '</td><td>' + fmt(r.total_evaluadas) + '</td><td>' + fmt(r.total_alertadas) + '</td><td><span class="badge ' + cls + '">' + lbl + '</span></td></tr>'; }).join('') +
+    '</tbody></table></div>';
+}
+
+/* Charts */
+var BASE_CFG = { responsive:true, animation:false,
+  plugins:{ legend:{ labels:{ color:'#6b7494', font:{size:11}, boxWidth:12, padding:14 } }, tooltip:{ backgroundColor:'#1a1d2e', titleColor:'#ffffff', bodyColor:'#9ca3c0', borderColor:'#e2e6f0', borderWidth:1 } },
+  scales:{ x:{ ticks:{ color:'#9ca3c0', font:{size:10}, maxTicksLimit:12 }, grid:{ color:'#f0f2f8' } }, y:{ ticks:{ color:'#9ca3c0', font:{size:10} }, grid:{ color:'#f0f2f8' }, beginAtZero:true } }
+};
+function cfg() { return JSON.parse(JSON.stringify(BASE_CFG)); }
+
+function renderCharts(tend, ejec) {
+  Object.keys(charts).forEach(function(k){ if(charts[k]) charts[k].destroy(); });
+  charts = {};
+  if (!tend || !tend.length) return;
+  var dias=tend.map(function(d){return d.dia.slice(5);}), licDesc=tend.map(function(d){return d.lic_descargadas;}), licOpp=tend.map(function(d){return d.lic_oportunidades;}), agFilt=tend.map(function(d){return d.agil_filtradas;}), agConf=tend.map(function(d){return d.agil_confirmadas;});
+  charts.evolucion = new Chart($('cEvolucion'), { type:'line', data:{ labels:dias, datasets:[
+    { label:'Licitaciones revisadas', data:licDesc, borderColor:'#1e3a8a', backgroundColor:'rgba(30,58,138,.07)', tension:.3, fill:true, pointRadius:2, borderWidth:2 },
+    { label:'Con oportunidad', data:licOpp, borderColor:'#059669', backgroundColor:'rgba(5,150,105,.08)', tension:.3, fill:true, pointRadius:3, borderWidth:2 },
+    { label:'Compras agiles detectadas', data:agFilt, borderColor:'#d97706', backgroundColor:'rgba(217,119,6,.05)', tension:.3, fill:false, pointRadius:2, borderWidth:2, borderDash:[4,3] },
+    { label:'Compras agiles recomendadas', data:agConf, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)', tension:.3, fill:true, pointRadius:3, borderWidth:2 },
+  ]}, options:cfg() });
+  /* Funnel chart for compras agiles review process */
+  var t=D.kpis.compras_agiles['todo'], fCfg=cfg(); fCfg.indexAxis='y'; fCfg.plugins.legend={display:false};
+  var funnelLabels = ['Detectadas','1ra revision','Pasan 1ra','2da revision','Recomendadas','Notificadas'];
+  var funnelData = [t.filtradas,t.fase1_evaluadas,t.fase1_positivas,t.fase2_evaluadas,t.fase2_positivas,t.alertadas];
+  var funnelColors = ['#1e3a8a','#3b5fd4','#059669','#34d399','#6ee7b7','#a7f3d0'];
+  charts.funnel = new Chart($('cFunnel'), { type:'bar', data:{ labels:funnelLabels, datasets:[{ label:'Cantidad', data:funnelData, backgroundColor:funnelColors, borderRadius:4 }] }, options:fCfg });
+  charts.alertas = new Chart($('cAlertas'), { type:'bar', data:{ labels:dias, datasets:[{ label:'Oportunidades', data:tend.map(function(d){return (d.lic_oportunidades||0)+(d.agil_confirmadas||0);}), backgroundColor:'rgba(30,58,138,.55)', borderColor:'#1e3a8a', borderWidth:1, borderRadius:3 }] }, options:cfg() });
+
+  /* Estado distribution donut */
+  var estCounts = { sin_estado:0, postulando:0, ganada:0, perdida:0, no_postulado:0 };
+  oppAllData.forEach(function(r) {
+    var est = getEstadoActual(r.codigo);
+    if (estCounts.hasOwnProperty(est)) estCounts[est]++;
+    else estCounts.sin_estado++;
+  });
+  var pieCfg = cfg();
+  delete pieCfg.scales;
+  pieCfg.plugins.legend = { position:'bottom', labels:{ color:'#6b7494', font:{size:11}, padding:14 } };
+  charts.estadoDist = new Chart($('cEstadoDist'), {
+    type:'doughnut',
+    data:{
+      labels:['Sin estado','Postulando','Ganada','Perdida','No postulado'],
+      datasets:[{ data:[estCounts.sin_estado,estCounts.postulando,estCounts.ganada,estCounts.perdida,estCounts.no_postulado],
+        backgroundColor:['#9ca3c0','#3b5fd4','#059669','#dc2626','#d97706'],
+        borderWidth:2, borderColor:'#fff' }]
+    },
+    options:pieCfg
+  });
+
+  /* Estado changes over time (by week) */
+  var weekMap = {};
+  Object.keys(_estadosCache).forEach(function(codigo) {
+    var hist = (_estadosCache[codigo] && _estadosCache[codigo].historial) || [];
+    hist.forEach(function(h) {
+      if (!h.fecha) return;
+      var d2 = new Date(h.fecha);
+      if (isNaN(d2.getTime())) return;
+      var dayOfWeek = d2.getDay();
+      var weekStart = new Date(d2.getTime() - dayOfWeek * 86400000);
+      var key = weekStart.toISOString().slice(0, 10);
+      if (!weekMap[key]) weekMap[key] = 0;
+      weekMap[key]++;
+    });
+  });
+  var weekKeys = Object.keys(weekMap).sort();
+  var last8w = weekKeys.slice(-8);
+  if (last8w.length) {
+    charts.estadoTiempo = new Chart($('cEstadoTiempo'), {
+      type:'bar',
+      data:{
+        labels:last8w.map(function(k){ return k.slice(5); }),
+        datasets:[{ label:'Cambios de estado', data:last8w.map(function(k){ return weekMap[k]; }),
+          backgroundColor:'rgba(59,95,212,.55)', borderColor:'#3b5fd4', borderWidth:1, borderRadius:3 }]
+      },
+      options:cfg()
+    });
+  }
+
+  var ejLast=ejec.slice(0,20).reverse();
+  charts.duracion = new Chart($('cDuracion'), { type:'bar', data:{ labels:ejLast.map(function(e){return e.fecha_inicio?e.fecha_inicio.slice(5,16):'#'+e.id;}), datasets:[{ label:'Minutos', data:ejLast.map(function(e){return e.duracion_min;}), backgroundColor:'rgba(30,58,138,.6)', borderColor:'#1e3a8a', borderWidth:1, borderRadius:3 }] }, options:cfg() });
+}
+
+/* Render all */
+function renderAll(data) {
+  D = data;
+  renderHealth(data.health);
+  renderEjecutivo();
+
+  var dedupLic = dedup(data.licitaciones.oportunidades);
+  var allOpp = [].concat(dedupLic.map(function(r){return Object.assign({},r,{_t:'lic'});})).concat(data.compras_agiles.oportunidades_confirmadas.map(function(r){return Object.assign({},r,{_t:'agil'});}));
+  allOpp.sort(function(a,b){return (b.puntaje||0)-(a.puntaje||0);});
+  $('bOpp').textContent = allOpp.length;
+  oppAllData = allOpp;
+  renderOppTable();
+  renderSortableTable('tblEjec', tblEjec(data.ejecuciones));
+  setTimeout(function(){ renderCharts(data.tendencia_diaria, data.ejecuciones); }, 60);
+}
+
+/* Load notes and data in parallel */
+Promise.all([
+  loadNotesFromServer(),
+  loadEstadosFromServer(),
+  fetch('/api/licitaciones-data').then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+]).then(function(results) {
+  renderAll(results[2]);
+  $('loading').style.display='none';
+  $('app').style.display='block';
+}).catch(function(err) {
+  $('loading').style.display='none';
+  $('err-state').style.display='block';
+  $('err-msg').textContent = err.message;
+});
+</script>
+</body>
+</html>

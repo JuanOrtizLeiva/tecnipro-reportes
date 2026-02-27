@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Sistema de Gestión de Capacitación - Instituto Tecnipro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -403,6 +404,15 @@
             color: var(--slate-500);
             cursor: not-allowed;
             box-shadow: none;
+        }
+        .btn-refresh-select {
+            background: linear-gradient(135deg, #0f766e, #0891b2);
+            color: white;
+            border: 1px solid #0f766e;
+        }
+        .btn-refresh-select:hover {
+            background: linear-gradient(135deg, #0d9488, #06b6d4);
+            box-shadow: 0 4px 12px rgba(15,118,110,.3);
         }
         .btn-refresh-full {
             background: linear-gradient(135deg, #1d4ed8, #7c3aed);
@@ -1177,6 +1187,13 @@
         .toast.visible { transform: translateY(0); opacity: 1; }
         .toast-success { background: var(--green-600); }
         .toast-error { background: var(--red-600); }
+        .toast-info {
+            background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%);
+            border-left: 4px solid #60a5fa;
+            max-width: 480px;
+            font-size: .9rem;
+            line-height: 1.5;
+        }
 
         /* ── LOADING STATE ── */
         .loading-container {
@@ -1331,8 +1348,12 @@
                     <!-- Data Update Info Box -->
                     <div class="info-box">
                         <div class="info-box-row">
-                            <i class="fas fa-database"></i>
-                            <span>Actualizado: <strong id="dataDate">—</strong></span>
+                            <i class="fas fa-graduation-cap" style="color:#3b82f6;"></i>
+                            <span style="font-size:.78rem;">Plataforma: <strong id="dateDateMoodle">—</strong></span>
+                        </div>
+                        <div class="info-box-row">
+                            <i class="fas fa-id-card" style="color:#10b981;"></i>
+                            <span style="font-size:.78rem;">SENCE: <strong id="dateDateSence">—</strong></span>
                         </div>
                         <div class="info-box-row" id="dataAgeWarning" style="display:none;">
                             <span class="data-age-warning" id="dataAgeText"></span>
@@ -1344,8 +1365,11 @@
                 <div class="header-actions" id="headerActions" style="display:none;">
                     <!-- FILA 1: Acciones de datos (admin: 3, comprador: 1) -->
                     <div class="header-actions-row header-actions-main">
-                        <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos desde el servidor">
+                        <button class="btn-action btn-refresh" id="btnRefresh" onclick="refreshMoodleData()" style="display:none;" title="Actualiza datos de todos los cursos desde Moodle">
                             <i class="fas fa-sync-alt"></i> Actualizar Datos
+                        </button>
+                        <button class="btn-action btn-refresh-select" id="btnRefreshSelect" onclick="abrirModalRefreshCursos()" style="display:none;" title="Elige uno o más cursos específicos para actualizar">
+                            <i class="fas fa-filter"></i> Cursos Elegidos
                         </button>
                         <button class="btn-action btn-refresh-full" id="btnRefreshFull" onclick="refreshFullData()" style="display:none;" title="Ejecuta actualización completa: datos de cursos + SENCE (5-30 minutos)">
                             <i class="fas fa-cloud-download-alt"></i> Actualización Completa
@@ -1360,10 +1384,10 @@
                         <button class="btn-action btn-print" id="btnPrint" onclick="printReport()" style="display:none;">
                             <i class="fas fa-file-pdf"></i> Imprimir PDF
                         </button>
-                        <a href="https://encuestas.tecnipro.cl/dashboard" target="_blank" class="btn-action btn-back" id="btnEncuestas" style="display:none;">
-                            <i class="fas fa-poll"></i> Encuestas
+                        <a href="/hub" class="btn-action btn-back" id="btnVolverHub" style="display:none;">
+                            <i class="fas fa-th-large"></i> Volver al Menu
                         </a>
-                        <a href="https://www.tecnipro.cl" class="btn-action btn-back">
+                        <a href="https://www.tecnipro.cl" class="btn-action btn-back" id="btnVolverTecnipro">
                             <i class="fas fa-arrow-left"></i> Volver a Tecnipro
                         </a>
                         <a href="/logout" class="btn-action btn-logout">
@@ -1517,6 +1541,18 @@ www.institutotecnipro.cl</textarea>
 
 <script>
 // ═══════════════════════════════════════════════════════
+// CSRF — include token in all POST/PUT/DELETE requests
+// ═══════════════════════════════════════════════════════
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const _originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    if (options.method && options.method !== 'GET') {
+        options.headers = Object.assign({}, options.headers, {'X-CSRFToken': CSRF_TOKEN});
+    }
+    return _originalFetch(url, options);
+};
+
+// ═══════════════════════════════════════════════════════
 // DATA — loaded dynamically from /api/datos
 // ═══════════════════════════════════════════════════════
 let DATA = null;
@@ -1599,14 +1635,14 @@ async function loadUserInfo() {
             btnPrint.style.display = '';
 
             if (CURRENT_USER.rol === 'admin') {
-                // ADMIN 3+3: Actualizar, Act.Completa, Coordinadores | Imprimir, Encuestas, Volver, Cerrar
+                // ADMIN: Actualizar, Cursos Elegidos, Act.Completa, Coordinadores | Imprimir, Volver al Menu, Cerrar
+                document.getElementById('btnRefreshSelect').style.display = '';
                 document.getElementById('btnCoordinadores').style.display = '';
-                document.getElementById('btnEncuestas').style.display = '';
+                document.getElementById('btnVolverHub').style.display = '';
 
                 if (SUPERADMINS.includes(CURRENT_USER.email)) {
                     document.getElementById('btnRefreshFull').style.display = '';
                 }
-                // Print stays in row 2 (already there in HTML)
             } else {
                 // COORDINADOR 2+2: Actualizar, Imprimir | Volver, Cerrar
                 // Move Print to row 1
@@ -1665,23 +1701,7 @@ async function loadData() {
     }, 5000);
 
     try {
-        // If admin → refresh from Moodle API first (runs full pipeline)
-        if (isAdmin) {
-            try {
-                const refreshResp = await fetch('/api/refresh', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                if (!refreshResp.ok) {
-                    const err = await refreshResp.json().catch(() => ({}));
-                    console.warn('Refresh warning:', err.error || 'No se pudo actualizar');
-                }
-            } catch (refreshErr) {
-                console.warn('Refresh failed, loading cached data:', refreshErr.message);
-            }
-        }
-
-        // Now load the (possibly refreshed) data
+        // Cargar datos procesados (caché). El refresh se hace solo via botón "Actualizar Datos".
         const response = await fetch('/api/datos');
         clearInterval(stepInterval);
 
@@ -1698,10 +1718,19 @@ async function loadData() {
             </div>`;
 
         DATA = normalizeData(await response.json());
-        // Update data date in header
-        if (DATA.metadata && DATA.metadata.fecha_procesamiento) {
-            const d = new Date(DATA.metadata.fecha_procesamiento);
-            document.getElementById('dataDate').textContent = d.toLocaleDateString('es-CL');
+        // Mostrar fechas de última actualización Moodle y SENCE
+        function _fmtFecha(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            if (isNaN(d)) return '—';
+            return d.toLocaleDateString('es-CL') + ' ' +
+                   d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        }
+        if (DATA.metadata) {
+            document.getElementById('dateDateMoodle').textContent =
+                _fmtFecha(DATA.metadata.fecha_moodle || DATA.metadata.fecha_procesamiento);
+            document.getElementById('dateDateSence').textContent =
+                _fmtFecha(DATA.metadata.fecha_sence);
         }
 
         // Brief pause to show success, then render
@@ -2469,10 +2498,12 @@ function updateSelectedCourses() {
 // REFRESH MOODLE DATA
 // ═══════════════════════════════════════════════════════
 function checkDataAge() {
-    // Check if data is older than 1 hour and show warning + auto-refresh option
-    if (!DATA || !DATA.metadata || !DATA.metadata.fecha_procesamiento) return;
+    // Check if Moodle data is older than 1 hour and show warning
+    if (!DATA || !DATA.metadata) return;
+    const fechaRef = DATA.metadata.fecha_moodle || DATA.metadata.fecha_procesamiento;
+    if (!fechaRef) return;
 
-    const dataDate = new Date(DATA.metadata.fecha_procesamiento);
+    const dataDate = new Date(fechaRef);
     const now = new Date();
     const ageInHours = (now - dataDate) / (1000 * 60 * 60);
 
@@ -2505,34 +2536,86 @@ function checkDataAge() {
     }
 }
 
-async function refreshMoodleData() {
+async function refreshMoodleData(courseIds = null) {
+    // courseIds: array de IDs numéricos para actualizar solo esos cursos (admin)
+    //            null = actualizar todos
     const btn = document.getElementById('btnRefresh');
-    const originalHTML = btn.innerHTML;
+    const btnSelect = document.getElementById('btnRefreshSelect');
+    const originalHTML = btn ? btn.innerHTML : '';
 
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...'; }
+    if (btnSelect) { btnSelect.disabled = true; }
+
+    const msgCursos = courseIds
+        ? `⏳ Actualizando ${courseIds.length} curso${courseIds.length > 1 ? 's' : ''} seleccionado${courseIds.length > 1 ? 's' : ''}...`
+        : '⏳ Actualizando datos desde Moodle... Este proceso puede demorar hasta 5 minutos.';
+    showToast(msgCursos, 'info', 300000);
 
     try {
+        // Iniciar proceso en background y obtener job_id
+        const body = courseIds ? { course_ids: courseIds } : {};
         const response = await fetch('/api/refresh', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
         });
 
-        const result = await response.json();
+        const result = await response.json().catch(() => ({ error: "Error al iniciar actualización." }));
 
-        if (response.ok) {
-            showToast('✓ Datos actualizados exitosamente', 'success', 3000);
-            // Reload después de mostrar el mensaje
-            setTimeout(() => { window.location.reload(); }, 1500);
-        } else {
-            showToast(result.error || 'Error al actualizar datos', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
+        // Helper para rehabilitar los botones de refresh
+        function _restoreRefreshBtns() {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+            if (btnSelect) btnSelect.disabled = false;
         }
+
+        if (response.status === 409) {
+            showToast('⏳ Ya hay una actualización en proceso. Espere a que termine.', 'info', 8000);
+            _restoreRefreshBtns();
+            return;
+        }
+
+        if (!response.ok || !result.job_id) {
+            showToast(result.error || 'Error al iniciar actualización', 'error');
+            _restoreRefreshBtns();
+            return;
+        }
+
+        // Polling cada 5 segundos hasta que el proceso termine
+        const jobId = result.job_id;
+        let pollCount = 0;
+        const MAX_POLLS = 90; // 90 × 5s = 7.5 minutos máximo
+
+        const pollInterval = setInterval(async () => {
+            pollCount++;
+            if (pollCount > MAX_POLLS) {
+                clearInterval(pollInterval);
+                showToast('El proceso tardó demasiado. Intente nuevamente.', 'error');
+                _restoreRefreshBtns();
+                return;
+            }
+
+            try {
+                const statusResp = await fetch(`/api/refresh-status/${jobId}`);
+                const statusData = await statusResp.json().catch(() => ({ status: 'running' }));
+
+                if (statusData.status === 'ok') {
+                    clearInterval(pollInterval);
+                    showToast('✓ Datos actualizados exitosamente', 'success', 3000);
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else if (statusData.status === 'error') {
+                    clearInterval(pollInterval);
+                    showToast(statusData.message || 'Error al actualizar datos', 'error');
+                    _restoreRefreshBtns();
+                }
+            } catch (err) {
+                // Error de red temporal, seguir intentando
+            }
+        }, 5000);
+
     } catch (error) {
         showToast(`Error de conexión: ${error.message}`, 'error');
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+        if (btnSelect) btnSelect.disabled = false;
     }
 }
 
@@ -3101,6 +3184,171 @@ document.getElementById('modalCoordinadores').addEventListener('click', (e) => {
         cerrarModalCoordinadores();
     }
 });
+</script>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: Actualizar cursos elegidos (solo admin)         -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalRefreshCursos" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="max-width:560px; width:95%; max-height:90vh; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 20px 60px rgba(0,0,0,.25);">
+
+        <!-- Cabecera -->
+        <div class="modal-header" style="background:linear-gradient(135deg,#0f766e,#0891b2); color:#fff; padding:1.1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+            <h2 style="margin:0; font-size:1.1rem; font-weight:700;">
+                <i class="fas fa-filter" style="margin-right:.5rem;"></i>Actualizar cursos elegidos
+            </h2>
+            <button onclick="cerrarModalRefreshCursos()" style="background:rgba(255,255,255,.15); border:none; color:#fff; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center;">✕</button>
+        </div>
+
+        <!-- Cuerpo -->
+        <div style="padding:1.25rem 1.5rem; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:.85rem;">
+            <p style="margin:0; color:var(--slate-500); font-size:.85rem;">
+                Selecciona uno o más cursos. Solo se actualizará la información de los cursos que elijas, ahorrando tiempo de procesamiento.
+            </p>
+
+            <!-- Buscador -->
+            <input
+                type="text"
+                id="filtroCursosModal"
+                placeholder="&#xf002; Buscar curso por nombre..."
+                oninput="filtrarCursosModal()"
+                style="width:100%; padding:.6rem .9rem; border:1px solid var(--slate-300); border-radius:8px; font-size:.875rem; outline:none; box-sizing:border-box;"
+            >
+
+            <!-- Acciones rápidas -->
+            <div style="display:flex; gap:.5rem;">
+                <button onclick="seleccionarTodosCursosModal()" style="flex:1; padding:.45rem; background:var(--slate-100); border:1px solid var(--slate-300); border-radius:6px; font-size:.8rem; cursor:pointer; color:var(--slate-700);">
+                    <i class="fas fa-check-double"></i> Todos
+                </button>
+                <button onclick="limpiarSeleccionCursosModal()" style="flex:1; padding:.45rem; background:var(--slate-100); border:1px solid var(--slate-300); border-radius:6px; font-size:.8rem; cursor:pointer; color:var(--slate-700);">
+                    <i class="fas fa-times"></i> Limpiar
+                </button>
+            </div>
+
+            <!-- Lista de cursos -->
+            <div id="listaCursosModal" style="border:1px solid var(--slate-200); border-radius:8px; overflow-y:auto; max-height:280px; min-height:80px;">
+                <p style="text-align:center; color:var(--slate-400); padding:2rem; margin:0;">Cargando cursos...</p>
+            </div>
+
+            <!-- Contador -->
+            <p id="contadorCursosModal" style="margin:0; font-size:.8rem; color:var(--slate-500); text-align:right;">
+                0 cursos seleccionados
+            </p>
+        </div>
+
+        <!-- Pie -->
+        <div style="padding:1rem 1.5rem; background:var(--slate-50); border-top:1px solid var(--slate-200); display:flex; gap:.75rem; justify-content:flex-end; flex-shrink:0;">
+            <button onclick="cerrarModalRefreshCursos()" style="padding:.55rem 1.25rem; background:#fff; border:1px solid var(--slate-300); border-radius:8px; cursor:pointer; font-size:.875rem; color:var(--slate-700);">
+                Cancelar
+            </button>
+            <button id="btnConfirmarRefreshCursos" onclick="confirmarRefreshCursosElegidos()" disabled
+                style="padding:.55rem 1.25rem; background:linear-gradient(135deg,#0f766e,#0891b2); color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:.875rem; font-weight:600; opacity:.5; transition:opacity .2s;">
+                <i class="fas fa-sync-alt"></i> Actualizar seleccionados
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Modal: Actualizar cursos elegidos ─────────────────────────
+document.getElementById('modalRefreshCursos').addEventListener('click', (e) => {
+    if (e.target.id === 'modalRefreshCursos') cerrarModalRefreshCursos();
+});
+
+function abrirModalRefreshCursos() {
+    if (!DATA || !DATA.cursos || DATA.cursos.length === 0) {
+        showToast('No hay datos de cursos cargados. Recargue la página.', 'error');
+        return;
+    }
+    _cursosModalData = DATA.cursos.map(c => ({
+        id: parseInt(c.id_moodle),
+        nombre: c.nombre || c['Nombre completo del curso'] || c.id_moodle,
+        seleccionado: false,
+    })).filter(c => c.id);
+
+    document.getElementById('filtroCursosModal').value = '';
+    _renderizarListaCursosModal('');
+    document.getElementById('modalRefreshCursos').style.display = 'flex';
+}
+
+function cerrarModalRefreshCursos() {
+    document.getElementById('modalRefreshCursos').style.display = 'none';
+}
+
+let _cursosModalData = [];
+
+function _renderizarListaCursosModal(filtro) {
+    const lista = document.getElementById('listaCursosModal');
+    const term = filtro.toLowerCase().trim();
+    const visibles = _cursosModalData.filter(c =>
+        !term || c.nombre.toLowerCase().includes(term)
+    );
+
+    if (visibles.length === 0) {
+        lista.innerHTML = '<p style="text-align:center; color:var(--slate-400); padding:2rem; margin:0;">Sin resultados</p>';
+        return;
+    }
+
+    lista.innerHTML = visibles.map(c => `
+        <label style="display:flex; align-items:center; gap:.75rem; padding:.65rem 1rem; cursor:pointer; border-bottom:1px solid var(--slate-100); transition:background .15s;"
+               onmouseover="this.style.background='#f0fdfa'" onmouseout="this.style.background=''">
+            <input type="checkbox" data-cid="${c.id}" ${c.seleccionado ? 'checked' : ''}
+                onchange="_toggleCursoModal(${c.id}, this.checked)"
+                style="width:16px; height:16px; accent-color:#0f766e; flex-shrink:0; cursor:pointer;">
+            <span style="font-size:.875rem; color:var(--slate-700); line-height:1.3;">${_escapeHtml(c.nombre)}</span>
+        </label>
+    `).join('');
+
+    _actualizarContadorCursosModal();
+}
+
+function _escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _toggleCursoModal(id, checked) {
+    const c = _cursosModalData.find(x => x.id === id);
+    if (c) c.seleccionado = checked;
+    _actualizarContadorCursosModal();
+}
+
+function _actualizarContadorCursosModal() {
+    const seleccionados = _cursosModalData.filter(c => c.seleccionado).length;
+    document.getElementById('contadorCursosModal').textContent =
+        seleccionados === 0 ? 'Sin selección' :
+        seleccionados === 1 ? '1 curso seleccionado' :
+        `${seleccionados} cursos seleccionados`;
+    const btn = document.getElementById('btnConfirmarRefreshCursos');
+    btn.disabled = seleccionados === 0;
+    btn.style.opacity = seleccionados === 0 ? '.5' : '1';
+    btn.style.cursor  = seleccionados === 0 ? 'not-allowed' : 'pointer';
+}
+
+function filtrarCursosModal() {
+    const term = document.getElementById('filtroCursosModal').value;
+    _renderizarListaCursosModal(term);
+}
+
+function seleccionarTodosCursosModal() {
+    const term = document.getElementById('filtroCursosModal').value.toLowerCase().trim();
+    _cursosModalData.forEach(c => {
+        if (!term || c.nombre.toLowerCase().includes(term)) c.seleccionado = true;
+    });
+    _renderizarListaCursosModal(document.getElementById('filtroCursosModal').value);
+}
+
+function limpiarSeleccionCursosModal() {
+    _cursosModalData.forEach(c => c.seleccionado = false);
+    _renderizarListaCursosModal(document.getElementById('filtroCursosModal').value);
+}
+
+async function confirmarRefreshCursosElegidos() {
+    const seleccionados = _cursosModalData.filter(c => c.seleccionado).map(c => c.id);
+    if (seleccionados.length === 0) return;
+
+    cerrarModalRefreshCursos();
+    await refreshMoodleData(seleccionados);
+}
 </script>
 
 </body>

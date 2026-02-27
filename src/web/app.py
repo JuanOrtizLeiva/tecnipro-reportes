@@ -1,9 +1,10 @@
 """Servidor web Flask para el dashboard de Tecnipro."""
 
 import logging
+import secrets
 from datetime import timedelta
 
-from flask import Flask
+from flask import Flask, session, request, abort
 from flask_cors import CORS
 
 from config import settings
@@ -39,6 +40,36 @@ def create_app():
 
     # Flask-Login
     login_manager.init_app(app)
+
+    # ── CSRF Protection ──────────────────────────────────────
+    # Rutas exentas: login (genera sesión), health, status checks
+    CSRF_EXEMPT = {"/login", "/forgot-password", "/reset-password", "/api/health"}
+
+    @app.before_request
+    def csrf_protect():
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            # Generar token si no existe en sesión
+            if "_csrf_token" not in session:
+                session["_csrf_token"] = secrets.token_hex(32)
+            return
+        # POST/PUT/DELETE: validar token (excepto rutas exentas)
+        if request.path in CSRF_EXEMPT:
+            return
+        # API JSON usa header X-CSRFToken; formularios HTML usan campo oculto
+        token = (
+            request.headers.get("X-CSRFToken")
+            or (request.form.get("csrf_token") if request.form else None)
+        )
+        if not token or token != session.get("_csrf_token"):
+            logger.warning("CSRF token inválido en %s desde %s", request.path, request.remote_addr)
+            abort(403)
+
+    @app.context_processor
+    def inject_csrf():
+        """Inyectar csrf_token en todos los templates."""
+        if "_csrf_token" not in session:
+            session["_csrf_token"] = secrets.token_hex(32)
+        return {"csrf_token": session["_csrf_token"]}
 
     # Security headers
     @app.after_request
