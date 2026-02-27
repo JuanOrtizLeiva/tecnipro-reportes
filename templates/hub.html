@@ -161,10 +161,11 @@ body {
 }
 .hub-card:hover::before { opacity: 1; }
 
-.hub-card.card-dashboard::before { background: linear-gradient(90deg, #1e3a8a, #3b5fd4); }
-.hub-card.card-cotizador::before { background: linear-gradient(90deg, #059669, #34d399); }
-.hub-card.card-encuestas::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.hub-card.card-dashboard::before  { background: linear-gradient(90deg, #1e3a8a, #3b5fd4); }
+.hub-card.card-cotizador::before  { background: linear-gradient(90deg, #059669, #34d399); }
+.hub-card.card-encuestas::before  { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
 .hub-card.card-licitaciones::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.hub-card.card-cobranzas::before  { background: linear-gradient(90deg, #0e7490, #06b6d4); }
 
 .card-icon {
   width: 52px;
@@ -176,10 +177,11 @@ body {
   font-size: 22px;
   flex-shrink: 0;
 }
-.card-dashboard .card-icon { background: var(--brand-bg); color: var(--brand); }
-.card-cotizador .card-icon { background: var(--green-bg); color: var(--green); }
-.card-encuestas .card-icon { background: #ede9fe; color: #7c3aed; }
-.card-licitaciones .card-icon { background: #fef3c7; color: #d97706; }
+.card-dashboard .card-icon   { background: var(--brand-bg); color: var(--brand); }
+.card-cotizador .card-icon   { background: var(--green-bg); color: var(--green); }
+.card-encuestas .card-icon   { background: #ede9fe; color: #7c3aed; }
+.card-licitaciones .card-icon{ background: #fef3c7; color: #d97706; }
+.card-cobranzas .card-icon   { background: #ecfeff; color: #0e7490; }
 
 .card-body { flex: 1; }
 .card-body h2 {
@@ -316,6 +318,15 @@ body {
         <div class="card-body">
           <h2>Licitaciones</h2>
           <p>Monitor de oportunidades en Mercado Publico: licitaciones y ordenes de compra.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+
+      <a href="/cobranzas" class="hub-card card-cobranzas">
+        <div class="card-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="card-body">
+          <h2>Cobranzas</h2>
+          <p>Gestion de facturas SII, registro de pagos, seguimiento de cartera y estadisticas de cobranza.</p>
           <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
         </div>
       </a>

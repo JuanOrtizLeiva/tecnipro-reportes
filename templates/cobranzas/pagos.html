@@ -1,0 +1,319 @@
+{% extends "cobranzas/base.html" %}
+{% block title %}Pagos{% endblock %}
+{% block breadcrumb %}<span class="sep">/</span><span class="current">Registro de Pagos</span>{% endblock %}
+
+{% block extra_styles %}
+<style>
+.pago-layout { display: grid; grid-template-columns: 400px 1fr; gap: 24px; }
+.montos-barra { background: var(--primary-lighter); border: 1px solid #bee3f8; border-radius: var(--radius-sm); padding: 16px; margin-bottom: 16px; }
+.montos-barra .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.montos-barra .row:last-child { margin-bottom: 0; }
+.montos-barra .lbl { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
+.montos-barra .val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }
+.val-total   { color: var(--primary); }
+.val-dist    { color: var(--c-pagada); }
+.val-rest    { color: var(--c-pendiente); }
+.val-ok      { color: var(--c-pagada) !important; }
+.progress-bar-wrap { height: 8px; background: var(--border); border-radius: 100px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--c-pagada); border-radius: 100px; transition: width .3s; }
+.progress-bar.over { background: var(--c-pendiente); }
+.fact-sel-row { border-bottom: 1px solid var(--border-light); padding: 10px 0; display: flex; align-items: center; gap: 10px; }
+.fact-sel-row:last-child { border-bottom: none; }
+.fact-sel-check { flex-shrink: 0; }
+.fact-sel-info { flex: 1; min-width: 0; }
+.fact-sel-info .title { font-size: 13px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fact-sel-info .sub { font-size: 11px; color: var(--text-secondary); }
+.fact-sel-monto { flex-shrink: 0; text-align: right; }
+.fact-sel-monto .saldo { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; }
+.fact-sel-monto .input-monto { width: 130px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+.fact-sel-monto .input-monto:focus { border-color: var(--primary-light); outline: none; }
+.fact-sel-monto .input-monto:disabled { background: var(--border-light); color: var(--text-muted); }
+.pagos-hist-row { border-bottom: 1px solid var(--border-light); padding: 12px 0; }
+.pagos-hist-row:last-child { border-bottom: none; }
+.hist-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.hist-fecha  { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.hist-monto  { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--primary); }
+.hist-obs    { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+.hist-dists  { font-size: 11px; color: var(--text-muted); margin-top:4px; }
+.hist-anular { font-size: 11px; color: var(--c-pendiente); cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+.hist-anular:hover { background: var(--c-pendiente-bg); }
+.section-empty { padding: 24px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Registro de Pagos</div>
+    <div class="page-subtitle">Distribuye un depósito bancario entre las facturas pendientes</div>
+  </div>
+</div>
+
+<div class="pago-layout">
+  <!-- ═══ Formulario izquierdo ═══ -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title"><i data-lucide="credit-card"></i> Datos del Pago</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Fecha del depósito *</label>
+          <input type="date" id="p-fecha" class="form-control" value="">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto total recibido *</label>
+          <input type="number" id="p-monto" class="form-control mono" placeholder="0" min="1" oninput="onMontoChange()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observación</label>
+          <textarea id="p-obs" class="form-control" rows="3" placeholder="Nro de transferencia, banco, detalle…" maxlength="500"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de montos -->
+    <div class="montos-barra">
+      <div class="row"><span class="lbl">Total del pago</span><span class="val val-total" id="mb-total">$0</span></div>
+      <div class="row"><span class="lbl">Distribuido</span><span class="val val-dist" id="mb-dist">$0</span></div>
+      <div class="row"><span class="lbl">Por distribuir</span><span class="val val-rest" id="mb-rest">$0</span></div>
+      <div class="progress-bar-wrap" style="margin-top:10px"><div class="progress-bar" id="mb-progress" style="width:0%"></div></div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-registrar" onclick="registrarPago()" disabled>
+      <i data-lucide="check-circle"></i> Confirmar Pago
+    </button>
+    <div id="pago-errors" style="margin-top:12px"></div>
+  </div>
+
+  <!-- ═══ Lista de facturas + historial ═══ -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="file-text"></i> Facturas Pendientes / Parciales ({{ anio_corte }}+)</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="fact-search" class="form-control" placeholder="Buscar folio o OTIC…" style="min-width:180px;font-size:12px;padding:5px 10px">
+          <span id="fact-sel-count" style="font-size:12px;color:var(--text-secondary);white-space:nowrap"></span>
+        </div>
+      </div>
+      <div class="card-body" id="facts-list" style="max-height:520px;overflow-y:auto;padding:0 16px">
+        <div class="section-empty"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="history"></i> Pagos Registrados Recientes</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadHistorial()"><i data-lucide="refresh-cw"></i> Actualizar</button>
+      </div>
+      <div class="card-body" id="historial-list" style="max-height:360px;overflow-y:auto;padding:0 16px">
+        <div class="section-empty"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let facturas = [];  // Todas las pendientes
+let seleccion = {}; // { documento_id: monto_aplicado }
+
+/* ── Inicializar fecha de hoy ── */
+document.getElementById('p-fecha').value = new Date().toISOString().substring(0, 10);
+
+/* ── Cargar facturas pendientes ── */
+async function loadFacturasPendientes() {
+  const c = document.getElementById('facts-list');
+  c.innerHTML = '<div class="section-empty"><div class="spinner"></div></div>';
+  try {
+    const r = await apiFetch('/api/cobranzas/facturas?solo_activas=true&estado=Pendiente&per_page=200&page=1');
+    const d1 = await r.json();
+    const r2 = await apiFetch('/api/cobranzas/facturas?solo_activas=true&estado=Parcial&per_page=200&page=1');
+    const d2 = await r2.json();
+    facturas = [...(d1.facturas||[]), ...(d2.facturas||[])].sort((a,b) => b.saldo_pendiente - a.saldo_pendiente);
+    renderFacturasList(facturas);
+    document.getElementById('fact-sel-count').textContent = `${facturas.length} facturas`;
+  } catch(e) {
+    c.innerHTML = `<div class="section-empty" style="color:var(--c-pendiente)">Error: ${e.message}</div>`;
+  }
+}
+
+function renderFacturasList(rows) {
+  const c = document.getElementById('facts-list');
+  if (!rows.length) { c.innerHTML = '<div class="section-empty">Sin facturas pendientes de cobro</div>'; return; }
+  c.innerHTML = rows.map(f => `
+    <div class="fact-sel-row" id="fsr-${f.id}">
+      <input type="checkbox" class="fact-sel-check" id="chk-${f.id}" onchange="onCheckChange(${f.id}, ${f.saldo_pendiente})">
+      <div class="fact-sel-info">
+        <div class="title">Folio <strong>${f.folio}</strong> — ${truncate(f.razon_social, 30)}</div>
+        <div class="sub">${fmtFecha(f.fecha_docto)} · ${badgeEstado(f.estado)} ${f.cliente_nombre ? '· ' + escHtml(f.cliente_nombre) : ''}</div>
+      </div>
+      <div class="fact-sel-monto">
+        <div class="saldo">${fmt(f.saldo_pendiente)}</div>
+        <input type="number" class="input-monto" id="monto-${f.id}" placeholder="0" min="1" max="${f.saldo_pendiente}"
+          disabled oninput="onMontoInput(${f.id}, ${f.saldo_pendiente})">
+      </div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+function onCheckChange(id, saldo) {
+  const chk = document.getElementById(`chk-${id}`);
+  const inp = document.getElementById(`monto-${id}`);
+  if (chk.checked) {
+    inp.disabled = false;
+    inp.value = saldo; // Pre-fill with full saldo
+    seleccion[id] = saldo;
+  } else {
+    inp.disabled = true;
+    inp.value = '';
+    delete seleccion[id];
+  }
+  updateMontos();
+}
+
+function onMontoInput(id, maxSaldo) {
+  const val = parseInt(document.getElementById(`monto-${id}`).value) || 0;
+  if (val > maxSaldo) {
+    document.getElementById(`monto-${id}`).value = maxSaldo;
+    seleccion[id] = maxSaldo;
+  } else if (val <= 0) {
+    delete seleccion[id];
+  } else {
+    seleccion[id] = val;
+  }
+  updateMontos();
+}
+
+function onMontoChange() {
+  updateMontos();
+}
+
+function updateMontos() {
+  const total = parseInt(document.getElementById('p-monto').value) || 0;
+  const dist  = Object.values(seleccion).reduce((s, v) => s + v, 0);
+  const rest  = total - dist;
+  const pct   = total > 0 ? Math.min(100, Math.round(dist * 100 / total)) : 0;
+
+  document.getElementById('mb-total').textContent   = fmt(total);
+  document.getElementById('mb-dist').textContent    = fmt(dist);
+  document.getElementById('mb-rest').textContent    = fmt(rest);
+  document.getElementById('mb-rest').className      = `val ${rest < 0 ? 'val-pendiente' : rest === 0 ? 'val-ok' : 'val-rest'}`;
+  document.getElementById('mb-progress').style.width = pct + '%';
+  document.getElementById('mb-progress').className  = `progress-bar ${rest < 0 ? 'over' : ''}`;
+
+  const canSubmit = total > 0 && dist > 0 && rest === 0 && Object.keys(seleccion).length > 0;
+  document.getElementById('btn-registrar').disabled = !canSubmit;
+}
+
+/* ── Buscar facturas ── */
+document.getElementById('fact-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtered = !q ? facturas : facturas.filter(f =>
+    String(f.folio).includes(q) || f.razon_social.toLowerCase().includes(q) || (f.cliente_nombre||'').toLowerCase().includes(q)
+  );
+  renderFacturasList(filtered);
+  // Restaurar selección
+  Object.keys(seleccion).forEach(id => {
+    const chk = document.getElementById(`chk-${id}`);
+    const inp = document.getElementById(`monto-${id}`);
+    if (chk) { chk.checked = true; inp.disabled = false; inp.value = seleccion[id]; }
+  });
+});
+
+/* ── Registrar pago ── */
+async function registrarPago() {
+  const fecha = document.getElementById('p-fecha').value;
+  const monto = parseInt(document.getElementById('p-monto').value) || 0;
+  const obs   = document.getElementById('p-obs').value.trim();
+  const errDiv = document.getElementById('pago-errors');
+
+  if (!fecha) { errDiv.innerHTML = '<div class="alert alert-error"><i data-lucide="x-circle"></i> La fecha es requerida</div>'; lucide.createIcons({nodes:[errDiv]}); return; }
+  if (monto <= 0) { errDiv.innerHTML = '<div class="alert alert-error"><i data-lucide="x-circle"></i> El monto debe ser positivo</div>'; lucide.createIcons({nodes:[errDiv]}); return; }
+
+  const distribuciones = Object.entries(seleccion).map(([doc_id, monto_aplicado]) => ({
+    documento_id: parseInt(doc_id), monto_aplicado: parseInt(monto_aplicado)
+  }));
+
+  errDiv.innerHTML = '';
+  document.getElementById('btn-registrar').disabled = true;
+  document.getElementById('btn-registrar').innerHTML = '<div class="spinner"></div> Registrando…';
+
+  try {
+    const r = await apiFetch('/api/cobranzas/pagos', {
+      method: 'POST',
+      body: JSON.stringify({ fecha_pago: fecha, monto_total: monto, observacion: obs, distribuciones })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`Pago registrado correctamente (id=${d.pago_id})`, 'success');
+      seleccion = {};
+      document.getElementById('p-monto').value = '';
+      document.getElementById('p-obs').value = '';
+      document.getElementById('p-fecha').value = new Date().toISOString().substring(0,10);
+      updateMontos();
+      await loadFacturasPendientes();
+      await loadHistorial();
+    } else {
+      const msgs = (d.errores || [d.error]).filter(Boolean);
+      errDiv.innerHTML = msgs.map(m => `<div class="alert alert-error" style="margin-bottom:6px"><i data-lucide="x-circle"></i> ${m}</div>`).join('');
+      lucide.createIcons({nodes:[errDiv]});
+    }
+  } catch(e) {
+    errDiv.innerHTML = `<div class="alert alert-error"><i data-lucide="x-circle"></i> Error: ${e.message}</div>`;
+    lucide.createIcons({nodes:[errDiv]});
+  } finally {
+    document.getElementById('btn-registrar').disabled = false;
+    document.getElementById('btn-registrar').innerHTML = '<i data-lucide="check-circle"></i> Confirmar Pago';
+    lucide.createIcons({nodes:[document.getElementById('btn-registrar')]});
+  }
+}
+
+/* ── Historial de pagos ── */
+async function loadHistorial() {
+  const c = document.getElementById('historial-list');
+  c.innerHTML = '<div class="section-empty"><div class="spinner"></div></div>';
+  try {
+    const r = await apiFetch('/api/cobranzas/pagos?per_page=20&page=1');
+    const d = await r.json();
+    const pagos = d.pagos || [];
+    if (!pagos.length) { c.innerHTML = '<div class="section-empty">Sin pagos registrados</div>'; return; }
+    c.innerHTML = pagos.map(p => `
+      <div class="pagos-hist-row">
+        <div class="hist-header">
+          <div>
+            <div class="hist-fecha">${fmtFecha(p.fecha_pago)} · por ${p.registrado_por}</div>
+            ${p.observacion ? `<div class="hist-obs">${escHtml(p.observacion)}</div>` : ''}
+          </div>
+          <div style="text-align:right">
+            <div class="hist-monto">${fmt(p.monto_total)}</div>
+            <span class="hist-anular" onclick="anularPago(${p.id})" title="Anular pago"><i data-lucide="trash-2" style="width:11px;height:11px"></i> Anular</span>
+          </div>
+        </div>
+        <div class="hist-dists">${p.num_facturas} factura${p.num_facturas !== 1 ? 's' : ''}</div>
+      </div>`).join('');
+    lucide.createIcons({nodes:[c]});
+  } catch(e) {
+    c.innerHTML = `<div class="section-empty" style="color:var(--c-pendiente)">Error: ${e.message}</div>`;
+  }
+}
+
+async function anularPago(pagoId) {
+  if (!confirm('¿Confirma la anulación de este pago? Se restaurarán los saldos de las facturas afectadas.')) return;
+  const r = await apiFetch(`/api/cobranzas/pagos/${pagoId}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) {
+    toast(`Pago anulado. ${d.facturas_afectadas} facturas recalculadas.`, 'success');
+    await loadFacturasPendientes();
+    await loadHistorial();
+  } else {
+    toast(d.error || 'Error al anular', 'error');
+  }
+}
+
+function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '…' : (s || '—'); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+loadFacturasPendientes();
+loadHistorial();
+</script>
+{% endblock %}

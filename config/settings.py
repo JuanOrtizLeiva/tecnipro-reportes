@@ -107,5 +107,22 @@ MOODLE_CATEGORY_IDS = [int(x.strip()) for x in os.getenv(
 # Flag para elegir fuente de datos: "csv" o "api"
 DATA_SOURCE = os.getenv("DATA_SOURCE", "csv").lower()
 
+# ── Cobranzas SII ─────────────────────────────────────────
+COBRANZAS_DB_PATH = Path(os.getenv("COBRANZAS_DB_PATH", "./data/cobranzas.db"))
+if not COBRANZAS_DB_PATH.is_absolute():
+    COBRANZAS_DB_PATH = PROJECT_ROOT / COBRANZAS_DB_PATH
+
+SII_CSV_PATH = Path(os.getenv("SII_CSV_PATH", "./data/sii_csv"))
+if not SII_CSV_PATH.is_absolute():
+    SII_CSV_PATH = PROJECT_ROOT / SII_CSV_PATH
+
+SII_CERT_PATH = os.getenv("SII_CERT_PATH", "/etc/ssl/private/tecnipro.pfx")
+SII_CERT_PASSWORD = os.getenv("SII_CERT_PASSWORD", "")
+SII_RUT_EMPRESA = os.getenv("SII_RUT_EMPRESA", "75620735-K")
+SII_AMBIENTE = os.getenv("SII_AMBIENTE", "produccion")
+
+# Año desde el cual se gestiona cobranza activa (facturas anteriores = solo histórico)
+ANIO_CORTE_GESTION = int(os.getenv("ANIO_CORTE_GESTION", "2026"))
+
 # ── Logging ────────────────────────────────────────────────
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

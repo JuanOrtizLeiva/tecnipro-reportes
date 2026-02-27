@@ -1,0 +1,298 @@
+{% extends "cobranzas/base.html" %}
+{% block title %}Importar CSV{% endblock %}
+{% block breadcrumb %}<span class="sep">/</span><span class="current">Importar CSV</span>{% endblock %}
+
+{% block extra_styles %}
+<style>
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; cursor: pointer;
+  transition: all .2s; background: var(--bg-card);
+  margin-bottom: 20px;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--primary-light); background: var(--primary-lighter);
+}
+.drop-zone i[data-lucide] { width: 40px; height: 40px; color: var(--primary-light); margin-bottom: 12px; }
+.drop-zone .dz-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.drop-zone .dz-sub   { font-size: 13px; color: var(--text-secondary); }
+.file-list { margin-bottom: 20px; }
+.file-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.file-item .name { flex: 1; font-size: 13px; font-weight: 600; }
+.file-item .size { font-size: 12px; color: var(--text-secondary); }
+.file-item .remove { color: var(--c-pendiente); cursor: pointer; border: none; background: none; padding: 2px 6px; border-radius: 3px; }
+.file-item .remove:hover { background: var(--c-pendiente-bg); }
+.resultado-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.res-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; text-align: center; }
+.res-card .res-num { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.res-card .res-lbl { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.detail-arch { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }
+.detail-arch-header { padding: 10px 14px; background: var(--border-light); display: flex; align-items: center; gap: 10px; }
+.detail-arch-header .arch-name { font-weight: 700; font-size: 13px; flex: 1; }
+.detail-arch-header .arch-period { font-size: 12px; color: var(--text-secondary); }
+.detail-arch-body { padding: 12px 14px; font-size: 12.5px; }
+.progress-wrap { height: 4px; background: var(--border); border-radius: 100px; margin-top: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--primary); border-radius: 100px; animation: progress-ani 2s ease-in-out infinite; }
+@keyframes progress-ani { 0% { width: 0%; margin-left: 0%; } 50% { width: 60%; margin-left: 20%; } 100% { width: 0%; margin-left: 100%; } }
+.periodos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.periodo-chip { padding: 6px 10px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; border: 1px solid var(--border); text-align: center; }
+.periodo-chip.importado { background: #f0fff4; color: var(--c-pagada); border-color: #c6f6d5; }
+.periodo-chip.pendiente { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Importar CSV del SII</div>
+    <div class="page-subtitle">Sube archivos del Registro de Ventas descargados desde el SII</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:24px">
+  <div>
+    <!-- Drop zone -->
+    <input type="file" id="file-input" multiple accept=".csv" style="display:none" onchange="onFilesSelected(this.files)">
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <i data-lucide="upload-cloud"></i>
+      <div class="dz-title">Arrastra archivos CSV aquí</div>
+      <div class="dz-sub">o haz clic para seleccionar · Formato: <code>MM YYYY.csv</code> · Múltiples archivos permitidos</div>
+    </div>
+
+    <!-- Lista de archivos seleccionados -->
+    <div class="file-list" id="file-list"></div>
+
+    <!-- Botones -->
+    <div style="display:flex;gap:10px;margin-bottom:20px" id="import-actions" style="display:none">
+      <button class="btn btn-primary" id="btn-importar" onclick="importar()" style="display:none">
+        <i data-lucide="upload"></i> Importar archivos seleccionados
+      </button>
+      <button class="btn btn-secondary" id="btn-limpiar" onclick="limpiarSeleccion()" style="display:none">
+        <i data-lucide="x"></i> Limpiar selección
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div id="import-progress" style="display:none" class="card" style="margin-bottom:20px">
+      <div class="card-body" style="text-align:center;padding:30px">
+        <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+        <p style="margin-top:12px;font-weight:600">Importando archivos...</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:4px">Esto puede tomar unos segundos según el volumen de datos</p>
+        <div class="progress-wrap" style="margin-top:16px"><div class="progress-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- Resultado -->
+    <div id="import-result" style="display:none"></div>
+
+    <!-- Historial de importaciones -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i data-lucide="history"></i> Historial de Importaciones</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadHistorial()"><i data-lucide="refresh-cw"></i></button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table>
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Detalle</th></tr></thead>
+            <tbody id="hist-tbody"><tr><td colspan="3" class="table-empty"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel lateral: periodos importados -->
+  <div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i data-lucide="calendar"></i> Periodos en la BD</div></div>
+      <div class="card-body">
+        <div id="periodos-container">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header"><div class="card-title"><i data-lucide="info"></i> Formato esperado</div></div>
+      <div class="card-body" style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">
+        <p><strong>Nombre del archivo:</strong> <code>MM YYYY.csv</code><br>Ejemplo: <code>01 2026.csv</code></p>
+        <p style="margin-top:8px"><strong>Separador:</strong> punto y coma (;)</p>
+        <p style="margin-top:8px"><strong>Fechas:</strong> DD/MM/YYYY o DD-MM-YYYY</p>
+        <p style="margin-top:8px"><strong>Tipos de documento:</strong><br>
+          33 = Factura Electrónica<br>
+          34 = Factura Exenta<br>
+          61 = Nota de Crédito
+        </p>
+        <p style="margin-top:8px"><strong>Corte temporal:</strong><br>Facturas anteriores a {{ anio_corte }} se importan como "Pagada" (solo histórico).</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFiles = [];
+
+/* ── Drag & Drop ── */
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', e => { dz.classList.remove('drag-over'); });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  onFilesSelected(e.dataTransfer.files);
+});
+
+function onFilesSelected(files) {
+  const csv = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.csv'));
+  if (!csv.length) { toast('Solo se aceptan archivos .csv', 'error'); return; }
+  // Deduplicate by name
+  const names = new Set(selectedFiles.map(f => f.name));
+  csv.forEach(f => { if (!names.has(f.name)) { selectedFiles.push(f); names.add(f.name); } });
+  renderFileList();
+}
+
+function renderFileList() {
+  const c = document.getElementById('file-list');
+  if (!selectedFiles.length) { c.innerHTML = ''; toggleImportBtn(false); return; }
+  c.innerHTML = selectedFiles.map((f, i) => `
+    <div class="file-item">
+      <i data-lucide="file-text" style="width:16px;height:16px;color:var(--primary);flex-shrink:0"></i>
+      <span class="name">${escHtml(f.name)}</span>
+      <span class="size">${(f.size/1024).toFixed(1)} KB</span>
+      <button class="remove" onclick="removeFile(${i})" title="Quitar"><i data-lucide="x" style="width:12px;height:12px"></i></button>
+    </div>`).join('');
+  lucide.createIcons({nodes:[c]});
+  toggleImportBtn(true);
+}
+
+function toggleImportBtn(show) {
+  document.getElementById('btn-importar').style.display = show ? 'inline-flex' : 'none';
+  document.getElementById('btn-limpiar').style.display  = show ? 'inline-flex' : 'none';
+}
+
+function removeFile(i) { selectedFiles.splice(i, 1); renderFileList(); }
+function limpiarSeleccion() { selectedFiles = []; renderFileList(); document.getElementById('import-result').style.display = 'none'; }
+
+/* ── Importar ── */
+async function importar() {
+  if (!selectedFiles.length) { toast('Selecciona al menos un archivo', 'error'); return; }
+  document.getElementById('import-progress').style.display = 'block';
+  document.getElementById('import-result').style.display = 'none';
+  document.getElementById('btn-importar').disabled = true;
+
+  const fd = new FormData();
+  selectedFiles.forEach(f => fd.append('archivos', f, f.name));
+
+  try {
+    const r = await fetch('/api/cobranzas/importar', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF },
+      body: fd,
+    });
+    const d = await r.json();
+    document.getElementById('import-progress').style.display = 'none';
+    renderResultado(d);
+    if (d.ok) {
+      toast(`Importación completada: ${d.documentos_insertados} documentos nuevos`, 'success');
+      selectedFiles = [];
+      renderFileList();
+      await loadPeriodos();
+      await loadHistorial();
+    }
+  } catch(e) {
+    document.getElementById('import-progress').style.display = 'none';
+    document.getElementById('import-result').innerHTML = `<div class="alert alert-error"><i data-lucide="x-circle"></i> Error: ${e.message}</div>`;
+    document.getElementById('import-result').style.display = 'block';
+    lucide.createIcons({nodes:[document.getElementById('import-result')]});
+  } finally {
+    document.getElementById('btn-importar').disabled = false;
+  }
+}
+
+function renderResultado(d) {
+  const el = document.getElementById('import-result');
+  el.style.display = 'block';
+
+  let html = `<div class="resultado-grid">
+    <div class="res-card"><div class="res-num" style="color:var(--primary)">${d.archivos_procesados}</div><div class="res-lbl">Archivos procesados</div></div>
+    <div class="res-card"><div class="res-num" style="color:var(--c-pagada)">${d.documentos_insertados}</div><div class="res-lbl">Documentos nuevos</div></div>
+    <div class="res-card"><div class="res-num" style="color:var(--text-secondary)">${d.duplicados}</div><div class="res-lbl">Duplicados omitidos</div></div>
+    <div class="res-card"><div class="res-num" style="color:#2b6cb0">${d.ncs_aplicadas}</div><div class="res-lbl">NC aplicadas</div></div>
+  </div>`;
+
+  if (d.errores_parseo && d.errores_parseo.length) {
+    html += `<div class="alert alert-warning" style="margin-bottom:16px"><i data-lucide="alert-triangle"></i>
+      <div><strong>Advertencias (${d.errores_parseo.length}):</strong><ul style="margin-top:6px;padding-left:16px;font-size:12px">
+        ${d.errores_parseo.slice(0,10).map(e => `<li>${escHtml(e)}</li>`).join('')}
+        ${d.errores_parseo.length > 10 ? `<li>…y ${d.errores_parseo.length - 10} más</li>` : ''}
+      </ul></div></div>`;
+  }
+
+  html += `<div style="margin-bottom:8px"><strong style="font-size:13px">Detalle por archivo:</strong></div>`;
+  (d.detalles || []).forEach(det => {
+    html += `<div class="detail-arch">
+      <div class="detail-arch-header">
+        <i data-lucide="file-text" style="width:14px;height:14px;color:var(--primary)"></i>
+        <span class="arch-name">${escHtml(det.archivo)}</span>
+        <span class="arch-period">${det.periodo}</span>
+      </div>
+      <div class="detail-arch-body">
+        <span style="margin-right:16px"><strong>${det.facturas}</strong> facturas · <strong>${det.ncs}</strong> NC</span>
+        <span style="color:var(--c-pagada);margin-right:12px"><strong>${det.insertados}</strong> insertados</span>
+        ${det.duplicados > 0 ? `<span style="color:var(--text-secondary);margin-right:12px"><strong>${det.duplicados}</strong> duplicados</span>` : ''}
+        ${det.errores.length ? `<span style="color:var(--c-pendiente)"><strong>${det.errores.length}</strong> errores</span>` : ''}
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+  lucide.createIcons({nodes:[el]});
+}
+
+/* ── Periodos en BD ── */
+async function loadPeriodos() {
+  const c = document.getElementById('periodos-container');
+  c.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+  try {
+    const r = await apiFetch('/api/cobranzas/importar/periodos');
+    const d = await r.json();
+    const periodos = d.periodos || [];
+    if (!periodos.length) { c.innerHTML = '<p style="color:var(--text-secondary);text-align:center;font-size:13px">Sin datos importados aún</p>'; return; }
+    c.innerHTML = `<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">${periodos.length} periodos importados:</p>
+      <div class="periodos-grid">${periodos.map(p => `
+        <div class="periodo-chip importado" title="${p.num_facturas} facturas, ${p.num_ncs} NC">
+          ${p.periodo_tributario}<br>
+          <small style="font-weight:400">${p.num_docs} docs</small>
+        </div>`).join('')}</div>`;
+  } catch(e) {
+    c.innerHTML = `<p style="color:var(--c-pendiente);font-size:12px">Error: ${e.message}</p>`;
+  }
+}
+
+/* ── Historial ── */
+async function loadHistorial() {
+  const tbody = document.getElementById('hist-tbody');
+  tbody.innerHTML = '<tr><td colspan="3" class="table-empty"><div class="spinner"></div></td></tr>';
+  try {
+    const r = await apiFetch('/api/cobranzas/importar/historial');
+    const d = await r.json();
+    const items = d.historial || [];
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Sin importaciones registradas</td></tr>'; return; }
+    tbody.innerHTML = items.map(h => `<tr>
+      <td style="white-space:nowrap;font-size:12px">${fmtFecha(h.fecha)}</td>
+      <td style="font-size:12px">${h.usuario}</td>
+      <td style="font-size:12px">${escHtml(h.detalle||'')}</td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="3" class="table-empty" style="color:var(--c-pendiente)">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+loadPeriodos();
+loadHistorial();
+</script>
+{% endblock %}

@@ -1,0 +1,407 @@
+{% extends "cobranzas/base.html" %}
+{% block title %}Facturas{% endblock %}
+{% block breadcrumb %}<span class="sep">/</span><span class="current">Facturas</span>{% endblock %}
+
+{% block extra_styles %}
+<style>
+.row-expand { display: none; background: var(--primary-lighter); }
+.row-expand.open { display: table-row; }
+.row-expand td { padding: 0; }
+.expand-inner { padding: 20px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.expand-section h4 { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.detail-item .dt { font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.detail-item .dd { font-size: 13px; color: var(--text-primary); margin-top: 2px; }
+.mini-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.mini-table th { background: rgba(26,54,93,.08); padding: 6px 10px; text-align: left; font-size: 11px; font-weight: 700; color: var(--primary); }
+.mini-table td { padding: 6px 10px; border-bottom: 1px solid var(--border-light); }
+.mini-table td.r { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+.inline-field { display: flex; align-items: center; gap: 6px; min-width: 140px; }
+.inline-field input, .inline-field select {
+  flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
+  font-size: 12.5px; font-family: 'DM Sans', sans-serif;
+}
+.inline-field input:focus, .inline-field select:focus { border-color: var(--primary-light); outline: none; }
+.inline-field .save-btn { width: 24px; height: 24px; border-radius: 4px; border: none; background: var(--primary); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.inline-field .save-btn:hover { background: var(--primary-hover); }
+.hist-none { color: var(--text-muted); font-size: 12px; font-style: italic; }
+.folio-link { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--primary); cursor: pointer; }
+.folio-link:hover { text-decoration: underline; }
+#cliente-autocomplete { position: absolute; z-index: 100; background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); max-height: 200px; overflow-y: auto; width: 260px; }
+#cliente-autocomplete .ac-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+#cliente-autocomplete .ac-item:hover { background: var(--primary-lighter); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Facturas SII</div>
+    <div class="page-subtitle">Listado completo de documentos tributarios importados</div>
+  </div>
+  <a href="/cobranzas/pagos" class="btn btn-primary"><i data-lucide="plus"></i> Registrar Pago</a>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:16px">
+    <div class="filters-bar">
+      <div class="form-group">
+        <label class="form-label">Búsqueda</label>
+        <input type="text" id="f-q" class="form-control" placeholder="Folio, razón social, cliente…" style="min-width:220px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select id="f-estado" class="form-control">
+          <option value="">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Parcial">Parcial</option>
+          <option value="Pagada">Pagada</option>
+          <option value="Anulada">Anulada</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">OTIC</label>
+        <select id="f-otic" class="form-control"><option value="">Todas</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Periodo</label>
+        <input type="text" id="f-periodo" class="form-control" placeholder="YYYY-MM" style="min-width:100px">
+      </div>
+      <div class="form-group" style="margin-top:22px">
+        <label class="form-label" style="opacity:0">.</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="loadFacturas(1)"><i data-lucide="search"></i> Filtrar</button>
+          <button class="btn btn-secondary" onclick="clearFilters()"><i data-lucide="x"></i> Limpiar</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-left:auto;margin-top:22px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary)">
+          <input type="checkbox" id="f-activas" checked> Solo activas ({{ anio_corte }}+)
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i data-lucide="file-text"></i> Documentos</div>
+    <div id="fact-count" style="font-size:12px;color:var(--text-secondary)"></div>
+  </div>
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap" style="border:none;border-radius:0">
+      <table id="fact-table">
+        <thead><tr>
+          <th style="width:36px"></th>
+          <th>Folio</th>
+          <th>Fecha</th>
+          <th>OTIC / Receptor</th>
+          <th>Cliente Real</th>
+          <th>Curso</th>
+          <th class="num">Total</th>
+          <th class="num">NC</th>
+          <th class="num">Pagado</th>
+          <th class="num">Saldo</th>
+          <th>Estado</th>
+        </tr></thead>
+        <tbody id="fact-tbody">
+          <tr><td colspan="11" class="table-empty"><div class="spinner"></div><p>Cargando...</p></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="fact-pagination" class="pagination" style="padding:16px"></div>
+  </div>
+</div>
+
+<!-- Cliente autocomplete dropdown (global, positioned dynamically) -->
+<div id="cliente-autocomplete" style="display:none"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1, totalPages = 1, openRowId = null;
+let clientesCache = [], cursosCache = [];
+
+/* ── Load OTICs for filter ── */
+async function loadOtics() {
+  const r = await apiFetch('/api/cobranzas/otics');
+  const d = await r.json();
+  const sel = document.getElementById('f-otic');
+  (d.otics || []).forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.rut_cliente;
+    opt.textContent = truncate(o.razon_social, 50);
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Load cursos for autocomplete ── */
+async function loadCursos() {
+  const r = await apiFetch('/api/cobranzas/cursos');
+  const d = await r.json();
+  cursosCache = d.cursos || [];
+}
+
+/* ── Main table load ── */
+async function loadFacturas(page = 1) {
+  currentPage = page;
+  const q       = document.getElementById('f-q').value.trim();
+  const estado  = document.getElementById('f-estado').value;
+  const otic    = document.getElementById('f-otic').value;
+  const periodo = document.getElementById('f-periodo').value.trim();
+  const activas = document.getElementById('f-activas').checked;
+
+  const params = new URLSearchParams({ page, per_page: 50, solo_activas: activas });
+  if (q)       params.set('q', q);
+  if (estado)  params.set('estado', estado);
+  if (otic)    params.set('otic', otic);
+  if (periodo) params.set('periodo', periodo);
+
+  const tbody = document.getElementById('fact-tbody');
+  tbody.innerHTML = '<tr><td colspan="11" class="table-empty"><div class="spinner"></div></td></tr>';
+
+  try {
+    const r = await apiFetch('/api/cobranzas/facturas?' + params);
+    const d = await r.json();
+    totalPages = d.pages || 1;
+    document.getElementById('fact-count').textContent = `${(d.total||0).toLocaleString('es-CL')} documentos`;
+    renderFacturas(d.facturas || []);
+    renderPagination();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="11" class="table-empty" style="color:var(--c-pendiente)">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderFacturas(rows) {
+  const tbody = document.getElementById('fact-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">Sin resultados para los filtros aplicados</td></tr>';
+    return;
+  }
+  const activas = document.getElementById('f-activas').checked;
+  tbody.innerHTML = rows.map(f => {
+    const isActiva = isDocActivo(f.fecha_docto);
+    return `
+    <tr id="row-${f.id}" class="fact-row" onclick="toggleExpand(${f.id}, this, ${JSON.stringify(f).replace(/</g,'&lt;')})">
+      <td style="padding:8px;text-align:center"><i data-lucide="chevron-right" style="width:13px;height:13px;color:var(--text-muted);transition:.2s" id="chev-${f.id}"></i></td>
+      <td class="mono folio-link">${f.folio}</td>
+      <td>${fmtFecha(f.fecha_docto)}</td>
+      <td title="${f.razon_social}">${truncate(f.razon_social, 32)}</td>
+      <td id="cliente-cell-${f.id}">${renderClienteCell(f)}</td>
+      <td id="curso-cell-${f.id}">${renderCursoCell(f)}</td>
+      <td class="num">${fmt(f.monto_total)}</td>
+      <td class="num" style="color:var(--c-negativo)">${f.monto_nc > 0 ? fmt(f.monto_nc) : '—'}</td>
+      <td class="num" style="color:var(--c-pagada)">${f.total_pagado > 0 ? fmt(f.total_pagado) : '—'}</td>
+      <td class="num" style="font-weight:700">${fmt(f.saldo_pendiente)}</td>
+      <td>${badgeEstado(f.estado)}</td>
+    </tr>
+    <tr class="row-expand" id="expand-${f.id}"><td colspan="11"></td></tr>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function isDocActivo(fecha) {
+  return fecha && parseInt(fecha.substring(0,4)) >= {{ anio_corte }};
+}
+
+function renderClienteCell(f) {
+  if (!isDocActivo(f.fecha_docto)) return '<span style="color:var(--text-muted)">—</span>';
+  return `<span class="inline-edit-val" onclick="event.stopPropagation(); startClienteEdit(${f.id}, '${escJs(f.cliente_nombre || '')}', ${f.cliente_id || 'null'})" title="Clic para editar">${f.cliente_nombre || '<em style=\'color:var(--text-muted)\'>Sin asignar</em>'}</span>`;
+}
+
+function renderCursoCell(f) {
+  if (!isDocActivo(f.fecha_docto)) return '<span style="color:var(--text-muted)">—</span>';
+  return `<span class="inline-edit-val" onclick="event.stopPropagation(); startCursoEdit(${f.id}, '${escJs(f.curso || '')}')" title="Clic para editar">${f.curso || '<em style=\'color:var(--text-muted)\'>Sin asignar</em>'}</span>`;
+}
+
+/* ── Expand/collapse row ── */
+async function toggleExpand(id, rowEl, factura) {
+  const expandRow = document.getElementById(`expand-${id}`);
+  const chev = document.getElementById(`chev-${id}`);
+  if (openRowId && openRowId !== id) {
+    document.getElementById(`expand-${openRowId}`)?.classList.remove('open');
+    document.getElementById(`chev-${openRowId}`)?.style.setProperty('transform', '');
+  }
+  if (expandRow.classList.contains('open')) {
+    expandRow.classList.remove('open');
+    chev.style.transform = '';
+    openRowId = null;
+    return;
+  }
+  expandRow.classList.add('open');
+  chev.style.transform = 'rotate(90deg)';
+  openRowId = id;
+  expandRow.cells[0].innerHTML = '<div style="padding:20px;text-align:center"><div class="spinner"></div></div>';
+
+  try {
+    const r = await apiFetch(`/api/cobranzas/facturas/${id}`);
+    const d = await r.json();
+    renderExpandDetail(expandRow.cells[0], d.factura, d.notas_credito, d.pagos);
+  } catch(e) {
+    expandRow.cells[0].innerHTML = `<div style="padding:16px;color:var(--c-pendiente)">Error cargando detalle: ${e.message}</div>`;
+  }
+}
+
+function renderExpandDetail(cell, f, ncs, pagos) {
+  const isActiva = isDocActivo(f.fecha_docto);
+  cell.innerHTML = `<div class="expand-inner">
+    <div>
+      <div class="expand-section">
+        <h4>Datos del Documento</h4>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="dt">Tipo</div><div class="dd">${f.tipo_doc_nombre} (${f.tipo_doc})</div></div>
+          <div class="detail-item"><div class="dt">Periodo</div><div class="dd">${f.periodo_tributario}</div></div>
+          <div class="detail-item"><div class="dt">RUT Receptor</div><div class="dd mono">${f.rut_cliente}</div></div>
+          <div class="detail-item"><div class="dt">Recepción SII</div><div class="dd">${fmtFecha(f.fecha_recepcion)}</div></div>
+          <div class="detail-item"><div class="dt">Neto</div><div class="dd mono">${fmt(f.monto_neto)}</div></div>
+          <div class="detail-item"><div class="dt">IVA</div><div class="dd mono">${fmt(f.monto_iva)}</div></div>
+          <div class="detail-item"><div class="dt">Exento</div><div class="dd mono">${fmt(f.monto_exento)}</div></div>
+          <div class="detail-item"><div class="dt">Archivo</div><div class="dd" style="font-size:11px">${f.archivo_origen}</div></div>
+        </div>
+      </div>
+
+      <div class="expand-section" style="margin-top:16px">
+        <h4>Notas de Crédito Asociadas</h4>
+        ${ncs.length ? `<table class="mini-table"><thead><tr><th>Folio NC</th><th>Fecha</th><th class="r">Monto</th></tr></thead>
+        <tbody>${ncs.map(nc => `<tr><td class="mono">${nc.folio}</td><td>${fmtFecha(nc.fecha_docto)}</td><td class="r" style="color:var(--c-negativo)">${fmt(nc.monto_total)}</td></tr>`).join('')}</tbody></table>`
+        : '<p class="hist-none">Sin notas de crédito</p>'}
+      </div>
+    </div>
+
+    <div>
+      ${isActiva ? `<div class="expand-section">
+        <h4>Asignación (solo {{ anio_corte }}+)</h4>
+        <div style="margin-bottom:12px">
+          <div class="dt" style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Cliente Real</div>
+          <div style="position:relative">
+            <div class="inline-field" id="cliente-edit-${f.id}">
+              <input type="text" id="cliente-input-${f.id}" placeholder="Buscar cliente…" value="${escHtml(f.cliente_nombre || '')}" autocomplete="off"
+                oninput="searchCliente(${f.id}, this.value)" onkeydown="if(event.key==='Enter') saveCliente(${f.id})">
+              <button class="save-btn" onclick="saveCliente(${f.id})" title="Guardar"><i data-lucide="check" style="width:12px;height:12px"></i></button>
+            </div>
+            <div id="ac-${f.id}" style="display:none;position:absolute;top:100%;left:0;z-index:100;background:white;border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);width:260px;max-height:180px;overflow-y:auto"></div>
+          </div>
+          <input type="hidden" id="cliente-id-${f.id}" value="${f.cliente_id || ''}">
+        </div>
+        <div>
+          <div class="dt" style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Curso</div>
+          <div class="inline-field">
+            <input type="text" id="curso-input-${f.id}" placeholder="Nombre del curso…" value="${escHtml(f.curso || '')}" list="cursos-list" onkeydown="if(event.key==='Enter') saveCurso(${f.id})">
+            <button class="save-btn" onclick="saveCurso(${f.id})" title="Guardar"><i data-lucide="check" style="width:12px;height:12px"></i></button>
+          </div>
+          <datalist id="cursos-list">${cursosCache.map(c => `<option value="${escHtml(c)}">`).join('')}</datalist>
+        </div>
+      </div>` : '<div class="alert alert-info"><i data-lucide="info"></i> Factura histórica — solo para estadísticas. No permite asignación de cliente, curso ni pagos.</div>'}
+
+      <div class="expand-section" style="margin-top:16px">
+        <h4>Historial de Pagos</h4>
+        ${pagos.length ? `<table class="mini-table"><thead><tr><th>Fecha</th><th class="r">Monto</th><th>Observación</th><th>Registrado por</th></tr></thead>
+        <tbody>${pagos.map(p => `<tr><td>${fmtFecha(p.fecha_pago)}</td><td class="r" style="color:var(--c-pagada)">${fmt(p.monto_aplicado)}</td><td style="font-size:11px">${escHtml(p.observacion||'—')}</td><td style="font-size:11px">${p.registrado_por}</td></tr>`).join('')}</tbody></table>`
+        : `<p class="hist-none">${isActiva ? 'Sin pagos registrados' : 'Factura histórica'}</p>`}
+      </div>
+    </div>
+  </div>`;
+  lucide.createIcons({ nodes: [cell] });
+}
+
+/* ── Inline editing: cliente ── */
+let clienteSearchTimer = null;
+async function searchCliente(docId, query) {
+  clearTimeout(clienteSearchTimer);
+  document.getElementById(`cliente-id-${docId}`).value = '';
+  if (!query.trim()) { document.getElementById(`ac-${docId}`).style.display = 'none'; return; }
+  clienteSearchTimer = setTimeout(async () => {
+    const r = await apiFetch(`/api/cobranzas/clientes?q=${encodeURIComponent(query)}&per_page=8`);
+    const d = await r.json();
+    const ac = document.getElementById(`ac-${docId}`);
+    const clientes = d.clientes || [];
+    ac.style.display = clientes.length ? 'block' : 'none';
+    ac.innerHTML = clientes.map(c =>
+      `<div class="ac-item" onclick="selectCliente(${docId}, ${c.id}, '${escJs(c.nombre)}')">${c.nombre}</div>`
+    ).join('') + `<div class="ac-item" style="color:var(--primary);font-weight:600" onclick="createAndSelectCliente(${docId}, '${escJs(query)}')">+ Crear "${query}"</div>`;
+  }, 300);
+}
+
+function selectCliente(docId, clienteId, nombre) {
+  document.getElementById(`cliente-input-${docId}`).value = nombre;
+  document.getElementById(`cliente-id-${docId}`).value = clienteId;
+  document.getElementById(`ac-${docId}`).style.display = 'none';
+}
+
+async function createAndSelectCliente(docId, nombre) {
+  const r = await apiFetch('/api/cobranzas/clientes', { method: 'POST', body: JSON.stringify({ nombre, forzar: false }) });
+  const d = await r.json();
+  if (d.sugerencias && d.sugerencias.length) {
+    if (!confirm(`Ya existe un cliente similar: "${d.sugerencias[0].nombre}". ¿Crear de todas formas?`)) {
+      selectCliente(docId, d.sugerencias[0].id, d.sugerencias[0].nombre); return;
+    }
+    const r2 = await apiFetch('/api/cobranzas/clientes', { method: 'POST', body: JSON.stringify({ nombre, forzar: true }) });
+    const d2 = await r2.json();
+    if (d2.ok) selectCliente(docId, d2.cliente_id, d2.cliente.nombre);
+  } else if (d.ok) {
+    selectCliente(docId, d.cliente_id, d.cliente.nombre);
+  } else {
+    toast(d.error || 'Error creando cliente', 'error');
+  }
+}
+
+async function saveCliente(docId) {
+  const clienteId = parseInt(document.getElementById(`cliente-id-${docId}`).value);
+  if (!clienteId) { toast('Selecciona un cliente de la lista', 'error'); return; }
+  const r = await apiFetch(`/api/cobranzas/facturas/${docId}/asignar-cliente`, {
+    method: 'POST', body: JSON.stringify({ cliente_id: clienteId })
+  });
+  const d = await r.json();
+  if (d.ok) { toast('Cliente asignado correctamente', 'success'); loadFacturas(currentPage); }
+  else toast(d.error || 'Error', 'error');
+}
+
+async function saveCurso(docId) {
+  const curso = document.getElementById(`curso-input-${docId}`).value.trim();
+  const r = await apiFetch(`/api/cobranzas/facturas/${docId}/asignar-curso`, {
+    method: 'POST', body: JSON.stringify({ curso })
+  });
+  const d = await r.json();
+  if (d.ok) { toast('Curso actualizado', 'success'); loadFacturas(currentPage); }
+  else toast(d.error || 'Error', 'error');
+}
+
+function startClienteEdit(docId, nombre, clienteId) { /* handled in expand detail */ }
+function startCursoEdit(docId, curso) { /* handled in expand detail */ }
+
+/* ── Pagination ── */
+function renderPagination() {
+  const c = document.getElementById('fact-pagination');
+  if (totalPages <= 1) { c.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="loadFacturas(${currentPage-1})" ${currentPage===1?'disabled':''}>←</button>`;
+  const start = Math.max(1, currentPage - 2), end = Math.min(totalPages, currentPage + 2);
+  if (start > 1) html += `<button class="page-btn" onclick="loadFacturas(1)">1</button>${start > 2 ? '<span>…</span>' : ''}`;
+  for (let i = start; i <= end; i++) html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="loadFacturas(${i})">${i}</button>`;
+  if (end < totalPages) html += `${end < totalPages-1 ? '<span>…</span>' : ''}<button class="page-btn" onclick="loadFacturas(${totalPages})">${totalPages}</button>`;
+  html += `<button class="page-btn" onclick="loadFacturas(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>→</button>`;
+  c.innerHTML = html;
+}
+
+function clearFilters() {
+  ['f-q','f-periodo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-estado').value = '';
+  document.getElementById('f-otic').value = '';
+  document.getElementById('f-activas').checked = true;
+  loadFacturas(1);
+}
+
+function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '…' : (s || '—'); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escJs(s) { return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+
+// Enter to search
+document.getElementById('f-q').addEventListener('keydown', e => { if (e.key === 'Enter') loadFacturas(1); });
+
+// Init
+loadOtics();
+loadCursos();
+loadFacturas(1);
+</script>
+{% endblock %}

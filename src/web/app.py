@@ -42,7 +42,9 @@ def create_app():
     login_manager.init_app(app)
 
     # ── CSRF Protection ──────────────────────────────────────
-    # Rutas exentas: login (genera sesión), health, status checks
+    # Rutas exentas de CSRF:
+    #   - Formularios de auth (generan sesión nueva)
+    #   - Rutas /api/* (protegidas por @login_required + JSON, no formularios HTML)
     CSRF_EXEMPT = {"/login", "/forgot-password", "/reset-password", "/api/health"}
 
     @app.before_request
@@ -53,9 +55,9 @@ def create_app():
                 session["_csrf_token"] = secrets.token_hex(32)
             return
         # POST/PUT/DELETE: validar token (excepto rutas exentas)
-        if request.path in CSRF_EXEMPT:
+        if request.path in CSRF_EXEMPT or request.path.startswith("/api/"):
             return
-        # API JSON usa header X-CSRFToken; formularios HTML usan campo oculto
+        # Formularios HTML usan campo oculto csrf_token
         token = (
             request.headers.get("X-CSRFToken")
             or (request.form.get("csrf_token") if request.form else None)
@@ -81,6 +83,9 @@ def create_app():
     # Registrar rutas
     from src.web.routes import register_routes
     register_routes(app)
+
+    from src.web.routes_cobranzas import register_cobranzas_routes
+    register_cobranzas_routes(app)
 
     return app
 

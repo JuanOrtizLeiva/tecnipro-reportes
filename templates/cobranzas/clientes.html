@@ -1,0 +1,315 @@
+{% extends "cobranzas/base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block breadcrumb %}<span class="sep">/</span><span class="current">Clientes</span>{% endblock %}
+
+{% block extra_styles %}
+<style>
+.cli-stats { display: flex; gap: 12px; margin-top: 3px; font-size: 12px; color: var(--text-secondary); }
+.cli-stats span { display: flex; align-items: center; gap: 3px; }
+.cli-actions { display: flex; gap: 6px; opacity: 0; transition: opacity .15s; }
+tbody tr:hover .cli-actions { opacity: 1; }
+.merge-panel { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+.merge-panel h3 { font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 12px; }
+.merge-select-row { display: flex; gap: 12px; align-items: flex-end; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Catálogo de Clientes</div>
+    <div class="page-subtitle">Clientes reales asignados a facturas {{ anio_corte }}+</div>
+  </div>
+  <button class="btn btn-primary" onclick="modalOpen('modal-nuevo-cliente')">
+    <i data-lucide="user-plus"></i> Nuevo Cliente
+  </button>
+</div>
+
+<!-- Merge panel (visible bajo demanda) -->
+<div class="merge-panel" id="merge-panel" style="display:none">
+  <h3><i data-lucide="git-merge" style="width:14px;height:14px"></i> Fusionar Clientes Duplicados</h3>
+  <p style="font-size:13px;color:#92400e;margin-bottom:12px">Elige el cliente "Origen" (a eliminar) y el "Destino" (que conservará todas las facturas).</p>
+  <div class="merge-select-row">
+    <div class="form-group" style="flex:1;margin-bottom:0">
+      <label class="form-label">Origen (se elimina)</label>
+      <select id="merge-origen" class="form-control"></select>
+    </div>
+    <i data-lucide="arrow-right" style="margin-bottom:6px;color:#92400e"></i>
+    <div class="form-group" style="flex:1;margin-bottom:0">
+      <label class="form-label">Destino (sobrevive)</label>
+      <select id="merge-destino" class="form-control"></select>
+    </div>
+    <button class="btn btn-danger" onclick="confirmarFusion()" style="margin-bottom:0">Fusionar</button>
+    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('merge-panel').style.display='none'" style="margin-bottom:0">Cancelar</button>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:14px 16px">
+    <div style="display:flex;gap:10px;align-items:center">
+      <input type="text" id="cli-q" class="form-control" placeholder="Buscar cliente por nombre…" style="max-width:340px" oninput="debounceSearch()">
+      <select id="cli-order" class="form-control" style="max-width:160px" onchange="loadClientes(1)">
+        <option value="nombre">Ordenar: Nombre</option>
+        <option value="total_facturado">Ordenar: Facturación</option>
+        <option value="total_pendiente">Ordenar: Pendiente</option>
+      </select>
+      <span id="cli-count" style="font-size:12px;color:var(--text-secondary);margin-left:auto"></span>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('merge-panel').style.display='block'; populateMergeSelects()">
+        <i data-lucide="git-merge"></i> Fusionar duplicados
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla clientes -->
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <div class="table-wrap" style="border:none;border-radius:0">
+      <table>
+        <thead><tr>
+          <th>Cliente</th>
+          <th>RUT</th>
+          <th>Contacto</th>
+          <th class="num">Facturas</th>
+          <th class="num">Facturado</th>
+          <th class="num">Pendiente</th>
+          <th style="width:100px"></th>
+        </tr></thead>
+        <tbody id="cli-tbody">
+          <tr><td colspan="7" class="table-empty"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="cli-pagination" class="pagination" style="padding:16px"></div>
+  </div>
+</div>
+
+<!-- ═══ Modal nuevo cliente ═══ -->
+<div class="modal-overlay" id="modal-nuevo-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cli-title">Nuevo Cliente</div>
+      <button class="modal-close" onclick="modalClose('modal-nuevo-cliente')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-cli-id">
+      <div id="sugerencias-box" style="display:none" class="alert alert-warning">
+        <i data-lucide="alert-triangle"></i>
+        <div>
+          <strong>Clientes similares encontrados:</strong>
+          <ul id="sugerencias-list" style="margin-top:6px;padding-left:16px;font-size:13px"></ul>
+          <label style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="cli-forzar"> Crear de todas formas (son clientes distintos)
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre del cliente *</label>
+        <input type="text" id="cli-nombre" class="form-control" placeholder="Empresa Ejemplo SpA">
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Se normalizará automáticamente (Título, sin tildes para búsqueda).</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">RUT</label>
+          <input type="text" id="cli-rut" class="form-control mono" placeholder="12.345.678-9">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input type="text" id="cli-tel" class="form-control" placeholder="+56 9 …">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contacto</label>
+        <input type="text" id="cli-contacto" class="form-control" placeholder="Nombre del contacto">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Email</label>
+        <input type="email" id="cli-email" class="form-control" placeholder="contacto@empresa.cl">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modalClose('modal-nuevo-cliente')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-cli" onclick="guardarCliente()">
+        <i data-lucide="save"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allClientes = [], currentPage = 1, totalPages = 1;
+let searchTimer = null;
+
+/* ── Load clientes ── */
+async function loadClientes(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('cli-q').value.trim();
+  const order = document.getElementById('cli-order').value;
+  const params = new URLSearchParams({ page, per_page: 50, order_by: order });
+  if (q) params.set('q', q);
+
+  document.getElementById('cli-tbody').innerHTML = '<tr><td colspan="7" class="table-empty"><div class="spinner"></div></td></tr>';
+
+  try {
+    const r = await apiFetch('/api/cobranzas/clientes?' + params);
+    const d = await r.json();
+    allClientes = d.clientes || [];
+    totalPages  = Math.ceil((d.total || 0) / 50) || 1;
+    document.getElementById('cli-count').textContent = `${(d.total||0).toLocaleString('es-CL')} clientes`;
+    renderClientes(allClientes);
+    renderPagination();
+  } catch(e) {
+    document.getElementById('cli-tbody').innerHTML = `<tr><td colspan="7" class="table-empty" style="color:var(--c-pendiente)">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderClientes(rows) {
+  const tbody = document.getElementById('cli-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Sin clientes registrados. <button class="btn btn-secondary btn-sm" onclick="modalOpen(\'modal-nuevo-cliente\')">Crear el primero</button></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(c => `<tr>
+    <td>
+      <div style="font-weight:600">${escHtml(c.nombre)}</div>
+      <div class="cli-stats">
+        ${c.email ? `<span><i data-lucide="mail" style="width:10px;height:10px"></i> ${escHtml(c.email)}</span>` : ''}
+        ${c.telefono ? `<span><i data-lucide="phone" style="width:10px;height:10px"></i> ${escHtml(c.telefono)}</span>` : ''}
+      </div>
+    </td>
+    <td class="mono" style="font-size:12px">${c.rut || '—'}</td>
+    <td style="font-size:12px">${c.contacto || '—'}</td>
+    <td class="num">${(c.total_facturas||0).toLocaleString('es-CL')}</td>
+    <td class="num">${fmt(c.total_facturado||0)}</td>
+    <td class="num" style="${(c.total_pendiente||0) > 0 ? 'color:var(--c-pendiente);font-weight:700' : ''}">${fmt(c.total_pendiente||0)}</td>
+    <td>
+      <div class="cli-actions">
+        <button class="btn btn-secondary btn-xs" onclick="editarCliente(${c.id})" title="Editar"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
+      </div>
+    </td>
+  </tr>`).join('');
+  lucide.createIcons();
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadClientes(1), 350);
+}
+
+/* ── Pagination ── */
+function renderPagination() {
+  const c = document.getElementById('cli-pagination');
+  if (totalPages <= 1) { c.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="loadClientes(${currentPage-1})" ${currentPage===1?'disabled':''}>←</button>`;
+  for (let i = Math.max(1, currentPage-2); i <= Math.min(totalPages, currentPage+2); i++)
+    html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="loadClientes(${i})">${i}</button>`;
+  html += `<button class="page-btn" onclick="loadClientes(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>→</button>`;
+  c.innerHTML = html;
+}
+
+/* ── Crear / editar cliente ── */
+function resetModal() {
+  ['cli-nombre','cli-rut','cli-tel','cli-contacto','cli-email'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('edit-cli-id').value = '';
+  document.getElementById('cli-forzar').checked = false;
+  document.getElementById('sugerencias-box').style.display = 'none';
+  document.getElementById('modal-cli-title').textContent = 'Nuevo Cliente';
+}
+
+document.getElementById('modal-nuevo-cliente').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-nuevo-cliente')) modalClose('modal-nuevo-cliente');
+});
+
+async function editarCliente(id) {
+  const r = await apiFetch(`/api/cobranzas/clientes/${id}`);
+  const d = await r.json();
+  if (!d.id) { toast('Error cargando cliente', 'error'); return; }
+  resetModal();
+  document.getElementById('edit-cli-id').value = d.id;
+  document.getElementById('cli-nombre').value   = d.nombre || '';
+  document.getElementById('cli-rut').value      = d.rut || '';
+  document.getElementById('cli-tel').value      = d.telefono || '';
+  document.getElementById('cli-contacto').value = d.contacto || '';
+  document.getElementById('cli-email').value    = d.email || '';
+  document.getElementById('modal-cli-title').textContent = 'Editar Cliente';
+  modalOpen('modal-nuevo-cliente');
+}
+
+async function guardarCliente() {
+  const id     = document.getElementById('edit-cli-id').value;
+  const nombre = document.getElementById('cli-nombre').value.trim();
+  const forzar = document.getElementById('cli-forzar').checked;
+  if (!nombre) { toast('El nombre es requerido', 'error'); return; }
+
+  const payload = {
+    nombre,
+    rut:      document.getElementById('cli-rut').value.trim(),
+    contacto: document.getElementById('cli-contacto').value.trim(),
+    email:    document.getElementById('cli-email').value.trim(),
+    telefono: document.getElementById('cli-tel').value.trim(),
+    forzar,
+  };
+
+  const btn = document.getElementById('btn-guardar-cli');
+  btn.disabled = true;
+
+  try {
+    let r, d;
+    if (id) {
+      r = await apiFetch(`/api/cobranzas/clientes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      r = await apiFetch('/api/cobranzas/clientes', { method: 'POST', body: JSON.stringify(payload) });
+    }
+    d = await r.json();
+
+    if (d.ok) {
+      toast(id ? 'Cliente actualizado' : 'Cliente creado correctamente', 'success');
+      modalClose('modal-nuevo-cliente');
+      loadClientes(currentPage);
+    } else if (d.sugerencias && d.sugerencias.length) {
+      const box = document.getElementById('sugerencias-box');
+      document.getElementById('sugerencias-list').innerHTML = d.sugerencias.map(s => `<li>${escHtml(s.nombre)}</li>`).join('');
+      box.style.display = 'flex';
+      lucide.createIcons({nodes:[box]});
+    } else {
+      toast(d.error || 'Error al guardar', 'error');
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ── Fusionar clientes ── */
+async function populateMergeSelects() {
+  if (!allClientes.length) await loadClientes(1);
+  const opts = allClientes.map(c => `<option value="${c.id}">${escHtml(c.nombre)}</option>`).join('');
+  document.getElementById('merge-origen').innerHTML  = opts;
+  document.getElementById('merge-destino').innerHTML = opts;
+}
+
+async function confirmarFusion() {
+  const id_origen  = parseInt(document.getElementById('merge-origen').value);
+  const id_destino = parseInt(document.getElementById('merge-destino').value);
+  if (id_origen === id_destino) { toast('El origen y destino no pueden ser el mismo cliente', 'error'); return; }
+  if (!confirm('¿Confirma la fusión? El cliente de origen será eliminado y todas sus facturas se reasignarán al destino.')) return;
+  const r = await apiFetch('/api/cobranzas/clientes/fusionar', {
+    method: 'POST', body: JSON.stringify({ id_origen, id_destino })
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast(`Clientes fusionados. ${d.facturas_reasignadas} facturas reasignadas.`, 'success');
+    document.getElementById('merge-panel').style.display = 'none';
+    loadClientes(1);
+  } else {
+    toast(d.error || 'Error al fusionar', 'error');
+  }
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+loadClientes(1);
+</script>
+{% endblock %}
