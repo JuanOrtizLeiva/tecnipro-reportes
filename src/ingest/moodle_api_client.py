@@ -21,8 +21,14 @@ MAX_RETRIES = 2
 RETRY_DELAY = 5  # segundos
 TIMEOUT = settings.MOODLE_TIMEOUT if hasattr(settings, 'MOODLE_TIMEOUT') else 60
 
+# Proxy para fallback cuando Moodle no es accesible directamente
+PROXY_URL = getattr(settings, 'PROXY_URL', None)
+
 # Control de última llamada para rate limiting
 _last_call_time = 0.0
+
+# Si la conexión directa falla, recordar para no perder tiempo en llamadas siguientes
+_direct_failed = False
 
 
 class MoodleAPIError(Exception):
@@ -80,59 +86,83 @@ def moodle_api_call(function: str, params: dict[str, Any] | None = None) -> dict
 
     logger.debug("Llamando Moodle API: %s con params: %s", function, params)
 
-    # Proxy: necesario porque Hetzner está bloqueado por el hosting de Moodle
-    proxies = (
-        {"http": settings.PROXY_URL, "https": settings.PROXY_URL}
-        if getattr(settings, "PROXY_URL", None)
-        else None
-    )
+    global _direct_failed
 
-    # Intentar la llamada con retry
+    # Intentar primero directo, luego con proxy si falla
+    proxy_config = None
+    if PROXY_URL:
+        proxy_config = {"http": PROXY_URL, "https": PROXY_URL}
+
+    # Si ya sabemos que directo no funciona, ir directo al proxy
+    if _direct_failed and proxy_config:
+        strategies = [("proxy", proxy_config)]
+    else:
+        strategies = [("directo", None)]
+        if proxy_config:
+            strategies.append(("proxy", proxy_config))
+
     last_exception = None
-    for intento in range(MAX_RETRIES + 1):
-        try:
-            response = requests.get(url, timeout=TIMEOUT, proxies=proxies)
-            _last_call_time = time.time()
+    for strategy_name, proxies in strategies:
+        # Cuando hay proxy disponible: directo falla rápido (1 intento, 10s timeout)
+        if strategy_name == "directo" and proxy_config:
+            effective_timeout = min(TIMEOUT, 10)
+            max_intentos = 1
+        else:
+            effective_timeout = TIMEOUT
+            max_intentos = MAX_RETRIES + 1
+        for intento in range(max_intentos):
+            try:
+                response = requests.get(url, timeout=effective_timeout, proxies=proxies)
+                _last_call_time = time.time()
 
-            if response.status_code != 200:
-                raise RuntimeError(
-                    f"Error HTTP {response.status_code} llamando {function}: "
-                    f"{response.text[:200]}"
+                if strategy_name == "proxy" and intento == 0:
+                    logger.info("Conexión exitosa vía %s para %s", strategy_name, function)
+
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        f"Error HTTP {response.status_code} llamando {function}: "
+                        f"{response.text[:200]}"
+                    )
+
+                data = response.json()
+
+                # Verificar si hay error en la respuesta Moodle
+                if isinstance(data, dict) and "exception" in data:
+                    error_msg = data.get("message", "Error desconocido")
+                    raise MoodleAPIError(
+                        f"Error Moodle {function}: {error_msg}"
+                    )
+
+                logger.debug(
+                    "Respuesta Moodle API (%s): %d bytes, %s items",
+                    strategy_name,
+                    len(response.content),
+                    len(data) if isinstance(data, list) else 1
                 )
 
-            data = response.json()
+                return data
 
-            # Verificar si hay error en la respuesta Moodle
-            if isinstance(data, dict) and "exception" in data:
-                error_msg = data.get("message", "Error desconocido")
-                raise MoodleAPIError(
-                    f"Error Moodle {function}: {error_msg}"
-                )
+            except requests.exceptions.Timeout as e:
+                last_exception = RuntimeError(f"Timeout llamando {function} ({strategy_name}): {e}")
+                logger.warning("Timeout %s intento %d/%d: %s", strategy_name, intento + 1, max_intentos, e)
 
-            logger.debug(
-                "Respuesta Moodle API: %d bytes, %s items",
-                len(response.content),
-                len(data) if isinstance(data, list) else 1
-            )
+            except requests.exceptions.RequestException as e:
+                last_exception = RuntimeError(f"Error de red llamando {function} ({strategy_name}): {e}")
+                logger.warning("Error de red %s intento %d/%d: %s", strategy_name, intento + 1, max_intentos, e)
 
-            return data
+            except MoodleAPIError:
+                # Error de Moodle, no reintentar
+                raise
 
-        except requests.exceptions.Timeout as e:
-            last_exception = RuntimeError(f"Timeout llamando {function}: {e}")
-            logger.warning("Timeout en intento %d/%d: %s", intento + 1, MAX_RETRIES + 1, e)
+            # Si no es el último intento, esperar antes de reintentar
+            if intento < max_intentos - 1:
+                logger.info("Reintentando en %d segundos...", RETRY_DELAY)
+                time.sleep(RETRY_DELAY)
 
-        except requests.exceptions.RequestException as e:
-            last_exception = RuntimeError(f"Error de red llamando {function}: {e}")
-            logger.warning("Error de red en intento %d/%d: %s", intento + 1, MAX_RETRIES + 1, e)
-
-        except MoodleAPIError:
-            # Error de Moodle, no reintentar
-            raise
-
-        # Si no es el último intento, esperar antes de reintentar
-        if intento < MAX_RETRIES:
-            logger.info("Reintentando en %d segundos...", RETRY_DELAY)
-            time.sleep(RETRY_DELAY)
+        # Si agotó reintentos directos y hay proxy disponible, pasar al proxy
+        if strategy_name == "directo" and proxy_config:
+            _direct_failed = True
+            logger.warning("Conexión directa a Moodle falló, intentando vía proxy (directo desactivado para esta sesión)...")
 
     # Si llegamos aquí, todos los intentos fallaron
     raise last_exception
@@ -407,30 +437,33 @@ def get_completion_status(courseid: int, userid: int) -> float:
     return progreso
 
 
-def get_all_sence_ids() -> list[str]:
-    """Obtiene todos los IDs SENCE únicos de todos los cursos en las categorías configuradas.
+def get_sence_participant_counts() -> dict[str, int]:
+    """Cuenta participantes (RUTs únicos) por ID SENCE en las categorías configuradas.
 
-    Esta función es usada por el orchestrator del scraper para saber qué IDs descargar.
-    Extrae los IDs desde los grupos de usuario en cada curso.
+    El cruce es por ID SENCE (el grupo del estudiante en Moodle), NO por curso,
+    porque un mismo curso de Moodle puede contener varios IDs SENCE. Para cada
+    estudiante se toma su ID SENCE del primer grupo (igual que get_all_sence_ids).
+
+    Sirve como punto de control: el nº de participantes Moodle de un ID SENCE
+    debe coincidir con las filas de DJ descargadas del portal para ese ID.
 
     Returns
     -------
-    list[str]
-        Lista de IDs SENCE únicos como strings numéricos.
-        Ejemplo: ["6731347", "6763148", ...]
+    dict[str, int]
+        Mapa {id_sence: nº de participantes únicos}.
     """
-    logger.info("Obteniendo IDs SENCE desde Moodle API...")
+    logger.info("Contando participantes SENCE por ID desde Moodle API...")
 
     # Obtener todos los cursos de las categorías configuradas
     courses = get_courses(settings.MOODLE_CATEGORY_IDS)
 
     if not courses:
         logger.warning("No se encontraron cursos en las categorías configuradas")
-        return []
+        return {}
 
-    sence_ids_set = set()
+    ruts_por_sence: dict[str, set] = {}
 
-    # Para cada curso, obtener los estudiantes y extraer sus grupos
+    # Para cada curso, obtener los estudiantes y agruparlos por su ID SENCE
     for curso in courses:
         curso_id = curso.get("id")
         curso_nombre = curso.get("fullname", "")
@@ -442,26 +475,47 @@ def get_all_sence_ids() -> list[str]:
                 groups = est.get("groups", [])
 
                 # El primer grupo contiene el ID SENCE
-                if groups and len(groups) > 0:
-                    id_sence = str(groups[0].get("name", "")).strip()
+                if not groups or len(groups) == 0:
+                    continue
 
-                    # Validar que sea numérico
-                    if id_sence and id_sence.isdigit():
-                        sence_ids_set.add(id_sence)
-                    else:
-                        # Intentar extraer número de formato "6731347.0"
-                        try:
-                            num = int(float(id_sence))
-                            sence_ids_set.add(str(num))
-                        except (ValueError, TypeError):
-                            continue
+                id_sence = str(groups[0].get("name", "")).strip()
+
+                # Normalizar a string numérico ("6731347.0" → "6731347")
+                if not id_sence.isdigit():
+                    try:
+                        id_sence = str(int(float(id_sence)))
+                    except (ValueError, TypeError):
+                        continue
+
+                bucket = ruts_por_sence.setdefault(id_sence, set())
+                rut = str(est.get("username", "")).strip().lower()
+                if rut:
+                    bucket.add(rut)
 
         except Exception as e:
-            logger.warning("Error obteniendo IDs SENCE del curso %d (%s): %s",
+            logger.warning("Error contando participantes del curso %d (%s): %s",
                           curso_id, curso_nombre, e)
             continue
 
-    sence_ids = sorted(sence_ids_set)
-    logger.info("IDs SENCE únicos encontrados: %d", len(sence_ids))
+    conteo = {k: len(v) for k, v in ruts_por_sence.items()}
+    logger.info(
+        "Participantes SENCE contados: %d IDs SENCE (%d participantes en total)",
+        len(conteo), sum(conteo.values()),
+    )
 
-    return sence_ids
+    return conteo
+
+
+def get_all_sence_ids() -> list[str]:
+    """Obtiene todos los IDs SENCE únicos de los cursos en las categorías configuradas.
+
+    Esta función es usada por el orchestrator del scraper para saber qué IDs
+    descargar. Extrae los IDs desde los grupos de usuario en cada curso.
+
+    Returns
+    -------
+    list[str]
+        Lista de IDs SENCE únicos como strings numéricos.
+        Ejemplo: ["6731347", "6763148", ...]
+    """
+    return sorted(get_sence_participant_counts().keys())
