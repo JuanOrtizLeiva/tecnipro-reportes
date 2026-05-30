@@ -1,0 +1,9 @@
+[Unit]
+Description=Tecnipro - Recordatorio diario de DJ pendientes a coordinadora (08:30 Chile, todos los días)
+
+[Timer]
+OnCalendar=*-*-* 08:30:00 America/Santiago
+Persistent=true
+
+[Install]
+WantedBy=timers.target

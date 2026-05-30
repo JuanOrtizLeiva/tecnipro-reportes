@@ -1,0 +1,19 @@
+[Unit]
+Description=Tecnipro - Recordatorio de DJ pendientes (correo diario a coordinadora)
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/home/ops/tecnipro-reportes
+Environment=PATH=/home/ops/tecnipro-reportes/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=TZ=America/Santiago
+EnvironmentFile=/home/ops/tecnipro-reportes/.env
+ExecStart=/home/ops/tecnipro-reportes/venv/bin/python3 /home/ops/tecnipro-reportes/scripts/recordatorio_dj_coordinadora.py
+TimeoutStartSec=300
+StandardOutput=append:/var/log/tecnipro/recordatorio-dj.log
+StandardError=append:/var/log/tecnipro/recordatorio-dj.log
+
+[Install]
+WantedBy=multi-user.target
