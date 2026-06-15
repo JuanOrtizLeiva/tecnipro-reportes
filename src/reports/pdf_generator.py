@@ -43,6 +43,122 @@ def cargar_datos(json_path=None):
     return datos
 
 
+def _cargar_coordinadores_por_curso():
+    """Lee usuarios.json y arma un mapa curso_id (str) -> [(email, nombre, empresa), ...].
+
+    Solo considera usuarios con rol=comprador y activo (default True).
+    """
+    path = Path(settings.USUARIOS_PATH)
+    if not path.exists():
+        logger.warning("USUARIOS_PATH no existe: %s — sin coordinadores extra", path)
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    mapa = {}
+    for u in data.get("usuarios", []):
+        if u.get("rol") != "comprador":
+            continue
+        if u.get("activo") is False:
+            continue
+        email = (u.get("email") or "").strip()
+        if not email:
+            continue
+        nombre = (u.get("nombre") or "").strip()
+        empresa = (u.get("empresa") or "").strip()
+        for cid in u.get("cursos", []) or []:
+            mapa.setdefault(str(cid), []).append((email, nombre, empresa))
+    return mapa
+
+
+def agrupar_por_coordinadores(datos):
+    """Agrupa cursos por SET de coordinadores que los cubren.
+
+    Para cada curso se determina el conjunto de destinatarios uniendo:
+      1. Los usuarios con rol=comprador en ``usuarios.json`` que tienen
+         ese ``id_moodle`` en su lista de cursos.
+      2. El "Comprador" del curso en BD (fallback histórico) si tiene email.
+
+    Cursos con el MISMO conjunto de coordinadores se agrupan en un solo
+    envío (1 PDF + 1 correo a todos los del conjunto). Esto implementa la
+    semántica "un coordinador nunca recibe un PDF con cursos que no le
+    corresponden".
+
+    Cursos sin estudiantes se excluyen.
+    Cursos sin ningún destinatario se omiten y se reportan en el grupo
+    especial ``_sin_destinatarios``.
+
+    Returns
+    -------
+    dict[str, dict]
+        Clave: id estable del grupo (basado en emails ordenados).
+        Valor: dict con ``empresa``, ``destinatarios`` (lista de emails),
+        ``destinatarios_nombres`` (lista de nombres alineada con los emails),
+        ``cursos`` (lista de cursos).
+    """
+    coords_por_curso = _cargar_coordinadores_por_curso()
+    grupos = {}
+    sin_destinatarios = []
+
+    for curso in datos["cursos"]:
+        if not curso.get("estudiantes"):
+            logger.debug("Saltando curso sin estudiantes: %s", curso.get("nombre", "?"))
+            continue
+
+        cid = str(curso.get("id_moodle", ""))
+        # 1) Coordinadores desde usuarios.json
+        destinatarios = {}  # email_lower -> (email_original, nombre)
+        empresas_coords = []  # empresas declaradas por los coordinadores (para fallback)
+        for email, nombre, empresa in coords_por_curso.get(cid, []):
+            destinatarios[email.lower()] = (email, nombre)
+            if empresa:
+                empresas_coords.append(empresa)
+
+        # 2) Fallback: comprador-BD del curso
+        comp = curso.get("comprador") or {}
+        comp_email = (comp.get("email") or "").strip()
+        comp_nombre = (comp.get("nombre") or "").strip()
+        comp_empresa = (comp.get("empresa") or "").strip()
+        # Si el comprador-BD no tiene empresa, usamos la del primer coordinador
+        # con empresa declarada en usuarios.json.
+        if not comp_empresa and empresas_coords:
+            comp_empresa = empresas_coords[0]
+        if not comp_empresa:
+            comp_empresa = "Sin coordinador asignado"
+        if comp_email:
+            key = comp_email.lower()
+            if key not in destinatarios:
+                destinatarios[key] = (comp_email, comp_nombre)
+
+        if not destinatarios:
+            sin_destinatarios.append({
+                "id_moodle": cid,
+                "nombre": curso.get("nombre", ""),
+                "empresa": comp_empresa,
+            })
+            continue
+
+        emails_ordenados = sorted(destinatarios.keys())
+        clave = "|".join(emails_ordenados)
+        if clave not in grupos:
+            grupos[clave] = {
+                "empresa": comp_empresa,
+                "destinatarios": [destinatarios[e][0] for e in emails_ordenados],
+                "destinatarios_nombres": [destinatarios[e][1] for e in emails_ordenados],
+                "cursos": [],
+            }
+        grupos[clave]["cursos"].append(curso)
+
+    logger.info(
+        "Agrupados en %d grupos por set de coordinadores (%d cursos sin destinatario)",
+        len(grupos), len(sin_destinatarios),
+    )
+    if sin_destinatarios:
+        for c in sin_destinatarios:
+            logger.warning("Curso sin destinatario: %s [moodle=%s, empresa=%s]",
+                           c["nombre"], c["id_moodle"], c["empresa"])
+    return grupos, sin_destinatarios
+
+
 def agrupar_por_comprador(datos):
     """Agrupa cursos por EMAIL del comprador.
 
@@ -127,7 +243,16 @@ def generar_pdf(grupo_comprador, output_dir=None):
     empresa = grupo_comprador["empresa"]
     fecha_str = datetime.now().strftime("%Y%m%d")
     nombre_archivo = sanitizar_nombre_archivo(empresa)
-    destino = output_dir / f"{nombre_archivo}_{fecha_str}.pdf"
+    # Sufijo cuando el mismo grupo se identifica por sus coordinadores
+    # (varios destinatarios o varios grupos por empresa). Usamos el primer
+    # email para mantener el archivo legible.
+    destinatarios = grupo_comprador.get("destinatarios") or []
+    if destinatarios:
+        prefijo_email = destinatarios[0].split("@", 1)[0]
+        sufijo_email = sanitizar_nombre_archivo(prefijo_email)
+        destino = output_dir / f"{nombre_archivo}_{sufijo_email}_{fecha_str}.pdf"
+    else:
+        destino = output_dir / f"{nombre_archivo}_{fecha_str}.pdf"
 
     pdf = ReportePDF(grupo_comprador)
     pdf.generar()
@@ -231,7 +356,7 @@ class ReportePDF(FPDF):
         self.set_y(self.get_y() + 2)
         self.set_font("Helvetica", "", 8)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 4, "Instituto de Capacitación Tecnipro | institutotecnipro.cl", align="L")
+        self.cell(0, 4, "Instituto de Capacitación Tecnipro | www.tecnipro.cl", align="L")
         self.set_x(20)
         self.cell(0, 4, f"Página {self.page_no()}/{{nb}}", align="R")
         self.set_y(self.get_y() + 4)
@@ -265,7 +390,13 @@ class ReportePDF(FPDF):
         self.set_x(25)
         self.set_font("Helvetica", "", 10)
         self.set_text_color(*NEGRO)
-        self.cell(80, 5, f"Contacto: {self.grupo['nombre']}")
+        nombres_lista = self.grupo.get("destinatarios_nombres")
+        if nombres_lista:
+            nombres_visibles = [n for n in nombres_lista if n] or nombres_lista
+            contacto_txt = ", ".join(nombres_visibles)
+        else:
+            contacto_txt = self.grupo.get("nombre", "")
+        self.cell(80, 5, f"Contacto: {contacto_txt}")
         self.cell(0, 5, f"Cursos activos: {len(self.grupo['cursos'])}", new_x="LMARGIN", new_y="NEXT")
 
         self.set_y(y0 + 28)
@@ -353,7 +484,7 @@ class ReportePDF(FPDF):
         self.set_xy(22, y0 + 9)
         self.cell(col_w, 5, f"En proceso: {stats.get('en_proceso', 0)}")
         self.cell(col_w, 5, f"Progreso promedio: {stats.get('promedio_progreso', 0):.1f}%")
-        self.cell(col_w, 5, f"Calificación promedio: {stats.get('promedio_calificacion', 0):.1f}")
+        self.cell(col_w, 5, f"Promedio evaluaciones: {stats.get('promedio_evaluadas', 0):.1f}")
 
         # Fila 3
         self.set_xy(22, y0 + 16)
@@ -379,7 +510,7 @@ class ReportePDF(FPDF):
         w_estado = 20
         w_riesgo = 20
         col_widths = [w_num, w_nombre, w_progreso, w_nota, w_estado, w_riesgo]
-        headers = ["#", "Nombre", "Progreso", "Nota", "Estado", "Riesgo"]
+        headers = ["#", "Nombre", "Progreso", "Promedio", "Estado", "Riesgo"]
 
         # Encabezado de tabla
         self.set_font("Helvetica", "B", 8)
@@ -448,9 +579,9 @@ class ReportePDF(FPDF):
             self.cell(9, 6, f"{progreso:.0f}%", align="R")
             self.set_font("Helvetica", "", 8)
 
-            # Nota
-            calif = est.get("calificacion")
-            nota_str = f"{calif:.1f}" if calif is not None else "-"
+            # Promedio de evaluaciones rendidas (no la suma/total del curso)
+            prom = est.get("promedio_evaluadas")
+            nota_str = f"{prom:.1f}" if prom is not None else "-"
             self.cell(w_nota, 6, nota_str, border=1, fill=fill, align="C")
 
             # Estado con color
@@ -466,6 +597,20 @@ class ReportePDF(FPDF):
             # Restaurar colores
             self.set_fill_color(*BLANCO)
             self.set_text_color(*NEGRO)
+
+        # Nota aclaratoria sobre cómo se calcula el promedio
+        self.ln(2)
+        self.set_font("Helvetica", "I", 7)
+        self.set_text_color(120, 120, 120)
+        nota_prom = (
+            "Nota: el Promedio corresponde únicamente a las evaluaciones ya rendidas por el "
+            "participante. Las evaluaciones pendientes pueden figurar en la plataforma con "
+            "nota 1,0 mientras no se rinden, lo que puede disminuir considerablemente este "
+            "promedio. Esto no implica necesariamente que el participante esté atrasado o "
+            "con bajo desempeño."
+        )
+        self.multi_cell(0, 3.5, nota_prom, align="L")
+        self.set_text_color(*NEGRO)
 
     def _celda_estado(self, w, estado):
         """Celda con color según estado."""

@@ -89,7 +89,12 @@ def generar_cuerpo_correo(nombre_comprador, empresa, resumen_cursos):
     total_aprobados = sum(c.get("aprobados", 0) for c in resumen_cursos)
     total_en_proceso = sum(c.get("en_proceso", 0) for c in resumen_cursos)
 
-    saludo = f"Estimado/a {nombre_comprador}" if nombre_comprador else "Estimado/a"
+    if nombre_comprador and "," in nombre_comprador:
+        saludo = f"Estimados/as {nombre_comprador}"
+    elif nombre_comprador:
+        saludo = f"Estimado/a {nombre_comprador}"
+    else:
+        saludo = "Estimado/a"
 
     html = f"""\
 <html>
@@ -110,7 +115,7 @@ def generar_cuerpo_correo(nombre_comprador, empresa, resumen_cursos):
 
 <p>Saludos cordiales,<br>
 <strong>Instituto de Capacitación Tecnipro</strong><br>
-<a href="https://www.institutotecnipro.cl">www.institutotecnipro.cl</a></p>
+<a href="https://www.tecnipro.cl">www.tecnipro.cl</a></p>
 </body>
 </html>"""
     return html
@@ -195,7 +200,8 @@ def _parsear_emails(campo_email):
 
 
 def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
-                  cc=None, dry_run=False):
+                  cc=None, bcc=None, dry_run=False, remitente=None,
+                  save_to_sent=True):
     """Envía un correo via Microsoft Graph API, opcionalmente con adjunto PDF.
 
     Parameters
@@ -210,6 +216,8 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
         Ruta al archivo PDF adjunto.  Si es None, se envía sin adjunto.
     cc : str | None
         Email para CC.
+    bcc : str | None
+        Email(s) para BCC (copia oculta). Soporta múltiples separados por coma.
     dry_run : bool
         Si True, no envía realmente el correo.
 
@@ -246,7 +254,7 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
             return {"status": "ERROR", "detalle": f"Error leyendo adjunto: {e}"}
 
     # Construir el payload
-    remitente = settings.EMAIL_REMITENTE
+    remitente = remitente or settings.EMAIL_REMITENTE
     if not remitente:
         return {"status": "ERROR", "detalle": "EMAIL_REMITENTE no configurado en .env"}
 
@@ -272,8 +280,15 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
         ]
 
     if cc:
+        cc_emails = _parsear_emails(cc) if "," in (cc or "") else [cc]
         message["ccRecipients"] = [
-            {"emailAddress": {"address": cc}}
+            {"emailAddress": {"address": e.strip()}} for e in cc_emails if e.strip()
+        ]
+
+    if bcc:
+        bcc_emails = _parsear_emails(bcc) if "," in (bcc or "") else [bcc]
+        message["bccRecipients"] = [
+            {"emailAddress": {"address": e.strip()}} for e in bcc_emails if e.strip()
         ]
 
     url = GRAPH_SEND_MAIL_URL.format(user=remitente)
@@ -281,7 +296,7 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
-    payload = {"message": message, "saveToSentItems": "true"}
+    payload = {"message": message, "saveToSentItems": "true" if save_to_sent else "false"}
 
     # Enviar con retry
     for intento in range(MAX_RETRIES + 1):
