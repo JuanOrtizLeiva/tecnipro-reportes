@@ -70,7 +70,7 @@ JOIN cursos_sincronico.estudiantes e ON e.id = i.estudiante_id
 CROSS JOIN total t
 LEFT JOIN cursos_sincronico.asistencia a
        ON a.estudiante_id = e.id AND a.sesion_id IN (SELECT id FROM ses)
-WHERE i.curso_id = (SELECT id FROM curso)
+WHERE i.curso_id = (SELECT id FROM curso) AND i.activo = TRUE
 GROUP BY e.moodle_user_id, e.rut, e.email, e.nombre, e.apellido, t.n
 ORDER BY pct_asistencia DESC NULLS LAST
 """
@@ -93,7 +93,7 @@ SELECT c.moodle_course_id, e.rut,
        c.sesiones_planificadas, c.asistencia_minima,
        count(a.id) FILTER (WHERE a.presente OR a.justificado) AS asistidas
 FROM cursos_sincronico.cursos c
-JOIN cursos_sincronico.inscripciones i ON i.curso_id = c.id
+JOIN cursos_sincronico.inscripciones i ON i.curso_id = c.id AND i.activo = TRUE
 JOIN cursos_sincronico.estudiantes e   ON e.id = i.estudiante_id
 LEFT JOIN ses_agg sa ON sa.curso_id = c.id
 LEFT JOIN cursos_sincronico.asistencia a
@@ -251,7 +251,9 @@ def enriquecer_sincronicos(cursos_lista):
                 est["riesgo"] = ""
                 est["estado"] = "P"
                 continue
-            # progreso = % sobre clases ya realizadas (cumplimiento actual).
+            # progreso = % de asistencia sobre el total de sesiones registradas
+            # (cumplimiento actual). Hoy total_sesiones == realizadas porque las
+            # sesiones se crean retroactivamente (no hay sesiones futuras en la BD).
             est["progreso"] = a["pct"]
             pct_total = (round(a["asistidas"] / a["total_planificadas"] * 100, 1)
                          if a["total_planificadas"] else None)
@@ -260,7 +262,7 @@ def enriquecer_sincronicos(cursos_lista):
                 "realizadas": a["realizadas"],
                 "total_sesiones": a["total_sesiones"],
                 "planificadas": a["total_planificadas"],
-                "pct": a["pct"],            # sobre realizadas (cumplimiento)
+                "pct": a["pct"],            # sobre el total de sesiones registradas (cumplimiento)
                 "pct_total": pct_total,     # sobre el total programado (avance)
                 "minimo": a["minimo"],
             }
