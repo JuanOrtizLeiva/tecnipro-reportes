@@ -5,6 +5,7 @@ Incluye retry logic, rate limiting y manejo robusto de errores.
 """
 
 import logging
+import re
 import time
 from typing import Any
 from urllib.parse import urlencode
@@ -23,6 +24,20 @@ TIMEOUT = settings.MOODLE_TIMEOUT if hasattr(settings, 'MOODLE_TIMEOUT') else 60
 
 # Proxy para fallback cuando Moodle no es accesible directamente
 PROXY_URL = getattr(settings, 'PROXY_URL', None)
+
+# Módulos de Moodle que cuentan como evaluación con nota del estudiante.
+# Moodle entrega como gradeitems tanto las evaluaciones (tareas/cuestionarios)
+# como contenido tipo SCORM ("Clases"), que NO son evaluaciones. Solo las
+# actividades de estos módulos deben contar para el progreso de evaluaciones.
+# "assign" = Tarea. Se excluye explícitamente "scorm" y demás recursos.
+MODULOS_EVALUABLES = {"assign", "quiz", "workshop", "lesson"}
+
+# Evaluaciones diagnósticas: miden conocimiento previo, NO son calificadas del
+# curso (suelen configurarse con peso 0 en el libro de notas). No deben contar
+# ni en el conteo ni en el promedio de evaluaciones del reporte al cliente.
+# Se detectan por dos vías porque el peso solo se expone con agregación "Natural";
+# con "Media de calificaciones" el weightraw viene null y hay que caer al nombre.
+_PATRON_DIAGNOSTICO = re.compile(r"diagn[oó]stic", re.IGNORECASE)
 
 # Control de última llamada para rate limiting
 _last_call_time = 0.0
@@ -286,6 +301,31 @@ def get_enrolled_users(courseid: int) -> list[dict]:
     return estudiantes
 
 
+def _es_evaluacion(item: dict) -> bool:
+    """True si el gradeitem es una evaluación calificada del curso.
+
+    Filtra:
+    - Contenido tipo SCORM ("Clases") y demás recursos que Moodle entrega como
+      gradeitems pero que no son evaluaciones. Solo cuentan las actividades de
+      los módulos en MODULOS_EVALUABLES (ej: tareas, cuestionarios).
+    - Evaluaciones diagnósticas: peso 0 en el libro de notas (weightraw == 0)
+      o nombre que contiene "diagnóstic". No son calificadas del curso, así que
+      no deben inflar el conteo ni arrastrar el promedio del reporte.
+    """
+    if item.get("itemtype") != "mod" or item.get("itemmodule") not in MODULOS_EVALUABLES:
+        return False
+
+    # Diagnóstico por peso explícito 0 (solo visible con agregación "Natural")
+    if item.get("weightraw") == 0:
+        return False
+
+    # Diagnóstico por nombre (fallback cuando el libro usa "Media" y no hay peso)
+    if _PATRON_DIAGNOSTICO.search(item.get("itemname") or ""):
+        return False
+
+    return True
+
+
 def get_grades(courseid: int) -> dict[int, dict]:
     """Obtiene notas finales y detalles de evaluaciones de todos los usuarios.
 
@@ -339,16 +379,15 @@ def get_grades(courseid: int) -> dict[int, dict]:
                 # Nota final del curso
                 nota_final = item.get("graderaw")
 
-            elif itemtype not in ["course", "category"]:
-                # Evaluación individual (mod, manual, etc.)
+            elif _es_evaluacion(item):
+                # Evaluación individual (tarea/cuestionario), NO contenido SCORM
                 graderaw = item.get("graderaw")
                 if graderaw is not None:
                     evaluaciones.append(graderaw)
 
-        # Calcular estadísticas de evaluaciones
-        total_evaluaciones = len(gradeitems) - sum(
-            1 for item in gradeitems
-            if item.get("itemtype") in ["course", "category"]
+        # Calcular estadísticas de evaluaciones (solo módulos evaluables)
+        total_evaluaciones = sum(
+            1 for item in gradeitems if _es_evaluacion(item)
         )
         evaluaciones_rendidas = len(evaluaciones)
 

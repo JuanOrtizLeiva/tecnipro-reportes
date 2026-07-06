@@ -101,3 +101,46 @@ class TestCompradoresReader:
         df = leer_compradores()
         for col in ["id_curso_moodle", "comprador_nombre", "empresa", "email_comprador"]:
             assert col in df.columns, f"Falta columna {col}"
+
+
+class TestEsEvaluacion:
+    """El conteo de evaluaciones debe excluir contenido SCORM ("Clases")."""
+
+    def _item(self, itemtype, itemmodule=None):
+        return {"itemtype": itemtype, "itemmodule": itemmodule}
+
+    def test_assign_es_evaluacion(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        assert _es_evaluacion(self._item("mod", "assign")) is True
+
+    def test_scorm_no_es_evaluacion(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        assert _es_evaluacion(self._item("mod", "scorm")) is False
+
+    def test_course_y_category_no_son_evaluacion(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        assert _es_evaluacion(self._item("course")) is False
+        assert _es_evaluacion(self._item("category")) is False
+
+    def test_quiz_y_workshop_cuentan(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        assert _es_evaluacion(self._item("mod", "quiz")) is True
+        assert _es_evaluacion(self._item("mod", "workshop")) is True
+
+    def test_diagnostico_por_peso_cero_no_cuenta(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        item = {"itemtype": "mod", "itemmodule": "quiz", "weightraw": 0}
+        assert _es_evaluacion(item) is False
+
+    def test_diagnostico_por_nombre_no_cuenta(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        # Libro con agregación "Media": weightraw viene null, se detecta por nombre
+        item = {"itemtype": "mod", "itemmodule": "quiz",
+                "itemname": "Evaluación Diagnóstica", "weightraw": None}
+        assert _es_evaluacion(item) is False
+
+    def test_evaluacion_con_peso_normal_si_cuenta(self):
+        from src.ingest.moodle_api_client import _es_evaluacion
+        item = {"itemtype": "mod", "itemmodule": "assign",
+                "itemname": "Evaluación Módulo 1", "weightraw": 1}
+        assert _es_evaluacion(item) is True
