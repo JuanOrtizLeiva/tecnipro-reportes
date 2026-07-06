@@ -270,11 +270,13 @@ def enviar_correo(destinatario, asunto, cuerpo_html, adjunto_path=None,
     }
 
     if adjunto_b64 is not None:
+        import mimetypes
+        mime = mimetypes.guess_type(adjunto_path.name)[0] or "application/octet-stream"
         message["attachments"] = [
             {
                 "@odata.type": "#microsoft.graph.fileAttachment",
                 "name": adjunto_path.name,
-                "contentType": "application/pdf",
+                "contentType": mime,
                 "contentBytes": adjunto_b64,
             }
         ]

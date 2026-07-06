@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificados de Participación — Tecnipro</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f0f4f8; --white: #fff; --text: #1a1d2e; --muted: #6b7494;
+  --brand: #1e3a8a; --brand-light: #3b5fd4; --gold: #8a6d2f; --gold-light: #c8ab63;
+  --border: #e2e6f0; --green: #059669; --green-bg: #ecfdf5;
+  --red: #dc2626; --red-bg: #fef2f2; --amber: #b45309; --amber-bg: #fffbeb;
+  --r: 14px; --shadow: 0 2px 8px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05);
+}
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; }
+.hdr { background: linear-gradient(135deg, #0c1222 0%, #162036 40%, #1a2d52 70%, #1e3a5f 100%); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; }
+.hdr-brand { font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+.logo-chip { background: rgba(200,171,99,.25); border: 1px solid rgba(200,171,99,.4); border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: .5px; color: #e8d9ae; }
+.hdr a { color: rgba(255,255,255,.75); text-decoration: none; font-size: 13px; }
+.hdr a:hover { color: #fff; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
+h1 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+.sub { color: var(--muted); margin: 4px 0 22px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tab { padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--white); cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
+.tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); padding: 22px; margin-bottom: 18px; }
+.steps { display: flex; gap: 0; margin-bottom: 22px; }
+.step { flex: 1; text-align: center; padding: 10px 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); border-bottom: 3px solid var(--border); }
+.step.on { color: var(--gold); border-color: var(--gold-light); }
+.step.done { color: var(--green); border-color: var(--green); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 9px 10px; background: #f7f9fc; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
+td { padding: 9px 10px; border-bottom: 1px solid #f0f2f8; vertical-align: middle; }
+tr:hover td { background: #fafbfe; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
+.chip.ok { background: var(--green-bg); color: var(--green); }
+.chip.no { background: var(--red-bg); color: var(--red); }
+.chip.warn { background: var(--amber-bg); color: var(--amber); }
+.chip.info { background: #eff3ff; color: var(--brand-light); }
+.chip.gold { background: #f7f1e3; color: var(--gold); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; border: none; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-light); }
+.btn-gold { background: linear-gradient(135deg, #8a6d2f, #b3944e); color: #fff; }
+.btn-gold:hover { filter: brightness(1.1); }
+.btn-ghost { background: var(--white); border: 1px solid var(--border); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; }
+input[type=text], input[type=search], input[type=date], input[type=number] { padding: 8px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13.5px; font-family: inherit; background: #fff; }
+input:focus { outline: 2px solid rgba(59,95,212,.25); border-color: var(--brand-light); }
+.search { width: 320px; }
+.curso-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.curso-head h3 { font-size: 15.5px; }
+.datos-grid { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; background: #f9f7f1; border: 1px solid #eadfc4; border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+.datos-grid label { display: block; font-size: 11.5px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
+.aviso { border-radius: 10px; padding: 11px 14px; font-size: 13px; margin: 12px 0; }
+.aviso.warn { background: var(--amber-bg); border: 1px solid #fde68a; color: var(--amber); }
+.aviso.info { background: #eff3ff; border: 1px solid #dbe4ff; color: var(--brand); }
+.aviso.err { background: var(--red-bg); border: 1px solid #fecaca; color: var(--red); }
+.motivo-inp { width: 100%; margin-top: 5px; font-size: 12.5px; border-color: #fde68a; background: var(--amber-bg); }
+.progress-outer { background: #edf0f7; border-radius: 20px; height: 14px; overflow: hidden; margin: 14px 0 6px; }
+.progress-inner { background: linear-gradient(90deg, #8a6d2f, #c8ab63); height: 100%; width: 0%; transition: width .6s; border-radius: 20px; }
+.muted { color: var(--muted); font-size: 12.5px; }
+.hidden { display: none !important; }
+.spin { display: inline-block; animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.resumen-num { font-size: 26px; font-weight: 800; color: var(--gold); }
+.res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 14px 0; }
+.res-box { background: #f9fafc; border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+@media (max-width: 760px) { .search { width: 100%; } .wrap { padding: 18px 10px 50px; } }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-brand">Tecnipro <span class="logo-chip"><i class="fas fa-certificate"></i> CERTIFICADOS</span></div>
+  <div><a href="/hub"><i class="fas fa-arrow-left"></i> Volver al panel</a></div>
+</header>
+
+<div class="wrap">
+  <h1>Certificados de Participación</h1>
+  <div class="sub">Emisión con código QR de validación pública en <strong>www.tecnipro.cl/validar</strong></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="emitir" onclick="verTab('emitir')"><i class="fas fa-paper-plane"></i> Emitir</button>
+    <button class="tab" data-tab="registro" onclick="verTab('registro')"><i class="fas fa-book"></i> Registro de emisiones</button>
+  </div>
+
+  <!-- ═══════════ TAB EMITIR ═══════════ -->
+  <div id="tab-emitir">
+    <div class="steps">
+      <div class="step on" id="st1">1 · Elegir cursos</div>
+      <div class="step" id="st2">2 · Validar datos y participantes</div>
+      <div class="step" id="st3">3 · Confirmar y emitir</div>
+    </div>
+
+    <!-- Paso 1 -->
+    <div id="paso1">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <strong>Selecciona el o los cursos</strong>
+          <input type="search" id="buscaCurso" class="search" placeholder="Buscar curso por nombre o ID…" oninput="renderCursos()">
+        </div>
+        <div id="listaCursos" style="margin-top:14px;"><p class="muted"><i class="fas fa-circle-notch spin"></i> Cargando cursos…</p></div>
+        <div class="toolbar">
+          <span class="muted" id="fechaDatos"></span>
+          <button class="btn btn-primary" onclick="irPaso2()" id="btnP2" disabled>Continuar <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paso 2 -->
+    <div id="paso2" class="hidden">
+      <div class="aviso info"><i class="fas fa-shield-halved"></i>
+        <strong>Control de emisión:</strong> se preseleccionan solo los participantes que cumplen los criterios
+        (calificación ≥ 4,0; en cursos sincrónicos además asistencia ≥ mínimo del curso).
+        Puedes incluir a alguien que no cumple indicando un motivo, que quedará registrado en el folio.
+        Verifica también que las fechas y horas del programa sean correctas: aparecerán impresas en el certificado.
+      </div>
+      <div id="cursosPaso2"></div>
+      <div class="toolbar">
+        <button class="btn btn-ghost" onclick="volverPaso1()"><i class="fas fa-arrow-left"></i> Volver</button>
+        <button class="btn btn-primary" onclick="irPaso3()">Revisar emisión <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- Paso 3 -->
+    <div id="paso3" class="hidden">
+      <div class="card">
+        <strong style="font-size:16px;"><i class="fas fa-clipboard-check" style="color:var(--gold)"></i> Resumen de la emisión</strong>
+        <div class="res-grid" id="resGrid"></div>
+        <div id="resCursos"></div>
+        <div class="aviso info" style="margin-top:16px;">
+          <i class="fas fa-envelope"></i> Al confirmar: cada participante recibirá su certificado por correo,
+          los coordinadores de cada curso recibirán un ZIP con todos los certificados, y
+          <strong id="copiaEmail"></strong> recibirá copia de todo (remitente y Enviados).
+          La emisión corre en el servidor: <strong>puedes cerrar esta página sin interrumpirla</strong>.
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-ghost" onclick="volverPaso2()"><i class="fas fa-arrow-left"></i> Volver</button>
+          <button class="btn btn-gold" id="btnEmitir" onclick="emitir()"><i class="fas fa-certificate"></i> Emitir certificados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progreso -->
+    <div id="pasoProg" class="hidden">
+      <div class="card">
+        <strong style="font-size:16px;" id="progTitulo"><i class="fas fa-circle-notch spin" style="color:var(--gold)"></i> Emitiendo certificados…</strong>
+        <div class="progress-outer"><div class="progress-inner" id="progBar"></div></div>
+        <div class="muted" id="progTexto">Iniciando…</div>
+        <div class="aviso info" id="progAviso"><i class="fas fa-wifi"></i> Si se corta tu internet o cierras esta página, la emisión <strong>continúa en el servidor</strong>. Puedes volver y revisar el estado en "Lotes recientes".</div>
+        <div id="progLista" style="margin-top:12px;"></div>
+        <div class="toolbar">
+          <button class="btn btn-ghost" onclick="reiniciarWizard()"><i class="fas fa-plus"></i> Nueva emisión</button>
+          <button class="btn btn-primary hidden" id="btnReanudarErr" onclick="reanudarLote(loteActual)"><i class="fas fa-rotate-right"></i> Reintentar fallidos</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lotes recientes -->
+    <div class="card" id="cardLotes">
+      <strong><i class="fas fa-clock-rotate-left" style="color:var(--muted)"></i> Lotes recientes</strong>
+      <div id="listaLotes" style="margin-top:10px;"><p class="muted">—</p></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB REGISTRO ═══════════ -->
+  <div id="tab-registro" class="hidden">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <strong>Registro de certificados emitidos</strong>
+        <input type="search" id="buscaReg" class="search" placeholder="Buscar por nombre, RUT, folio o curso…" oninput="debounceReg()">
+      </div>
+      <div id="listaRegistro" style="margin-top:14px;"><p class="muted">Cargando…</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let CURSOS = [];           // datos del servidor
+let COPIA = '';
+const sel = new Map();     // curso_id -> {fecha_inicio, fecha_termino, horas, alumnos: Map(rut -> {incluir, motivo})}
+let loteActual = null;
+let pollTimer = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const notaFmt = v => v == null ? '—' : Number(v).toFixed(1).replace('.', ',');
+const pctFmt = v => v == null ? '—' : Number(v).toFixed(1).replace('.', ',').replace(',0','') + '%';
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('Error HTTP ' + r.status));
+  return j;
+}
+
+function verTab(t) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  $('tab-emitir').classList.toggle('hidden', t !== 'emitir');
+  $('tab-registro').classList.toggle('hidden', t !== 'registro');
+  if (t === 'registro') cargarRegistro();
+}
+
+// ── Paso 1: cursos ─────────────────────────────────────────
+async function cargarCursos() {
+  try {
+    const j = await api('/api/certificados/cursos');
+    CURSOS = j.cursos; COPIA = j.copia;
+    $('fechaDatos').textContent = j.fecha_datos ? ('Datos Moodle: ' + j.fecha_datos.substring(0, 16).replace('T', ' ')) : '';
+    renderCursos();
+  } catch (e) {
+    $('listaCursos').innerHTML = '<div class="aviso err">' + esc(e.message) + '</div>';
+  }
+}
+
+function renderCursos() {
+  const q = ($('buscaCurso').value || '').toLowerCase();
+  const filtrados = CURSOS.filter(c => !q || c.nombre.toLowerCase().includes(q) || c.id.includes(q));
+  if (!filtrados.length) { $('listaCursos').innerHTML = '<p class="muted">Sin cursos que coincidan.</p>'; return; }
+  let h = '<table><tr><th></th><th>Curso</th><th>Modalidad</th><th>Fechas (Moodle)</th><th>Participantes</th><th>Elegibles</th><th>Coordinadores ZIP</th></tr>';
+  for (const c of filtrados) {
+    const eleg = c.alumnos.filter(a => a.elegible).length;
+    const coords = c.coordinadores.length
+      ? c.coordinadores.map(x => esc(x.nombre || x.email)).join(', ')
+      : '<span class="chip warn">sin coordinador → solo copia</span>';
+    h += `<tr>
+      <td><input type="checkbox" ${sel.has(c.id) ? 'checked' : ''} onchange="toggleCurso('${c.id}', this.checked)"></td>
+      <td><strong>${esc(c.nombre)}</strong> <span class="muted">ID ${c.id}</span></td>
+      <td><span class="chip ${c.modalidad === 'sincronico' ? 'info' : 'gold'}">${c.modalidad === 'sincronico' ? 'Sincrónico' : 'Asincrónico'}</span></td>
+      <td class="muted">${esc(c.fecha_inicio)} → ${esc(c.fecha_fin)}</td>
+      <td>${c.alumnos.length}</td>
+      <td><span class="chip ${eleg ? 'ok' : 'no'}">${eleg}</span></td>
+      <td class="muted" style="font-size:12px">${coords}</td>
+    </tr>`;
+  }
+  $('listaCursos').innerHTML = h + '</table>';
+  $('btnP2').disabled = sel.size === 0;
+}
+
+function toggleCurso(id, on) {
+  if (on) {
+    const c = CURSOS.find(x => x.id === id);
+    const alumnos = new Map();
+    c.alumnos.forEach(a => alumnos.set(a.rut, { incluir: a.elegible, motivo: '' }));
+    sel.set(id, { fecha_inicio: c.fecha_inicio, fecha_termino: c.fecha_fin, horas: c.horas || '', alumnos });
+  } else sel.delete(id);
+  $('btnP2').disabled = sel.size === 0;
+}
+
+// ── Paso 2 ─────────────────────────────────────────────────
+function irPaso2() {
+  if (!sel.size) return;
+  $('paso1').classList.add('hidden'); $('paso2').classList.remove('hidden');
+  $('st1').className = 'step done'; $('st2').className = 'step on';
+  renderPaso2();
+  window.scrollTo(0, 0);
+}
+function volverPaso1() {
+  $('paso2').classList.add('hidden'); $('paso1').classList.remove('hidden');
+  $('st1').className = 'step on'; $('st2').className = 'step';
+  renderCursos();
+}
+
+function renderPaso2() {
+  let h = '';
+  for (const [id, s] of sel) {
+    const c = CURSOS.find(x => x.id === id);
+    const coords = c.coordinadores.length
+      ? 'ZIP a: ' + c.coordinadores.map(x => `${esc(x.nombre || '')} &lt;${esc(x.email)}&gt;`).join(', ') + ` (+ copia a ${esc(COPIA)})`
+      : `⚠ Este curso no tiene coordinadores activos: el ZIP se enviará solo a ${esc(COPIA)}.`;
+    h += `<div class="card">
+      <div class="curso-head">
+        <h3>${esc(c.nombre)}</h3>
+        <span class="chip ${c.modalidad === 'sincronico' ? 'info' : 'gold'}">${c.modalidad === 'sincronico' ? 'Sincrónico' : 'Asincrónico'}</span>
+        <span class="muted">ID ${id}</span>
+      </div>
+      <div class="datos-grid">
+        <div><label>Fecha de inicio</label><input type="date" value="${esc(s.fecha_inicio)}" onchange="sel.get('${id}').fecha_inicio = this.value"></div>
+        <div><label>Fecha de término</label><input type="date" value="${esc(s.fecha_termino)}" onchange="sel.get('${id}').fecha_termino = this.value"></div>
+        <div><label>Horas cronológicas</label><input type="number" min="1" max="2000" step="0.5" style="width:110px" value="${esc(s.horas)}" placeholder="ej: 24" onchange="sel.get('${id}').horas = this.value"></div>
+        <div class="muted" style="max-width:340px">¿La información de Moodle es correcta? Corrígela aquí si es necesario: estas fechas y horas se imprimen en el certificado.</div>
+      </div>
+      <div class="muted" style="margin-bottom:10px;"><i class="fas fa-box-archive"></i> ${coords}</div>
+      <table>
+        <tr><th style="width:36px"></th><th>Participante</th><th>RUT</th><th>Email</th><th>Nota</th>
+        ${c.modalidad === 'sincronico' ? '<th>Asistencia</th>' : '<th>Progreso</th>'}<th>Criterios</th></tr>`;
+    for (const a of c.alumnos) {
+      const st = s.alumnos.get(a.rut);
+      const motivoCell = (!a.elegible && st.incluir)
+        ? `<input type="text" class="motivo-inp" placeholder="Motivo de inclusión (obligatorio, queda registrado)" value="${esc(st.motivo)}" onchange="sel.get('${id}').alumnos.get('${esc(a.rut)}').motivo = this.value">`
+        : '';
+      h += `<tr>
+        <td><input type="checkbox" ${st.incluir ? 'checked' : ''} onchange="toggleAlumno('${id}', '${esc(a.rut)}', this.checked)"></td>
+        <td><strong>${esc(a.nombre)}</strong>${motivoCell}</td>
+        <td>${esc(a.rut)}</td>
+        <td class="muted" style="font-size:12px">${esc(a.email) || '<span class="chip no">sin email</span>'}</td>
+        <td>${notaFmt(a.calificacion)}</td>
+        <td>${c.modalidad === 'sincronico' ? pctFmt(a.asistencia_pct) + (a.asistencia_min ? ' <span class="muted">(mín ' + pctFmt(a.asistencia_min) + ')</span>' : '') : pctFmt(a.progreso)}</td>
+        <td>${a.elegible ? '<span class="chip ok">Cumple</span>' : '<span class="chip no" title="' + esc(a.motivos.join('; ')) + '">' + esc(a.motivos.join(' · ')) + '</span>'}</td>
+      </tr>`;
+    }
+    h += '</table></div>';
+  }
+  $('cursosPaso2').innerHTML = h;
+}
+
+function toggleAlumno(cursoId, rut, on) {
+  sel.get(cursoId).alumnos.get(rut).incluir = on;
+  renderPaso2();
+}
+
+// ── Paso 3 ─────────────────────────────────────────────────
+function validarPaso2() {
+  for (const [id, s] of sel) {
+    const c = CURSOS.find(x => x.id === id);
+    if (!s.fecha_inicio || !s.fecha_termino) return `Faltan fechas en «${c.nombre}».`;
+    if (s.fecha_termino < s.fecha_inicio) return `El término es anterior al inicio en «${c.nombre}».`;
+    if (!s.horas || Number(s.horas) <= 0) return `Debes indicar las horas cronológicas de «${c.nombre}».`;
+    const incluidos = [...s.alumnos.values()].filter(a => a.incluir);
+    if (!incluidos.length) return `«${c.nombre}» no tiene participantes seleccionados.`;
+    for (const [rut, st] of s.alumnos) {
+      const a = c.alumnos.find(x => x.rut === rut);
+      if (st.incluir && !a.elegible && !st.motivo.trim())
+        return `${a.nombre} no cumple los criterios: indica el motivo de inclusión o desmárcalo.`;
+      if (st.incluir && (!a.email || !a.email.includes('@')))
+        return `${a.nombre} no tiene email válido en Moodle: no podrá recibir su certificado. Desmárcalo o corrige el email en Moodle y actualiza los datos.`;
+    }
+  }
+  return null;
+}
+
+function irPaso3() {
+  const err = validarPaso2();
+  if (err) { alert(err); return; }
+  $('paso2').classList.add('hidden'); $('paso3').classList.remove('hidden');
+  $('st2').className = 'step done'; $('st3').className = 'step on';
+  let totAl = 0, totMan = 0, filas = '';
+  for (const [id, s] of sel) {
+    const c = CURSOS.find(x => x.id === id);
+    const inc = [...s.alumnos.entries()].filter(([, st]) => st.incluir);
+    const man = inc.filter(([rut]) => !c.alumnos.find(x => x.rut === rut).elegible).length;
+    totAl += inc.length; totMan += man;
+    filas += `<tr><td><strong>${esc(c.nombre)}</strong></td>
+      <td>${esc(s.fecha_inicio)} → ${esc(s.fecha_termino)}</td><td>${esc(String(s.horas))} hrs</td>
+      <td>${inc.length} certificado${inc.length !== 1 ? 's' : ''}${man ? ` <span class="chip warn">${man} con inclusión manual</span>` : ''}</td>
+      <td class="muted" style="font-size:12px">${c.coordinadores.length ? c.coordinadores.map(x => esc(x.email)).join(', ') : esc(COPIA) + ' (sin coordinador)'}</td></tr>`;
+  }
+  $('resGrid').innerHTML = `
+    <div class="res-box"><div class="resumen-num">${sel.size}</div><div class="muted">curso${sel.size !== 1 ? 's' : ''}</div></div>
+    <div class="res-box"><div class="resumen-num">${totAl}</div><div class="muted">certificados a emitir</div></div>
+    <div class="res-box"><div class="resumen-num">${totMan}</div><div class="muted">inclusiones manuales</div></div>`;
+  $('resCursos').innerHTML = '<table><tr><th>Curso</th><th>Fechas</th><th>Horas</th><th>Certificados</th><th>ZIP para</th></tr>' + filas + '</table>';
+  $('copiaEmail').textContent = COPIA;
+  window.scrollTo(0, 0);
+}
+function volverPaso2() {
+  $('paso3').classList.add('hidden'); $('paso2').classList.remove('hidden');
+  $('st2').className = 'step on'; $('st3').className = 'step';
+}
+
+// ── Emisión y progreso ─────────────────────────────────────
+async function emitir() {
+  $('btnEmitir').disabled = true;
+  const payload = { cursos: [] };
+  for (const [id, s] of sel) {
+    payload.cursos.push({
+      curso_id: id, fecha_inicio: s.fecha_inicio, fecha_termino: s.fecha_termino,
+      horas: Number(s.horas),
+      alumnos: [...s.alumnos.entries()].map(([rut, st]) => ({ rut, incluir: st.incluir, motivo_manual: st.motivo })),
+    });
+  }
+  try {
+    const j = await api('/api/certificados/emitir', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    loteActual = j.lote_id;
+    $('paso3').classList.add('hidden'); $('pasoProg').classList.remove('hidden');
+    $('st3').className = 'step done';
+    seguirLote(loteActual);
+  } catch (e) {
+    alert('No se pudo iniciar la emisión: ' + e.message);
+    $('btnEmitir').disabled = false;
+  }
+}
+
+function seguirLote(loteId) {
+  loteActual = loteId;
+  $('pasoProg').classList.remove('hidden');
+  if (pollTimer) clearInterval(pollTimer);
+  const tick = async () => {
+    try {
+      const j = await api('/api/certificados/lote/' + loteId);
+      pintarProgreso(j);
+      if (!j.en_proceso && j.lote.estado !== 'pendiente' && j.lote.estado !== 'procesando') {
+        clearInterval(pollTimer); pollTimer = null;
+        cargarLotes();
+      }
+    } catch (e) { /* red caída: se reintenta en el próximo tick */ }
+  };
+  tick();
+  pollTimer = setInterval(tick, 3500);
+  window.scrollTo(0, 0);
+}
+
+function pintarProgreso(j) {
+  const l = j.lote, cs = j.certificados;
+  const pct = l.total ? Math.round(100 * (l.procesados || 0) / l.total) : 0;
+  $('progBar').style.width = pct + '%';
+  const terminado = !j.en_proceso && l.estado !== 'pendiente' && l.estado !== 'procesando';
+  const conErr = (l.errores || 0) > 0;
+  $('progTexto').textContent = `${l.procesados || 0} de ${l.total} certificados procesados` + (conErr ? ` — ${l.errores} con error` : '');
+  if (terminado) {
+    $('progTitulo').innerHTML = conErr
+      ? '<i class="fas fa-triangle-exclamation" style="color:var(--amber)"></i> Emisión terminada con errores'
+      : '<i class="fas fa-circle-check" style="color:var(--green)"></i> Emisión completada';
+    $('btnReanudarErr').classList.toggle('hidden', !conErr);
+    $('progAviso').classList.add('hidden');
+  }
+  let h = '<table><tr><th>Folio</th><th>Participante</th><th>Curso</th><th>Estado</th></tr>';
+  for (const c of cs) {
+    const chip = c.estado === 'enviado' ? '<span class="chip ok">Enviado</span>'
+      : c.estado === 'generado' ? '<span class="chip info">PDF generado</span>'
+      : c.estado === 'error' ? `<span class="chip no" title="${esc(c.error)}">Error: ${esc((c.error || '').substring(0, 80))}</span>`
+      : '<span class="chip warn">Pendiente</span>';
+    h += `<tr><td>${esc(c.folio)}</td><td>${esc(c.alumno_nombre)}${c.incluido_manual ? ' <span class="chip warn" title="' + esc(c.motivo_manual) + '">manual</span>' : ''}</td>
+      <td class="muted" style="font-size:12px">${esc(c.curso_nombre)}</td><td>${chip}</td></tr>`;
+  }
+  $('progLista').innerHTML = h + '</table>';
+}
+
+async function reanudarLote(loteId) {
+  try {
+    await api('/api/certificados/lote/' + loteId + '/reanudar', { method: 'POST' });
+    $('progTitulo').innerHTML = '<i class="fas fa-circle-notch spin" style="color:var(--gold)"></i> Reanudando emisión…';
+    $('btnReanudarErr').classList.add('hidden');
+    seguirLote(loteId);
+  } catch (e) { alert(e.message); }
+}
+
+function reiniciarWizard() {
+  sel.clear(); loteActual = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  ['paso2', 'paso3', 'pasoProg'].forEach(id => $(id).classList.add('hidden'));
+  $('paso1').classList.remove('hidden');
+  $('st1').className = 'step on'; $('st2').className = 'step'; $('st3').className = 'step';
+  $('progAviso').classList.remove('hidden');
+  $('progTitulo').innerHTML = '<i class="fas fa-circle-notch spin" style="color:var(--gold)"></i> Emitiendo certificados…';
+  cargarCursos(); cargarLotes();
+}
+
+// ── Lotes recientes ────────────────────────────────────────
+async function cargarLotes() {
+  try {
+    const j = await api('/api/certificados/lotes');
+    if (!j.lotes.length) { $('listaLotes').innerHTML = '<p class="muted">Aún no hay emisiones.</p>'; return; }
+    let h = '<table><tr><th>Fecha</th><th>Emitido por</th><th>Certificados</th><th>Estado</th><th></th></tr>';
+    for (const l of j.lotes) {
+      const chip = l.en_proceso ? '<span class="chip info"><i class="fas fa-circle-notch spin"></i> En proceso</span>'
+        : l.estado === 'completado' ? '<span class="chip ok">Completado</span>'
+        : l.estado === 'completado_con_errores' ? `<span class="chip warn">Con errores (${l.errores})</span>`
+        : l.estado === 'error' ? '<span class="chip no">Error</span>'
+        : '<span class="chip warn">Interrumpido</span>';
+      const puedeReanudar = !l.en_proceso && (l.estado === 'completado_con_errores' || l.estado === 'error' || l.estado === 'procesando' || l.estado === 'pendiente');
+      h += `<tr><td>${esc(l.creado_en)}</td><td class="muted">${esc(l.creado_por)}</td>
+        <td>${l.procesados || 0}/${l.total}</td><td>${chip}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="seguirLote('${l.id}')"><i class="fas fa-eye"></i> Ver</button>
+          ${puedeReanudar ? `<button class="btn btn-primary btn-sm" onclick="reanudarLote('${l.id}')"><i class="fas fa-rotate-right"></i> Reanudar</button>` : ''}
+        </td></tr>`;
+    }
+    $('listaLotes').innerHTML = h + '</table>';
+  } catch (e) { $('listaLotes').innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; }
+}
+
+// ── Registro ───────────────────────────────────────────────
+let regTimer = null;
+function debounceReg() { clearTimeout(regTimer); regTimer = setTimeout(cargarRegistro, 350); }
+
+async function cargarRegistro() {
+  const q = $('buscaReg').value.trim();
+  try {
+    const j = await api('/api/certificados/registro' + (q ? '?q=' + encodeURIComponent(q) : ''));
+    if (!j.certificados.length) { $('listaRegistro').innerHTML = '<p class="muted">Sin certificados emitidos' + (q ? ' para esa búsqueda' : '') + '.</p>'; return; }
+    let h = '<table><tr><th>Folio</th><th>Participante</th><th>RUT</th><th>Curso</th><th>Emitido</th><th>Estado</th><th>Validaciones QR</th><th></th></tr>';
+    for (const c of j.certificados) {
+      const chip = c.anulado ? `<span class="chip no" title="${esc(c.anulado_motivo)}">Anulado</span>`
+        : c.estado === 'enviado' ? '<span class="chip ok">Enviado</span>'
+        : c.estado === 'error' ? `<span class="chip no" title="${esc(c.error)}">Error</span>`
+        : '<span class="chip warn">' + esc(c.estado) + '</span>';
+      h += `<tr><td><strong>${esc(c.folio)}</strong><div class="muted" style="font-size:11px">${esc(c.codigo)}</div></td>
+        <td>${esc(c.alumno_nombre)}${c.incluido_manual ? ' <span class="chip warn" title="' + esc(c.motivo_manual) + '">manual</span>' : ''}</td>
+        <td>${esc(c.alumno_rut)}</td>
+        <td class="muted" style="font-size:12px">${esc(c.curso_nombre)} (ID ${esc(c.curso_id)})</td>
+        <td class="muted" style="font-size:12px">${esc(c.creado_en)}</td><td>${chip}</td>
+        <td style="text-align:center">${c.validaciones || 0}</td>
+        <td style="text-align:right; white-space:nowrap">
+          ${c.archivo ? `<a class="btn btn-ghost btn-sm" href="/certificados/archivo/${c.folio_num}"><i class="fas fa-download"></i> PDF</a>` : ''}
+          ${!c.anulado ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="anular(${c.folio_num}, '${esc(c.folio)}')"><i class="fas fa-ban"></i></button>` : ''}
+        </td></tr>`;
+    }
+    $('listaRegistro').innerHTML = h + '</table>';
+  } catch (e) { $('listaRegistro').innerHTML = '<div class="aviso err">' + esc(e.message) + '</div>'; }
+}
+
+async function anular(folioNum, folio) {
+  const motivo = prompt(`Anular el certificado ${folio}\n\nEl QR dejará de validarlo como auténtico. Indica el motivo:`);
+  if (motivo === null) return;
+  if (!motivo.trim()) { alert('Debes indicar un motivo.'); return; }
+  try {
+    await api('/api/certificados/anular/' + folioNum, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }),
+    });
+    cargarRegistro();
+  } catch (e) { alert(e.message); }
+}
+
+// ── Init ───────────────────────────────────────────────────
+cargarCursos();
+cargarLotes();
+</script>
+</body>
+</html>

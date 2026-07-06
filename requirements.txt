@@ -11,3 +11,7 @@ flask-cors>=4.0
 flask-login>=0.6
 bcrypt>=4.0
 gunicorn>=21.2
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+docxtpl>=0.20
+qrcode>=8.0

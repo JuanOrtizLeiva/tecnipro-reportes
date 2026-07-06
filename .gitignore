@@ -16,6 +16,12 @@ venv/
 data/output/
 *.db
 
+# Certificados emitidos (PDFs, ZIPs y estado en runtime; la plantilla SÍ se versiona)
+data/certificados/emitidos/
+data/certificados/zips/
+data/certificados/locks/
+data/certificados/logs/
+
 # IDE
 .vscode/
 .idea/

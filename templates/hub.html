@@ -2,8 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0F172A">
 <title>Panel de Administracion — Tecnipro</title>
+
+{# PWA — instalable como app en iPhone/Android #}
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tecnipro">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Tecnipro">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -102,7 +112,7 @@ body {
   padding: 40px 24px;
 }
 .hub-container {
-  max-width: 880px;
+  max-width: 920px;
   width: 100%;
 }
 .hub-title {
@@ -165,7 +175,19 @@ body {
 .hub-card.card-cotizador::before  { background: linear-gradient(90deg, #059669, #34d399); }
 .hub-card.card-encuestas::before  { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
 .hub-card.card-licitaciones::before { background: linear-gradient(90deg, #d97706, #fbbf24); }
-.hub-card.card-cobranzas::before  { background: linear-gradient(90deg, #0e7490, #06b6d4); }
+.hub-card.card-flujo-caja::before { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
+.hub-card.card-crm-comercial::before { background: linear-gradient(90deg, #1e3a8a, #3b5fd4); }
+.hub-card.card-sii::before       { background: linear-gradient(90deg, #166534, #22c55e); }
+.hub-card.card-erp::before       { background: linear-gradient(90deg, #1e3a5f, #3b82f6); }
+.hub-card.card-sence::before     { background: linear-gradient(90deg, #5b21b6, #8b5cf6); }
+.hub-card.card-evalpro::before   { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+.hub-card.card-control::before   { background: linear-gradient(90deg, #dc2626, #f97316); }
+.hub-card.card-carga::before     { background: linear-gradient(90deg, #0891b2, #22d3ee); }
+.hub-card.card-diplomas::before  { background: linear-gradient(90deg, #b45309, #f59e0b); }
+.hub-card.card-certificados::before { background: linear-gradient(90deg, #8a6d2f, #c8ab63); }
+.hub-card.card-sincronico::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.hub-card.card-finanzas::before  { background: linear-gradient(90deg, #047857, #10b981); }
+.hub-card.card-casos::before     { background: linear-gradient(90deg, #8C6534, #B08442); }
 
 .card-icon {
   width: 52px;
@@ -181,7 +203,18 @@ body {
 .card-cotizador .card-icon   { background: var(--green-bg); color: var(--green); }
 .card-encuestas .card-icon   { background: #ede9fe; color: #7c3aed; }
 .card-licitaciones .card-icon{ background: #fef3c7; color: #d97706; }
-.card-cobranzas .card-icon   { background: #ecfeff; color: #0e7490; }
+.card-flujo-caja .card-icon  { background: #ccfbf1; color: #0d9488; }
+.card-crm-comercial .card-icon { background: #eff3ff; color: #1e3a8a; }
+.card-sii .card-icon         { background: #f0fdf4; color: #166534; }
+.card-erp .card-icon         { background: #eff6ff; color: #1e3a5f; }
+.card-sence .card-icon       { background: #f5f3ff; color: #5b21b6; }
+.card-evalpro .card-icon     { background: #dbeafe; color: #2563eb; }
+.card-control .card-icon     { background: #fee2e2; color: #dc2626; }
+.card-carga .card-icon       { background: #ecfeff; color: #0891b2; }
+.card-diplomas .card-icon    { background: #fef3c7; color: #b45309; }
+.card-sincronico .card-icon  { background: #ede9fe; color: #7c3aed; }
+.card-finanzas .card-icon    { background: #d1fae5; color: #047857; }
+.card-casos .card-icon       { background: #f5ecdd; color: #8C6534; }
 
 .card-body { flex: 1; }
 .card-body h2 {
@@ -228,52 +261,52 @@ body {
   color: var(--muted);
 }
 
-/* Loading */
-#loading {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 14px;
-  z-index: 1000;
+/* Safe-area iOS (Dynamic Island / notch) — modo PWA standalone */
+.hdr {
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-left: max(32px, env(safe-area-inset-left));
+  padding-right: max(32px, env(safe-area-inset-right));
 }
-.spin {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--border);
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: sp .7s linear infinite;
+.hub-footer {
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
-@keyframes sp { to { transform: rotate(360deg); } }
 
 /* Responsive */
 @media (max-width: 640px) {
-  .hub-grid { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr; gap: 14px; }
   .hub-title h1 { font-size: 22px; }
-  .hdr { padding: 16px 20px; flex-wrap: wrap; gap: 10px; }
-  .hub-main { padding: 24px 16px; }
+  .hub-subtitle { font-size: 13px; margin-bottom: 28px; }
+  .hdr {
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
+    flex-wrap: wrap; gap: 10px;
+  }
+  .hdr-brand { font-size: 16px; }
+  .hdr-right { gap: 10px; }
+  .hdr-user { font-size: 12px; }
+  .btn-logout { padding: 8px 14px; min-height: 36px; }
+  .hub-main { padding: 20px 16px; }
+  .hub-card { padding: 18px 16px; gap: 14px; min-height: 88px; }
+  .card-icon { width: 44px; height: 44px; font-size: 18px; border-radius: 12px; }
+  .card-body h2 { font-size: 15px; }
+  .card-body p { font-size: 12.5px; line-height: 1.45; }
+  .card-arrow { font-size: 12px; margin-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
 </head>
 <body>
 
-<div id="loading">
-  <div class="spin"></div>
-  <div style="font-size:13px;color:var(--muted)">Cargando...</div>
-</div>
-
-<div id="app" style="display:none">
-
 <header class="hdr">
   <div class="hdr-brand">
-    Tecnipro <span class="logo-chip">ADMIN</span>
+    Tecnipro <span class="logo-chip">{% if current_user.rol in ('admin', 'superadmin') %}ADMIN{% else %}PANEL{% endif %}</span>
   </div>
   <div class="hdr-right">
-    <div class="hdr-user">Hola, <strong id="userName">...</strong></div>
+    <div class="hdr-user">Hola, <strong>{{ current_user.nombre }}</strong></div>
     <a href="/logout" class="btn-logout">Cerrar sesion</a>
   </div>
 </header>
@@ -286,6 +319,205 @@ body {
     <div class="hub-subtitle">Selecciona una herramienta para continuar</div>
 
     <div class="hub-grid">
+      {% if current_user.tiene_permiso('sii_monitor') %}
+      <a href="/sii-monitor" class="hub-card card-sii">
+        <div class="card-icon"><i class="fas fa-download"></i></div>
+        <div class="card-body">
+          <h2>Monitor SII</h2>
+          <p>Monitoreo de descargas del SII: estado por empresa, calendario de periodos y descarga manual.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('encuestas') %}
+      <a href="https://encuestas.tecnipro.cl/dashboard" class="hub-card card-encuestas">
+        <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
+        <div class="card-body">
+          <h2>Encuestas <span class="external-badge">externo</span></h2>
+          <p>Dashboard de encuestas de satisfaccion y evaluacion de cursos.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('cotizador') %}
+      <a href="https://cotizador.tecnipro.cl" class="hub-card card-cotizador">
+        <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="card-body">
+          <h2>Cotizador <span class="external-badge">externo</span></h2>
+          <p>Generacion de propuestas comerciales y cotizaciones para clientes.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('erp') %}
+      <a href="https://erp.tecnipro.cl" class="hub-card card-erp">
+        <div class="card-icon"><i class="fas fa-building"></i></div>
+        <div class="card-body">
+          <h2>ERP Empresas <span class="external-badge">externo</span></h2>
+          <p>Sistema de gestion multi-empresa: contabilidad, facturacion y administracion.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('licitaciones') %}
+      <a href="/crm-comercial" class="hub-card card-crm-comercial">
+        <div class="card-icon"><i class="fas fa-handshake"></i></div>
+        <div class="card-body">
+          <h2>CRM Comercial</h2>
+          <p>Vista unificada Duocapital: cotizaciones privadas, licitaciones de Mercado Publico y proyeccion de caja.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('licitaciones') %}
+      <a href="/flujo-caja" class="hub-card card-flujo-caja">
+        <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="card-body">
+          <h2>Flujo de Caja</h2>
+          <p>Proyección consolidada de ingresos: cotizaciones aceptadas/enviadas y licitaciones ganadas/postulando con caja esperada.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('licitaciones') %}
+      <a href="/licitaciones" class="hub-card card-licitaciones">
+        <div class="card-icon"><i class="fas fa-gavel"></i></div>
+        <div class="card-body">
+          <h2>Monitor Mercado Publico</h2>
+          <p>Vista operacional completa: licitaciones, compras agiles, postulaciones, evaluaciones IA y revisiones diarias.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('licitaciones') %}
+      <a href="/compras-agiles" class="hub-card card-licitaciones">
+        <div class="card-icon"><i class="fas fa-folder-open"></i></div>
+        <div class="card-body">
+          <h2>Compras Ágiles — Postulación</h2>
+          <p>Bandeja diaria con plazo de cierre y semáforo de cobertura, más la biblioteca de activos (CVs, certificados, cartas) para armar las ofertas.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('sence') %}
+      <a href="https://sence.tecnipro.cl" class="hub-card card-sence">
+        <div class="card-icon">📊</div>
+        <div class="card-body">
+          <h2>SENCE Analytics <span class="external-badge">externo</span></h2>
+          <p>Analisis del mercado de capacitacion SENCE 2021–2025: competencia, leads, categorias e inversion por OTEC.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('certificados') %}
+      <a href="/certificados" class="hub-card card-certificados">
+        <div class="card-icon"><i class="fas fa-certificate"></i></div>
+        <div class="card-body">
+          <h2>Certificados de Participación</h2>
+          <p>Emisión de certificados con QR de validación: envío a participantes, ZIP a coordinadores y registro de folios.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('evalpro') %}
+      <a href="/evalpro" class="hub-card card-evalpro">
+        <div class="card-icon"><i class="fas fa-clipboard-check"></i></div>
+        <div class="card-body">
+          <h2>EvalPro Admin</h2>
+          <p>Panel de resultados de evaluaciones de competencias: usuarios, puntajes, estadisticas y aprobacion.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('control_general') %}
+      <a href="/control/" class="hub-card card-control">
+        <div class="card-icon"><i class="fas fa-server"></i></div>
+        <div class="card-body">
+          <h2>Centro de Control</h2>
+          <p>Monitor de procesos autonomos del servidor: estado, historial y ejecucion manual.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="/fundacion" class="hub-card" style="border-left:4px solid #059669">
+        <div class="card-icon"><i class="fas fa-landmark" style="color:#059669"></i></div>
+        <div class="card-body">
+          <h2>Auditoría Fundación MGV</h2>
+          <p>Validación de movimientos bancarios, inversiones, balance y estados financieros 2025.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="https://finanzas.duocapital.cl" class="hub-card card-finanzas">
+        <div class="card-icon"><i class="fas fa-wallet"></i></div>
+        <div class="card-body">
+          <h2>Duocapital Finanzas <span class="external-badge">externo</span></h2>
+          <p>Gestion de gastos personales, creditos, prepagos y proyeccion de caja.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="https://casos.duocapital.cl/admin" class="hub-card card-casos">
+        <div class="card-icon"><i class="fas fa-bullseye"></i></div>
+        <div class="card-body">
+          <h2>Casos y Leads — Campañas <span class="external-badge">externo</span></h2>
+          <p>Captura de casos Tecnipro, leads de jroasesorias.cl y metricas de visitas de las campañas por correo.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="https://centrodepadres.jroasesorias.cl" class="hub-card" style="border-left:4px solid #0d9488">
+        <div class="card-icon" style="background:#e6f6f4"><i class="fas fa-children" style="color:#0d9488"></i></div>
+        <div class="card-body">
+          <h2>Centro de Padres <span class="external-badge">externo</span></h2>
+          <p>Recaudacion de cuotas, becas y rendicion para centros de padres de jardines infantiles.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="/admin/envios-avance" class="hub-card" style="border-left:4px solid #6366f1">
+        <div class="card-icon"><i class="fas fa-paper-plane" style="color:#6366f1"></i></div>
+        <div class="card-body">
+          <h2>Envíos a Alumnos</h2>
+          <p>Log de correos de avance semanal enviados a los participantes de cada curso.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.email in config.SUPERADMIN_EMAILS %}
+      <a href="/cursos-aprobados" class="hub-card" style="border-left:4px solid #107c41">
+        <div class="card-icon" style="background:#e7f5ec"><i class="fas fa-clipboard-check" style="color:#107c41"></i></div>
+        <div class="card-body">
+          <h2>Cursos Aprobados</h2>
+          <p>Catálogo de cursos revisados y listos: descripción, duración, módulos y cantidad de videos por módulo.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('dashboard') %}
       <a href="/dashboard" class="hub-card card-dashboard">
         <div class="card-icon"><i class="fas fa-graduation-cap"></i></div>
         <div class="card-body">
@@ -294,42 +526,51 @@ body {
           <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
         </div>
       </a>
+      {% endif %}
 
-      <a href="https://cotizador.tecnipro.cl" target="_blank" class="hub-card card-cotizador">
-        <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+      {% if current_user.tiene_permiso('diplomas') %}
+      <a href="/diplomas/" class="hub-card card-diplomas">
+        <div class="card-icon"><i class="fas fa-certificate"></i></div>
         <div class="card-body">
-          <h2>Cotizador de Propuestas <span class="external-badge">externo</span></h2>
-          <p>Generacion de propuestas comerciales y cotizaciones para clientes.</p>
-          <div class="card-arrow">Abrir en nueva pestana <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
-        </div>
-      </a>
-
-      <a href="https://encuestas.tecnipro.cl/dashboard" target="_blank" class="hub-card card-encuestas">
-        <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
-        <div class="card-body">
-          <h2>Encuestas <span class="external-badge">externo</span></h2>
-          <p>Dashboard de encuestas de satisfaccion y evaluacion de cursos.</p>
-          <div class="card-arrow">Abrir en nueva pestana <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
-        </div>
-      </a>
-
-      <a href="/licitaciones" class="hub-card card-licitaciones">
-        <div class="card-icon"><i class="fas fa-search-dollar"></i></div>
-        <div class="card-body">
-          <h2>Licitaciones</h2>
-          <p>Monitor de oportunidades en Mercado Publico: licitaciones y ordenes de compra.</p>
+          <h2>Diplomas Moodle</h2>
+          <p>Descarga masiva de certificados y diplomas desde la plataforma Moodle.</p>
           <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
         </div>
       </a>
+      {% endif %}
 
-      <a href="/cobranzas" class="hub-card card-cobranzas">
-        <div class="card-icon"><i class="fas fa-file-invoice"></i></div>
+      {% if current_user.tiene_permiso('dashboard_sincronico') %}
+      <a href="/dashboardsincronico/" class="hub-card card-sincronico">
+        <div class="card-icon"><i class="fas fa-video"></i></div>
         <div class="card-body">
-          <h2>Cobranzas</h2>
-          <p>Gestion de facturas SII, registro de pagos, seguimiento de cartera y estadisticas de cobranza.</p>
+          <h2>Cursos Sincrónicos</h2>
+          <p>Control de asistencia Teams, datos Moodle y reportes de cursos sincrónicos en vivo.</p>
           <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
         </div>
       </a>
+      {% endif %}
+
+      {% if current_user.email == 'jortizleiva@duocapital.cl' %}
+      <a href="/planificador/" class="hub-card card-sincronico">
+        <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="card-body">
+          <h2>Planificador de Clases</h2>
+          <p>Planifica y registra el contenido de cada clase por reunión del calendario. Verde = listo, rojo = pendiente.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-arrow-right" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if current_user.tiene_permiso('carga_academica') %}
+      <a href="https://cargaacademica.tecnipro.cl" class="hub-card card-carga">
+        <div class="card-icon"><i class="fas fa-calendar-alt"></i></div>
+        <div class="card-body">
+          <h2>Carga Academica <span class="external-badge">externo</span></h2>
+          <p>Planificacion y optimizacion de horarios escolares: asignacion de docentes, secciones y bloques.</p>
+          <div class="card-arrow">Abrir <i class="fas fa-external-link-alt" style="font-size:10px"></i></div>
+        </div>
+      </a>
+      {% endif %}
     </div>
   </div>
 </main>
@@ -337,27 +578,5 @@ body {
 <div class="hub-footer">
   Tecnipro &middot; Panel de Administracion
 </div>
-
-</div>
-
-<script>
-fetch('/api/me')
-  .then(function(r) {
-    if (!r.ok) throw new Error('No autorizado');
-    return r.json();
-  })
-  .then(function(user) {
-    if (user.rol !== 'admin') {
-      window.location.href = '/dashboard';
-      return;
-    }
-    document.getElementById('userName').textContent = user.nombre;
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = '';
-  })
-  .catch(function() {
-    window.location.href = '/login';
-  });
-</script>
 </body>
 </html>
