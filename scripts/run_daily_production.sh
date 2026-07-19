@@ -6,7 +6,7 @@
 
 set -e
 
-APP_DIR="/root/tecnipro-reportes"
+APP_DIR="/home/ops/tecnipro-reportes"
 LOG_DIR="/var/log/tecnipro"
 
 cd "$APP_DIR"
@@ -17,6 +17,36 @@ source venv/bin/activate
 echo "============================================"
 echo "Inicio pipeline: $(date)"
 echo "============================================"
+
+# Paso 0a: WATCHDOG — verificar staleness del último snapshot antes de ejecutar
+echo "[$(date)] Watchdog: revisando último SnapshotDiario..."
+WATCHDOG_WARN=$(python3 -c "
+from datetime import date, timedelta
+try:
+    from src.database import init_db, get_session
+    from src.models import SnapshotDiario
+    from sqlalchemy import func
+    if not init_db():
+        print('')
+    else:
+        s = get_session()
+        try:
+            ult = s.query(func.max(SnapshotDiario.fecha)).scalar()
+            if ult is None:
+                print('Sin snapshots previos en PostgreSQL')
+            elif ult < date.today() - timedelta(days=1):
+                dias = (date.today() - ult).days
+                print(f'Ultimo snapshot diario es del {ult} ({dias} dias atras)')
+        finally:
+            s.close()
+except Exception as e:
+    print(f'Watchdog no disponible: {e}')
+" 2>/dev/null || true)
+
+if [ -n "$WATCHDOG_WARN" ]; then
+    echo "[$(date)] WATCHDOG WARN: $WATCHDOG_WARN"
+fi
+export WATCHDOG_WARN
 
 # Paso 0: RESPALDO de archivos existentes
 FECHA=$(date +%Y-%m-%d)
@@ -47,9 +77,16 @@ fi
 
 echo "[$(date)] Respaldo completado en: $BACKUP_DIR"
 
-# Paso 1: Descargar archivos Moodle — Email primero, OneDrive como backup
-echo "[$(date)] Descargando archivos Moodle desde email..."
-python3 -c "
+# Paso 1: Descargar archivos Moodle (solo si DATA_SOURCE=csv)
+DATA_SOURCE=$(python3 -c "from config import settings; print(settings.DATA_SOURCE)" 2>/dev/null || echo "csv")
+
+if [ "$DATA_SOURCE" = "api" ]; then
+    echo "[$(date)] DATA_SOURCE=api → datos se obtienen directo de Moodle API (paso de descarga omitido)"
+    FUENTE_DATOS="API Moodle"
+else
+    echo "[$(date)] DATA_SOURCE=csv → descargando CSVs..."
+    FUENTE_DATOS="CSV (OneDrive)"
+    python3 -c "
 from src.ingest.email_reader import descargar_adjuntos_moodle
 try:
     resultado = descargar_adjuntos_moodle()
@@ -62,203 +99,105 @@ except Exception as e:
     print(f'Email FALLÓ: {e}')
     exit(1)
 " 2>&1 || {
-    echo "[$(date)] WARN: Email falló, intentando OneDrive como backup..."
-    python3 -c "
+        echo "[$(date)] WARN: Email falló, intentando OneDrive como backup..."
+        python3 -c "
 from src.ingest.onedrive_client import download_moodle_csvs
 download_moodle_csvs()
 " 2>&1 || {
-        echo "[$(date)] ERROR: OneDrive también falló, usando archivos locales"
+            echo "[$(date)] ERROR: OneDrive también falló, usando archivos locales"
+        }
     }
-}
+fi
 
 # Paso 2: Scraper SENCE + Pipeline + Reportes
-# Envío de correos SOLO los lunes
-DAY_OF_WEEK=$(date +%u)  # 1=Lunes, 7=Domingo
+# Desactivar set -e para capturar errores sin matar el script
+set +e
 
-if [ "$DAY_OF_WEEK" -eq 1 ]; then
-    echo "[$(date)] Ejecutando scraper + pipeline + reportes + EMAIL (LUNES)..."
+# Paso 1.5: AUTO-REPARACIÓN del navegador Playwright
+# Si Playwright se actualiza (requirements: playwright>=1.40), el build del
+# navegador cambia y el binario anterior queda inválido → el scraper no puede
+# lanzar el navegador y SENCE descarga 0 filas (incidente 13-jul-2026).
+# El test de launch es instantáneo si el navegador está OK; solo reinstala
+# cuando falta. `playwright install chromium` instala chromium + headless shell.
+echo "[$(date)] Verificando navegador Playwright para scraper SENCE..."
+if ! python3 -c "
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    b = p.chromium.launch(headless=True); b.close()
+" 2>/dev/null; then
+    echo "[$(date)] WARN: navegador Playwright no disponible, reinstalando (playwright install chromium)..."
+    python3 -m playwright install chromium 2>&1 || echo "[$(date)] ERROR: 'playwright install chromium' falló"
+else
+    echo "[$(date)] Navegador Playwright OK"
+fi
+
+# Envío de correos el primer día hábil de la semana (posterga si feriado)
+echo "[$(date)] Verificando si hoy toca envío semanal (feriados Chile)..."
+python3 scripts/es_dia_envio_semanal.py 2>&1
+ES_DIA_ENVIO=$?
+
+if [ "$ES_DIA_ENVIO" -eq 0 ]; then
+    echo "[$(date)] Ejecutando scraper + pipeline + reportes PDF + EMAIL (primer día hábil de la semana)..."
     python3 -m src.main --scrape --report --email 2>&1
 else
-    echo "[$(date)] Ejecutando scraper + pipeline + reportes (SIN email - solo lunes)..."
-    python3 -m src.main --scrape --report 2>&1
+    echo "[$(date)] Ejecutando scraper + pipeline (SIN reportes PDF - no es día de envío semanal)..."
+    python3 -m src.main --scrape 2>&1
 fi
 
 EXIT_CODE=$?
 
+# Reactivar set -e
+set -e
+
 if [ $EXIT_CODE -eq 0 ]; then
     echo "[$(date)] Pipeline completado exitosamente"
 
-    # Verificar si el scraping de SENCE fue exitoso
-    echo "[$(date)] Verificando resultado del scraping SENCE..."
+    # Resumen diario consolidado: UN SOLO correo a jortizleiva + ygonzalez con
+    # estado del sistema + anomalías SENCE + DJ pendientes, y Excel adjunto (una
+    # hoja por tema). Reemplaza la antigua notificación de validación y el aviso
+    # SENCE por-curso; el recordatorio DJ también se consolida aquí.
+    echo "[$(date)] Generando y enviando resumen diario consolidado..."
+    python3 scripts/resumen_diario.py 2>&1 \
+        || echo "[$(date)] WARN: resumen diario falló (no crítico)"
+else
+    echo "[$(date)] Pipeline falló con código: $EXIT_CODE" >&2
+    echo "[$(date)] Enviando alerta de error por correo..."
     python3 -c "
-import json
-from pathlib import Path
 from src.reports.email_sender import enviar_correo
 from datetime import datetime
 
-# Buscar el reporte de scraper más reciente
-output_dir = Path('data/output')
-reportes_scraper = sorted(output_dir.glob('scraper_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
-
-if not reportes_scraper:
-    print('WARN: No se encontró reporte de scraper')
-    exit(1)
-
-# Leer último reporte de scraper
-with open(reportes_scraper[0], 'r', encoding='utf-8') as f:
-    reporte = json.load(f)
-
-descargados = len(reporte.get('descargados_ok', []))
-errores = len(reporte.get('errores', []))
-fallidos = len(reporte.get('fallidos', []))
-solicitados = len(reporte.get('ids_solicitados', []))
-
-# Leer reporte de PDFs si existe
-pdfs_generados = []
-reportes_pdf = sorted(output_dir.glob('reports_report_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
-if reportes_pdf:
-    try:
-        with open(reportes_pdf[0], 'r', encoding='utf-8') as f:
-            reporte_pdf = json.load(f)
-            pdfs_generados = reporte_pdf.get('pdfs_generados', [])
-    except Exception:
-        pass
-
-# Determinar si el scraping fue exitoso
-scraping_exitoso = descargados > 0 and descargados == solicitados
-
-if scraping_exitoso:
-    # EMAIL DE ÉXITO - Preparar tabla de PDFs generados
-    pdfs_count = len(pdfs_generados)
-    tabla_pdfs = ''
-    if pdfs_generados:
-        filas_tabla = ''
-        for pdf in pdfs_generados:
-            filas_tabla += f'''
-            <tr>
-                <td style=\"padding: 8px; border: 1px solid #ddd;\">{pdf['empresa']}</td>
-                <td style=\"padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 12px;\">{pdf['archivo']}</td>
-                <td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{pdf['cursos']}</td>
-                <td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{pdf['estudiantes']}</td>
-            </tr>'''
-
-        tabla_pdfs = f'''
-        <div style=\"margin-top: 16px;\">
-            <p style=\"font-weight: bold; margin-bottom: 8px;\">Reportes PDF generados ({pdfs_count}):</p>
-            <table style=\"width: 100%; border-collapse: collapse; border: 1px solid #ddd; background: white;\">
-                <thead>
-                    <tr style=\"background-color: #16a34a; color: white;\">
-                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: left;\">Empresa</th>
-                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: left;\">Archivo</th>
-                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">Cursos</th>
-                        <th style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">Estudiantes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filas_tabla}
-                </tbody>
-            </table>
-        </div>'''
-
-    asunto = '✅ OK: Reportes Tecnipro actualizados correctamente'
-    mensaje = f'''
-<html>
-<body style=\"font-family: Arial, sans-serif;\">
-    <div style=\"background-color: #16a34a; color: white; padding: 16px 20px;\">
-        <h2 style=\"margin: 0;\">✅ Reportes Actualizados Correctamente</h2>
-    </div>
-
-    <div style=\"padding: 20px; background: #f0fdf4; border: 2px solid #16a34a; border-top: none;\">
-        <p><strong>Sistema:</strong> Reportes de Alumnos y SENCE - Tecnipro</p>
-        <p><strong>Fecha y hora:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (Chile)</p>
-        <p><strong>Estado:</strong> ✅ Todo OK</p>
-
-        <div style=\"background: white; padding: 12px; margin: 16px 0; border-left: 4px solid #16a34a;\">
-            <p style=\"margin: 0; font-weight: bold;\">Resumen de la ejecución:</p>
-        </div>
-
-        <ul>
-            <li>Archivos Moodle descargados desde OneDrive: ✅</li>
-            <li>Datos SENCE actualizados: <strong>{descargados} de {solicitados} cursos</strong> ✅</li>
-            <li>Datos de alumnos procesados: ✅</li>
-        </ul>
-
-        {tabla_pdfs}
-
-        <div style=\"background: white; padding: 16px; margin: 20px 0; border: 1px solid #ddd; border-radius: 4px;\">
-            <p style=\"font-weight: bold; margin: 0 0 12px 0; color: #333;\">📁 Archivos fuente:</p>
-            <p style=\"margin: 0 0 8px 0; font-size: 14px; color: #555;\">
-                Los reportes se generan a partir de los siguientes archivos en OneDrive/SharePoint:
-            </p>
-            <ul style=\"margin: 8px 0; padding-left: 20px; font-size: 13px; color: #666;\">
-                <li style=\"margin-bottom: 8px;\">
-                    <strong>Greporte.csv</strong> y <strong>Dreporte.csv</strong>:<br/>
-                    <code style=\"background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;\">
-                        Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/Control Cursos Abiertos/Datos Moodle para control de cursos/
-                    </code>
-                </li>
-                <li>
-                    <strong>compradores_tecnipro.xlsx</strong>:<br/>
-                    <code style=\"background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px;\">
-                        Instituto de Capacitacion Tecnipro/Cursos/Cursos en Proceso/Control Cursos Abiertos/Reporteria/
-                    </code>
-                </li>
-            </ul>
-            <p style=\"margin: 12px 0 0 0; font-size: 13px; color: #666; font-style: italic;\">
-                💡 Si los datos no se ven actualizados, verifique que estos archivos estén al día en OneDrive.
-            </p>
-        </div>
-
-        <p style=\"color: #16a34a; font-weight: bold; margin-top: 16px;\">
-            ✓ Todos los procesos completados exitosamente
-        </p>
-    </div>
-
-    <p style=\"color: #666; font-size: 12px; margin-top: 16px;\">
-        Este es un mensaje automático del sistema reportes.tecnipro.cl
-    </p>
-</body>
-</html>
-'''
-else:
-    # EMAIL DE ALERTA - SCRAPING FALLÓ
-    asunto = '⚠️ Reportes Tecnipro - ALERTA: Datos SENCE No Actualizados'
-    mensaje = f'''
+asunto = '🔴 CRÍTICO: Pipeline Tecnipro falló completamente'
+mensaje = '''
 <html>
 <body style=\"font-family: Arial, sans-serif;\">
     <div style=\"background-color: #dc3545; color: white; padding: 16px 20px;\">
-        <h2 style=\"margin: 0;\">⚠️ ALERTA: Datos SENCE No Actualizados</h2>
+        <h2 style=\"margin: 0;\">🔴 PIPELINE FALLÓ COMPLETAMENTE</h2>
     </div>
 
-    <div style=\"padding: 20px; background: #fff3cd; border: 2px solid #ffc107;\">
+    <div style=\"padding: 20px; background: #f8d7da; border: 2px solid #dc3545; border-top: none;\">
         <p><strong>Sistema:</strong> Reportes de Alumnos y SENCE - Tecnipro</p>
-        <p><strong>Fecha y hora:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (Chile)</p>
-        <p><strong>Estado:</strong> Pipeline ejecutado, pero el scraping de SENCE FALLÓ</p>
+        <p><strong>Fecha y hora:</strong> ''' + datetime.now().strftime('%d/%m/%Y %H:%M:%S') + ''' (Chile)</p>
+        <p><strong>Estado:</strong> 🔴 Error crítico — el pipeline no pudo ejecutarse</p>
+        <p><strong>Código de salida:</strong> $EXIT_CODE</p>
 
         <div style=\"background: white; padding: 12px; margin: 16px 0; border-left: 4px solid #dc3545;\">
             <p style=\"margin: 0; color: #dc3545; font-weight: bold;\">
-                ⚠️ Los datos de SENCE NO se actualizaron. Los reportes contienen información desactualizada.
+                El pipeline no pudo completarse. No se generaron reportes ni se descargaron datos SENCE.
             </p>
         </div>
 
-        <p><strong>Resumen del scraping:</strong></p>
+        <p><strong>Posibles causas:</strong></p>
         <ul>
-            <li>Cursos solicitados: <strong>{solicitados}</strong></li>
-            <li>Descargados exitosamente: <strong>{descargados}</strong></li>
-            <li>Fallidos: <strong>{fallidos}</strong></li>
-            <li>Errores: <strong>{errores}</strong></li>
-        </ul>
-
-        <p><strong>Acciones completadas:</strong></p>
-        <ul>
-            <li>Descarga de archivos Moodle desde OneDrive</li>
-            <li>❌ Scraping de datos SENCE: <strong>FALLÓ</strong></li>
-            <li>Procesamiento de datos de alumnos (con datos SENCE antiguos)</li>
-            <li>Generación de reportes PDF (con datos SENCE antiguos)</li>
+            <li>Proxy Decodo sin tráfico disponible o apagado</li>
+            <li>Moodle API inaccesible</li>
+            <li>Clave Única bloqueando conexión</li>
+            <li>Error interno del pipeline</li>
         </ul>
 
         <div style=\"background: white; padding: 12px; margin: 16px 0;\">
-            <p style=\"margin: 0;\"><strong>Acción requerida:</strong> Verificar logs del servidor y volver a ejecutar el proceso manualmente.</p>
+            <p style=\"margin: 0;\"><strong>Acción requerida:</strong> Revisar logs en el servidor:</p>
+            <pre style=\"background: #f5f5f5; padding: 8px; margin: 8px 0; font-size: 12px;\">journalctl -u tecnipro-daily.service --no-pager | tail -50
+tail -50 /var/log/tecnipro/daily.log</pre>
         </div>
     </div>
 
@@ -270,21 +209,16 @@ else:
 '''
 
 resultado = enviar_correo(
-    destinatario='jortizleiva@duocapital.cl',
+    destinatario='jortizleiva@duocapital.cl,ygonzalez@duocapital.cl',
     asunto=asunto,
     cuerpo_html=mensaje
 )
 
 if resultado['status'] == 'OK':
-    tipo = 'ÉXITO' if scraping_exitoso else 'ALERTA'
-    print(f'Notificación enviada: {tipo}')
+    print('Alerta de error enviada correctamente')
 else:
-    print(f'Error enviando notificación: {resultado[\"detalle\"]}')
-
-exit(0 if scraping_exitoso else 1)
-" 2>&1 || echo "[$(date)] WARN: No se pudo enviar notificación por correo"
-else
-    echo "[$(date)] Pipeline falló con código: $EXIT_CODE" >&2
+    print(f'Error enviando alerta: {resultado[\"detalle\"]}')
+" 2>&1 || echo "[$(date)] WARN: No se pudo enviar alerta de error por correo"
 fi
 
 echo "============================================"
